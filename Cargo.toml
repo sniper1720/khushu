@@ -1,0 +1,90 @@
+[package]
+name = "khushu"
+version = "1.0.0"
+authors = ["Djalel Oukid <sniper1720@linuxtechmore.com>"]
+edition = "2024"
+license = "GPL-3.0-or-later"
+description = "An all-in-one Muslim app for Linux"
+homepage = "https://github.com/sniper1720/khushu"
+repository = "https://github.com/sniper1720/khushu"
+
+[dependencies]
+chrono = "0.4"
+gtk4 = "0.9"
+ksni = "0.3"
+libadwaita = { version = "0.7", features = ["v1_5"] }
+rodio = "0.21"
+salah = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt", "macros", "rt-multi-thread"] }
+gettext-rs = { version = "0.7", features = ["gettext-system"] }
+reqwest = { version = "0.12", features = ["json"] }
+urlencoding = "2.1"
+notify-rust = "4.12"
+base64 = "0.22"
+hijri_date = "0.5"
+zbus = "5.13"
+rand = "0.8"
+log = "0.4"
+env_logger = "0.11"
+pangocairo = "0.20"
+ashpd = { version = "0.12", features = ["tokio"] }
+futures-util = "0.3"
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[build-dependencies]
+glib-build-tools = "0.22"
+
+[package.metadata.deb]
+maintainer = "Djalel Oukid <sniper1720@linuxtechmore.com>"
+copyright = "2026, Djalel Oukid"
+license-file = ["LICENSE", "4"]
+extended-description = "An all-in-one Muslim app for Linux"
+depends = "$auto, fonts-hosny-amiri"
+section = "gnome"
+priority = "optional"
+assets = [
+    ["target/release/khushu", "usr/bin/", "755"],
+    ["assets/khushu.desktop", "usr/share/applications/com.github.sniper1720.khushu.desktop", "644"],
+    ["assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg", "usr/share/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg", "644"],
+    ["assets/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg", "usr/share/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg", "644"],
+    ["assets/com.github.sniper1720.khushu.metainfo.xml", "usr/share/metainfo/", "644"],
+    ["target/locale/ar/LC_MESSAGES/khushu.mo", "usr/share/locale/ar/LC_MESSAGES/khushu.mo", "644"],
+    ["target/locale/ar/LC_MESSAGES/gtk40.mo", "usr/share/khushu/locale/ar/LC_MESSAGES/gtk40.mo", "644"],
+    ["target/locale/ar/LC_MESSAGES/libadwaita.mo", "usr/share/khushu/locale/ar/LC_MESSAGES/libadwaita.mo", "644"],
+    ["target/locale/es/LC_MESSAGES/khushu.mo", "usr/share/locale/es/LC_MESSAGES/khushu.mo", "644"],
+    ["target/locale/es/LC_MESSAGES/gtk40.mo", "usr/share/khushu/locale/es/LC_MESSAGES/gtk40.mo", "644"],
+    ["target/locale/es/LC_MESSAGES/libadwaita.mo", "usr/share/khushu/locale/es/LC_MESSAGES/libadwaita.mo", "644"],
+    ["target/locale/fr/LC_MESSAGES/khushu.mo", "usr/share/locale/fr/LC_MESSAGES/khushu.mo", "644"],
+    ["target/locale/fr/LC_MESSAGES/gtk40.mo", "usr/share/khushu/locale/fr/LC_MESSAGES/gtk40.mo", "644"],
+    ["target/locale/fr/LC_MESSAGES/libadwaita.mo", "usr/share/khushu/locale/fr/LC_MESSAGES/libadwaita.mo", "644"],
+    ["target/locale/tr/LC_MESSAGES/khushu.mo", "usr/share/locale/tr/LC_MESSAGES/khushu.mo", "644"],
+    ["target/locale/tr/LC_MESSAGES/gtk40.mo", "usr/share/khushu/locale/tr/LC_MESSAGES/gtk40.mo", "644"],
+    ["target/locale/tr/LC_MESSAGES/libadwaita.mo", "usr/share/khushu/locale/tr/LC_MESSAGES/libadwaita.mo", "644"],
+]
+
+[package.metadata.generate-rpm]
+requires = { amiri-fonts = "*" }
+assets = [
+    { source = "target/release/khushu", dest = "/usr/bin/khushu", mode = "755" },
+    { source = "assets/khushu.desktop", dest = "/usr/share/applications/com.github.sniper1720.khushu.desktop", mode = "644" },
+    { source = "assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg", dest = "/usr/share/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg", mode = "644" },
+    { source = "assets/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg", dest = "/usr/share/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg", mode = "644" },
+    { source = "assets/com.github.sniper1720.khushu.metainfo.xml", dest = "/usr/share/metainfo/com.github.sniper1720.khushu.metainfo.xml", mode = "644" },
+    { source = "target/locale/ar/LC_MESSAGES/khushu.mo", dest = "/usr/share/locale/ar/LC_MESSAGES/khushu.mo", mode = "644" },
+    { source = "target/locale/ar/LC_MESSAGES/gtk40.mo", dest = "/usr/share/khushu/locale/ar/LC_MESSAGES/gtk40.mo", mode = "644" },
+    { source = "target/locale/ar/LC_MESSAGES/libadwaita.mo", dest = "/usr/share/khushu/locale/ar/LC_MESSAGES/libadwaita.mo", mode = "644" },
+    { source = "target/locale/es/LC_MESSAGES/khushu.mo", dest = "/usr/share/locale/es/LC_MESSAGES/khushu.mo", mode = "644" },
+    { source = "target/locale/es/LC_MESSAGES/gtk40.mo", dest = "/usr/share/khushu/locale/es/LC_MESSAGES/gtk40.mo", mode = "644" },
+    { source = "target/locale/es/LC_MESSAGES/libadwaita.mo", dest = "/usr/share/khushu/locale/es/LC_MESSAGES/libadwaita.mo", mode = "644" },
+    { source = "target/locale/fr/LC_MESSAGES/khushu.mo", dest = "/usr/share/locale/fr/LC_MESSAGES/khushu.mo", mode = "644" },
+    { source = "target/locale/fr/LC_MESSAGES/gtk40.mo", dest = "/usr/share/khushu/locale/fr/LC_MESSAGES/gtk40.mo", mode = "644" },
+    { source = "target/locale/fr/LC_MESSAGES/libadwaita.mo", dest = "/usr/share/khushu/locale/fr/LC_MESSAGES/libadwaita.mo", mode = "644" },
+    { source = "target/locale/tr/LC_MESSAGES/khushu.mo", dest = "/usr/share/locale/tr/LC_MESSAGES/khushu.mo", mode = "644" },
+    { source = "target/locale/tr/LC_MESSAGES/gtk40.mo", dest = "/usr/share/khushu/locale/tr/LC_MESSAGES/gtk40.mo", mode = "644" },
+    { source = "target/locale/tr/LC_MESSAGES/libadwaita.mo", dest = "/usr/share/khushu/locale/tr/LC_MESSAGES/libadwaita.mo", mode = "644" },
+]
+

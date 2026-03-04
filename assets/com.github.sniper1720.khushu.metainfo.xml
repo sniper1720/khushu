@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.sniper1720.khushu</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Khushu</name>
+  <name xml:lang="ar">خشوع</name>
+  <summary>An all-in-one Muslim app for Linux</summary>
+  <summary xml:lang="ar">تطبيق إسلامي شامل لنظام لينكس</summary>
+  <summary xml:lang="fr">Application musulmane tout-en-un pour Linux</summary>
+  <summary xml:lang="es">Aplicación musulmana todo en uno para Linux</summary>
+  <summary xml:lang="tr">Linux için hepsi bir arada Müslüman uygulaması</summary>
+  <description>
+    <p>
+      Khushu is your all-in-one Muslim app for Linux desktop, tablets, and smartphones.
+      It centralizes your daily worship by providing accurate prayer times, native staggered 
+      Adkar notifications, and a roadmap that includes a dedicated Holy Quran experience—all 
+      with uncompromising privacy and zero telemetry.
+    </p>
+    <p xml:lang="ar">
+      تطبيق خشوع هو تطبيق إسلامي شامل لنظام لينكس، الأجهزة اللوحية، والهواتف الذكية.
+      يجمع عباداتك اليومية من خلال توفير أوقات صلاة دقيقة، تنبيهات أذكار متتابعة،
+      وخارطة طريق تشمل تجربة مخصصة للقرآن الكريم — كل ذلك مع خصوصية تامة وبدون أي تتبع.
+    </p>
+    <ul>
+      <li>Accurate prayer calculation methods (Offline)</li>
+      <li xml:lang="ar">طرق حساب صلاة دقيقة (بدون إنترنت)</li>
+      <li>Morning, Evening, and Night Adkar with built-in counters</li>
+      <li xml:lang="ar">أذكار الصباح والمساء والنوم مع عدادات مدمجة</li>
+      <li>Customizable Adhan system notifications (Makkah/Madinah audio)</li>
+      <li xml:lang="ar">تنبيهات آذان قابلة للتخصيص (صوت مكة/المدينة)</li>
+      <li>Interactive Qibla compass</li>
+      <li xml:lang="ar">بوصلة قبلة تفاعلية</li>
+      <li>Hijri calendar mapping</li>
+      <li xml:lang="ar">تقويم هجري</li>
+      <li>Privacy-first local encryption for your location data</li>
+      <li xml:lang="ar">تشفير محلي للبيانات لضمان الخصوصية</li>
+      <li>Modern Libadwaita interface with adaptive Dark Mode</li>
+      <li xml:lang="ar">واجهة Libadwaita حديثة مع وضع ليلي متكيف</li>
+      <li>Multi-language support</li>
+      <li xml:lang="ar">دعم تعدد اللغات</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">com.github.sniper1720.khushu.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <caption xml:lang="en">Prayer Times Dashboard: View accurate daily Salah times, upcoming prayer countdown, and Hijri date.</caption>
+      <caption xml:lang="ar">لوحة أوقات الصلاة: عرض أوقات الصلاة الدقيقة، عد تنازلي للصلاة القادمة، والتاريخ الهجري.</caption>
+      <image>https://raw.githubusercontent.com/sniper1720/khushu/main/screenshots/prayer-times.png</image>
+    </screenshot>
+    <screenshot>
+      <caption xml:lang="en">Adkar &amp; Supplications: Access Daily Adkar with built-in counters and staggered notifications.</caption>
+      <caption xml:lang="ar">الأذكار والأدعية: الوصول إلى الأذكار اليومية مع عدادات مدمجة وتنبيهات نظام متفرقة.</caption>
+      <image>https://raw.githubusercontent.com/sniper1720/khushu/main/screenshots/adkar.png</image>
+    </screenshot>
+    <screenshot>
+      <caption xml:lang="en">Interactive Qibla Direction: A beautifully rendered compass pointing to Mecca based on your GPS.</caption>
+      <caption xml:lang="ar">اتجاه القبلة التفاعلي: بوصلة مصممة بشكل جميل تشير إلى مكة بناءً على موقعك.</caption>
+      <image>https://raw.githubusercontent.com/sniper1720/khushu/main/screenshots/qibla.png</image>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/sniper1720/khushu</url>
+  <url type="bugtracker">https://github.com/sniper1720/khushu/issues</url>
+  <url type="vcs-browser">https://github.com/sniper1720/khushu</url>
+  <url type="help">https://github.com/sniper1720/khushu/discussions</url>
+  <developer type="person" id="com.github.sniper1720">
+    <name>Djalel Oukid</name>
+  </developer>
+  <categories>
+    <category>Utility</category>
+    <category>Education</category>
+  </categories>
+  <keywords>
+    <keyword>prayer</keyword>
+    <keyword>salah</keyword>
+    <keyword>adhan</keyword>
+    <keyword>adkar</keyword>
+    <keyword>qibla</keyword>
+    <keyword>muslim</keyword>
+    <keyword>islam</keyword>
+    <keyword xml:lang="ar">صلاة</keyword>
+    <keyword xml:lang="ar">أذان</keyword>
+    <keyword xml:lang="ar">أذكر</keyword>
+    <keyword xml:lang="ar">قبلة</keyword>
+    <keyword xml:lang="ar">إسلام</keyword>
+  </keywords>
+  <branding>
+    <color type="primary" scheme_preference="light">#3584e4</color>
+    <color type="primary" scheme_preference="dark">#1a5fb4</color>
+  </branding>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="1.0.0" date="2026-02-24" />
+  </releases>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <recommends>
+    <control>touch</control>
+  </recommends>
+  <custom>
+    <value key="Purism::form_factor">mobile</value>
+  </custom>
+</component>

@@ -1,0 +1,73 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: libadwaita\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-20 02:30+0100\n"
+"PO-Revision-Date: 2026-02-20 03:05+0100\n"
+"Last-Translator: Djalel Oukid (sniper1720)\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Details"
+msgstr "التفاصيل"
+
+msgid "_Details"
+msgstr "_التفاصيل"
+
+msgid "Credits"
+msgstr "الاعتمادات"
+
+msgid "_Credits"
+msgstr "_الاعتمادات"
+
+msgid "Legal"
+msgstr "قانوني"
+
+msgid "_Legal"
+msgstr "_قانوني"
+
+msgid "Developers"
+msgstr "المطورون"
+
+msgid "Translators"
+msgstr "المترجمون"
+
+msgid "Report an Issue"
+msgstr "إبلاغ عن مشكلة"
+
+msgid "_Report an Issue"
+msgstr "_إبلاغ عن مشكلة"
+
+msgid "Website"
+msgstr "الموقع الإلكتروني"
+
+msgid "_Website"
+msgstr "الموقع _الإلكتروني"
+
+msgid "This Application"
+msgstr "هذا التطبيق"
+
+msgid ""
+"This application comes with absolutely no warranty. See the <a "
+"href=\"%s\">%s</a> for details."
+msgstr ""
+"يأتي هذا التطبيق دون أي ضمان على الإطلاق. راجع <a href=\"%s\">%s</a> للحصول "
+"على التفاصيل."
+
+msgid "Code by"
+msgstr "تطوير البرمجية بواسطة"
+
+msgid "Translated by"
+msgstr "الترجمة بواسطة"
+
+msgid "Design by"
+msgstr "التصميم بواسطة"
+
+msgid "GNU General Public License, version 3 only"
+msgstr "رخصة جنو العمومية، الإصدار 3 فقط"
+
+msgid "GNU General Public License, version 3 or later"
+msgstr "رخصة جنو العمومية، الإصدار 3 أو أحدث"

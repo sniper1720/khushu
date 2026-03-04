@@ -1,0 +1,73 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: libadwaita\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-25 14:30+0100\n"
+"PO-Revision-Date: 2026-02-25 14:30+0100\n"
+"Last-Translator: Djalel Oukid (sniper1720)\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Details"
+msgstr "Detalles"
+
+msgid "_Details"
+msgstr "_Detalles"
+
+msgid "Credits"
+msgstr "Créditos"
+
+msgid "_Credits"
+msgstr "_Créditos"
+
+msgid "Legal"
+msgstr "Legal"
+
+msgid "_Legal"
+msgstr "_Legal"
+
+msgid "Developers"
+msgstr "Desarrolladores"
+
+msgid "Translators"
+msgstr "Traductores"
+
+msgid "Report an Issue"
+msgstr "Reportar un problema"
+
+msgid "_Report an Issue"
+msgstr "_Reportar un problema"
+
+msgid "Website"
+msgstr "Sitio web"
+
+msgid "_Website"
+msgstr "_Sitio web"
+
+msgid "This Application"
+msgstr "Esta aplicación"
+
+msgid ""
+"This application comes with absolutely no warranty. See the <a "
+"href=\"%s\">%s</a> for details."
+msgstr ""
+"Esta aplicación no tiene absolutamente ninguna garantía. Consulte la <a "
+"href=\"%s\">%s</a> para más detalles."
+
+msgid "Code by"
+msgstr "Código por"
+
+msgid "Translated by"
+msgstr "Traducido por"
+
+msgid "Design by"
+msgstr "Diseño por"
+
+msgid "GNU General Public License, version 3 only"
+msgstr "Licencia Pública General de GNU, solo versión 3"
+
+msgid "GNU General Public License, version 3 or later"
+msgstr "Licencia Pública General de GNU, versión 3 o posterior"

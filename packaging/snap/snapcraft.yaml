@@ -1,0 +1,94 @@
+name: khushu
+base: core24
+version: '1.0.0'
+title: Khushu
+summary: An all-in-one Muslim app for Linux.
+description: |
+  Khushu is your all-in-one Muslim app for Linux desktop, tablets, and smartphones.
+  It centralizes your daily worship by providing accurate prayer times, native staggered Adkar notifications, and a roadmap that includes a dedicated Holy Quran experience—all with uncompromising privacy and zero telemetry.
+license: GPL-3.0-or-later
+website: https://github.com/sniper1720/khushu
+issues: https://github.com/sniper1720/khushu/issues
+contact: https://github.com/sniper1720/khushu
+source-code: https://github.com/sniper1720/khushu
+donation: https://github.com/sponsors/sniper1720
+
+grade: stable
+confinement: strict
+icon: ../../assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg
+
+slots:
+  dbus-khushu:
+    interface: dbus
+    bus: session
+    name: com.github.sniper1720.khushu
+
+apps:
+  khushu:
+    command: bin/khushu
+    desktop: usr/share/applications/com.github.sniper1720.khushu.desktop
+    autostart: com.github.sniper1720.khushu.desktop
+    common-id: com.github.sniper1720.khushu
+    extensions: [gnome]
+    plugs:
+      - network
+      - audio-playback
+      - location-observe
+      - desktop
+      - desktop-legacy
+      - unity7
+    slots:
+      - dbus-khushu
+
+layout:
+  /usr/share/alsa:
+    bind: $SNAP/usr/share/alsa
+  /etc/asound.conf:
+    bind-file: $SNAP/assets/asound.conf
+
+parts:
+  khushu:
+    plugin: rust
+    rust-channel: stable
+    source: ../../
+    build-packages:
+      - gettext
+    stage-packages:
+      - ca-certificates
+      - libasound2t64
+      - libpulse0
+      - alsa-utils
+      - libasound2-plugins
+    override-build: |
+      craftctl default
+
+      # --- Fix GNOME Library Conflicts ---
+      rm -f $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/libharfbuzz*.so*
+      rm -f $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/libpango*.so*
+      rm -f $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/librsvg*.so*
+
+      # --- Desktop file ---
+      mkdir -p "$CRAFT_PART_INSTALL/usr/share/applications"
+      cp assets/khushu.desktop "$CRAFT_PART_INSTALL/usr/share/applications/com.github.sniper1720.khushu.desktop"
+
+      # --- Icons ---
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/icons/hicolor/scalable/apps
+      cp assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg $CRAFT_PART_INSTALL/usr/share/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/icons/hicolor/symbolic/apps
+      cp assets/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg $CRAFT_PART_INSTALL/usr/share/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg
+
+      # --- Metainfo ---
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/metainfo
+      cp assets/com.github.sniper1720.khushu.metainfo.xml $CRAFT_PART_INSTALL/usr/share/metainfo/
+      
+      # --- ALSA config ---
+      mkdir -p $CRAFT_PART_INSTALL/assets
+      echo -e "pcm.!default { type pulse }\nctl.!default { type pulse }" > $CRAFT_PART_INSTALL/assets/asound.conf
+
+      # --- Fonts ---
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/fonts/truetype/khushu
+      cp assets/Amiri-Regular.ttf $CRAFT_PART_INSTALL/usr/share/fonts/truetype/khushu/
+
+      # --- Locales ---
+      mkdir -p "$CRAFT_PART_INSTALL/usr/share/locale"
+      cp -r target/locale/* "$CRAFT_PART_INSTALL/usr/share/locale/"

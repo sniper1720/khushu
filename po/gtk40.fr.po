@@ -1,0 +1,36 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: gtk40\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-25 14:30+0100\n"
+"PO-Revision-Date: 2026-02-25 14:30+0100\n"
+"Last-Translator: Djalel Oukid (sniper1720)\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "GNU General Public License, version 3 only"
+msgstr "Licence publique générale GNU, version 3 uniquement"
+
+msgid "GNU General Public License, version 3 or later"
+msgstr "Licence publique générale GNU, version 3 ou ultérieure"
+
+msgid "GNU General Public License, version 2 only"
+msgstr "Licence publique générale GNU, version 2 uniquement"
+
+msgid "GNU General Public License, version 2 or later"
+msgstr "Licence publique générale GNU, version 2 ou ultérieure"
+
+msgid "GNU Lesser General Public License, version 3 only"
+msgstr "Licence publique générale limitée GNU, version 3 uniquement"
+
+msgid "GNU Lesser General Public License, version 3 or later"
+msgstr "Licence publique générale limitée GNU, version 3 ou ultérieure"
+
+msgid "Code by"
+msgstr "Code par"
+
+msgid "Translated by"
+msgstr "Traduit par"

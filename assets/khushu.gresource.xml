@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/github/sniper1720/khushu">
+    <file compressed="true">adkar.json</file>
+    <file compressed="false">audio/Madinah.mp3</file>
+    <file compressed="false">audio/Makkah.mp3</file>
+    <file compressed="true">icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg</file>
+    <file compressed="true">icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg</file>
+    <file compressed="true">icons/hicolor/scalable/actions/qibla-symbolic.svg</file>
+  </gresource>
+</gresources>

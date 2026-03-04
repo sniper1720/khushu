@@ -1,0 +1,710 @@
+# Spanish translations for Khushu.
+# This file is distributed under the same license as the Khushu package.
+# Djalel Oukid <sniper1720@linuxtechmore.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Khushu 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-22 01:59+0100\n"
+"PO-Revision-Date: 2026-02-13 02:26+0100\n"
+"Last-Translator: Djalel Oukid (sniper1720)\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/qibla_ui.rs:35
+msgid "Calculating..."
+msgstr "Calculando..."
+
+msgid "Assalamu Alaikum"
+msgstr "Assalamu Alaikum"
+
+msgid "This is a test notification from Khushu. May your prayers be accepted."
+msgstr "Esta es una notificación de prueba de Khushu. Que tus oraciones sean aceptadas."
+
+#: src/qibla_ui.rs:71
+msgid "N"
+msgstr "N"
+
+#: src/qibla_ui.rs:72
+msgid "E"
+msgstr "E"
+
+#: src/qibla_ui.rs:73
+msgid "S"
+msgstr "S"
+
+#: src/qibla_ui.rs:74
+msgid "W"
+msgstr "O"
+
+#: src/qibla_ui.rs:208
+msgid "Sensor Active (Smooth)"
+msgstr "Sensor activo (fluido)"
+
+#: src/timer_controller.rs:127
+msgid "in"
+msgstr "en"
+
+#: src/timer_controller.rs:133 src/timer_controller.rs:161
+msgid "It's time for"
+msgstr "Es hora de"
+
+#: src/timer_controller.rs:143
+msgid "Upcoming Prayer:"
+msgstr "Próxima oración:"
+
+#: src/timer_controller.rs:147
+msgid "is in"
+msgstr "es en"
+
+#: src/timer_controller.rs:149
+msgid "minutes"
+msgstr "minutos"
+
+#: src/timer_controller.rs:162
+msgid "It is now time for"
+msgstr "Es hora de"
+
+#: src/timer_controller.rs:200 src/timer_controller.rs:213
+msgid "Morning Adkar"
+msgstr "Mañana"
+
+#: src/timer_controller.rs:230 src/timer_controller.rs:243
+msgid "Evening Adkar"
+msgstr "Tarde"
+
+#: src/timer_controller.rs:260 src/timer_controller.rs:273
+msgid "Night Adkar"
+msgstr "Adkar"
+
+#: src/adkar.rs:220 src/adkar.rs:240
+msgid "Morning"
+msgstr "Mañana"
+
+#: src/adkar.rs:227 src/adkar.rs:241
+msgid "Evening"
+msgstr "Tarde"
+
+#: src/adkar.rs:231 src/adkar.rs:242
+msgid "Night"
+msgstr "Noche"
+
+#: src/main.rs:155 src/pages.rs:387 src/nav_ui.rs:121
+msgid "Prayer Times"
+msgstr "Horarios de oración"
+
+#: src/main.rs:160 src/main.rs:162
+msgid "Toggle Sidebar"
+msgstr "Alternar barra lateral"
+
+#: src/main.rs:183 src/main.rs:281 src/pages.rs:397 src/tray.rs:47
+msgid "Khushu"
+msgstr "Khushu"
+
+#: src/main.rs:283 src/main.rs:290
+msgid "Djalel Oukid (sniper1720)"
+msgstr "Djalel Oukid (sniper1720)"
+
+#: src/main.rs:285
+msgid "An all-in-one Muslim app for Linux."
+msgstr "Una aplicación musulmana todo-en-uno para Linux."
+
+#: src/main.rs:288
+msgid "© 2026 Djalel Oukid"
+msgstr "© 2026 Djalel Oukid"
+
+#: src/main.rs:291
+msgid "translator-credits"
+msgstr "Djalel Oukid"
+
+#: src/main.rs:295
+msgid "Location Policy"
+msgstr "Política de ubicación"
+
+#: src/main.rs:298
+msgid ""
+"Auto mode: GeoClue (system). City search: Nominatim (OpenStreetMap). Manual "
+"mode: zero network traffic."
+msgstr ""
+"Modo automático: GeoClue (sistema). Búsqueda de ciudad: Nominatim "
+"(OpenStreetMap). Modo manual: sin tráfico de red."
+
+#: src/main.rs:301
+msgid "Privacy Policy"
+msgstr "Política de privacidad"
+
+#: src/main.rs:304
+msgid ""
+"Coordinates stay on this device and are not sent to any external servers. No "
+"analytics, no telemetry, no accounts."
+msgstr ""
+"Las coordenadas permanecen en este dispositivo y no se envían a ningún "
+"servidor externo. Sin analíticas, sin telemetría, sin cuentas."
+
+#: src/settings_ui.rs:35 src/settings_ui.rs:45 src/welcome.rs:286
+msgid "Theme"
+msgstr "Tema"
+
+#: src/settings_ui.rs:40 src/welcome.rs:290 src/welcome.rs:299 src/pages.rs:234
+#: src/pages.rs:348
+msgid "System Default"
+msgstr "Predeterminado del sistema"
+
+#: src/settings_ui.rs:41 src/welcome.rs:290
+msgid "Light"
+msgstr "Claro"
+
+#: src/settings_ui.rs:42 src/welcome.rs:290
+msgid "Dark"
+msgstr "Oscuro"
+
+#: src/settings_ui.rs:80 src/welcome.rs:308
+msgid "Location Settings"
+msgstr "Configuración de ubicación"
+
+#: src/settings_ui.rs:87 src/welcome.rs:314
+msgid "Manual Coordinates"
+msgstr "Coordenadas manuales"
+
+#: src/settings_ui.rs:88 src/welcome.rs:315
+msgid "City Selection"
+msgstr "Selección de ciudad"
+
+#: src/settings_ui.rs:89 src/welcome.rs:316
+msgid "Auto (GPS/Network)"
+msgstr "Auto (GPS/Red)"
+
+#: src/settings_ui.rs:94 src/welcome.rs:309
+msgid "Location Method"
+msgstr "Método de ubicación"
+
+#: src/settings_ui.rs:107 src/welcome.rs:320
+msgid "Latitude"
+msgstr "Latitud"
+
+#: src/settings_ui.rs:128 src/welcome.rs:321
+msgid "Longitude"
+msgstr "Longitud"
+
+#: src/settings_ui.rs:149
+msgid "Location Status"
+msgstr "Estado de la ubicación"
+
+#: src/settings_ui.rs:157
+msgid "City Search"
+msgstr "Buscar ciudad"
+
+#: src/settings_ui.rs:164 src/welcome.rs:339
+msgid "Search"
+msgstr "Buscar"
+
+#: src/settings_ui.rs:232
+msgid "Auto Detection"
+msgstr "Detección automática"
+
+#: src/settings_ui.rs:237
+msgid "Update Now"
+msgstr "Actualizar ahora"
+
+#: src/settings_ui.rs:298
+msgid "Calculation Settings"
+msgstr "Ajustes de cálculo"
+
+#: src/settings_ui.rs:313
+msgid "Hijri Date Correction"
+msgstr "Corrección de fecha Hijri"
+
+#: src/settings_ui.rs:314
+msgid "Adjust Hijri date by +/- days"
+msgstr "Ajustar día Hijri (+/- días)"
+
+#: src/settings_ui.rs:329
+msgid "MWL"
+msgstr "Liga Musulmana Mundial"
+
+#: src/settings_ui.rs:330
+msgid "ISNA"
+msgstr "ISNA"
+
+#: src/settings_ui.rs:331
+msgid "Egypt"
+msgstr "Egipto"
+
+#: src/settings_ui.rs:332
+msgid "Makkah"
+msgstr "La Meca (Umm al-Qura)"
+
+#: src/settings_ui.rs:333
+msgid "Karachi"
+msgstr "Karachi"
+
+#: src/settings_ui.rs:334
+msgid "Dubai"
+msgstr "Dubái"
+
+#: src/settings_ui.rs:335
+msgid "MoonsightingCommittee"
+msgstr "Comité Moonsighting"
+
+#: src/settings_ui.rs:336
+msgid "Kuwait"
+msgstr "Kuwait"
+
+#: src/settings_ui.rs:337
+msgid "Qatar"
+msgstr "Qatar"
+
+#: src/settings_ui.rs:338
+msgid "Singapore"
+msgstr "Singapur"
+
+#: src/settings_ui.rs:339
+msgid "Turkey"
+msgstr "Turquía (Diyanet)"
+
+#: src/settings_ui.rs:344
+msgid "Calculation Method"
+msgstr "Método de cálculo"
+
+#: src/settings_ui.rs:417
+msgid "Shafi (Standard/Maliki/Hanbali)"
+msgstr "Shafi (Estándar/Maliki/Hanbali)"
+
+#: src/settings_ui.rs:418
+msgid "Hanafi"
+msgstr "Hanafi"
+
+#: src/settings_ui.rs:423
+msgid "Asr Calculation (Madhab)"
+msgstr "Cálculo de Asr (Madhab)"
+
+#: src/settings_ui.rs:450
+msgid "Note"
+msgstr "Nota"
+
+#: src/settings_ui.rs:452
+msgid "Maliki/Hanbali use Standard (Shafi) for Asr."
+msgstr "Maliki/Hanbali usan Estándar (Shafi) para el Asr."
+
+#: src/settings_ui.rs:459
+msgid "Notifications"
+msgstr "Notificaciones"
+
+#: src/settings_ui.rs:465
+msgid "Pre-Prayer Alert"
+msgstr "Alerta previa a la oración"
+
+#: src/settings_ui.rs:466
+msgid "Get notified before the prayer time."
+msgstr "Recibe notificaciones antes de la oración."
+
+#: src/settings_ui.rs:478
+msgid "Alert Time"
+msgstr "Tiempo de alerta"
+
+#: src/settings_ui.rs:479
+msgid "Minutes before prayer"
+msgstr "Minutos antes de la oración"
+
+#: src/settings_ui.rs:505
+msgid "Test Notification"
+msgstr "Notificación de prueba"
+
+#: src/settings_ui.rs:529
+msgid "Audio"
+msgstr "Audio"
+
+#: src/settings_ui.rs:549
+msgid "Default"
+msgstr "Predeterminado"
+
+#: src/settings_ui.rs:550
+msgid "Custom File..."
+msgstr "Archivo personalizado..."
+
+#: src/settings_ui.rs:559
+msgid "Adhan Sound"
+msgstr "Sonido de adhan"
+
+#: src/settings_ui.rs:579 src/settings_ui.rs:593
+msgid "Using builtin default"
+msgstr "Usando el valor predeterminado incorporado"
+
+#: src/settings_ui.rs:596
+msgid "Audio Files"
+msgstr "Archivos de audio"
+
+#: src/settings_ui.rs:602
+msgid "Select Adhan Sound"
+msgstr "Seleccionar sonido de adhan"
+
+#: src/settings_ui.rs:609
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: src/settings_ui.rs:610
+msgid "Select"
+msgstr "Seleccionar"
+
+#: src/settings_ui.rs:643
+msgid "Mute Adhan"
+msgstr "Silenciar el Adhan"
+
+#: src/settings_ui.rs:644
+msgid "Silence the Adhan sound at prayer time."
+msgstr "Silenciar el sonido del Adhan en la oración."
+
+#: src/settings_ui.rs:663
+msgid "Adhan Volume"
+msgstr "Volumen del Adhan"
+
+#: src/settings_ui.rs:664
+msgid "Volume level (0–100%)"
+msgstr "Nivel de volumen (0-100%)"
+
+#: src/settings_ui.rs:683 src/settings_ui.rs:696
+msgid "▶ Preview Adhan"
+msgstr "▶ Previsualizar el Adhan"
+
+#: src/settings_ui.rs:709
+msgid "⏹ Stop Adhan"
+msgstr "⏹ Detener Adhan"
+
+#: src/settings_ui.rs:722
+msgid "Makkah Adhan"
+msgstr "Adhan de La Meca"
+
+#: src/settings_ui.rs:723
+msgid "Madinah Adhan"
+msgstr "Adhan de Medina"
+
+#: src/welcome.rs:278 src/welcome.rs:279
+msgid "Welcome to Khushu"
+msgstr "Bienvenido a Khushu"
+
+#: src/welcome.rs:281
+msgid "Please configure your location to get accurate prayer times."
+msgstr "Configure su ubicación para obtener horarios de oración precisos."
+
+#: src/welcome.rs:285
+msgid "Appearance"
+msgstr "Apariencia"
+
+#: src/welcome.rs:293 src/welcome.rs:294 src/pages.rs:229 src/pages.rs:243
+#: src/pages.rs:344 src/pages.rs:345
+msgid "Language"
+msgstr "Idioma"
+
+#: src/welcome.rs:300 src/pages.rs:235 src/pages.rs:349
+msgid "English"
+msgstr "Inglés"
+
+#: src/welcome.rs:301 src/pages.rs:236 src/pages.rs:350
+msgid "Arabic"
+msgstr "Árabe"
+
+#: src/welcome.rs:302 src/pages.rs:237 src/pages.rs:351
+msgid "French"
+msgstr "Francés"
+
+#: src/welcome.rs:303 src/pages.rs:238 src/pages.rs:352
+msgid "Spanish"
+msgstr "Español"
+
+#: src/welcome.rs:304 src/pages.rs:239 src/pages.rs:353
+msgid "Turkish"
+msgstr "Turco"
+
+#: src/welcome.rs:322
+msgid "City Name"
+msgstr "Nombre de la ciudad"
+
+#: src/welcome.rs:324
+msgid "Status"
+msgstr "Estado"
+
+#: src/welcome.rs:329 src/welcome.rs:330 src/welcome.rs:331 src/welcome.rs:332
+msgid "Enable location services in system settings."
+msgstr "Active los servicios de ubicación en la configuración del sistema."
+
+#: src/welcome.rs:337
+msgid "Detect Now"
+msgstr "Detectar ahora"
+
+#: src/welcome.rs:338
+msgid "Continue"
+msgstr "Continuar"
+
+#: src/welcome.rs:429
+msgid "Detecting..."
+msgstr "Detectando..."
+
+#: src/welcome.rs:455
+msgid "Detection failed. Check network/permissions."
+msgstr "Detección fallida. Verifica la red/permisos."
+
+#: src/pages.rs:82
+msgid "Loading..."
+msgstr "Cargando..."
+
+#: src/pages.rs:364 src/nav_ui.rs:31
+msgid "Home"
+msgstr "Inicio"
+
+#: src/pages.rs:365 src/pages.rs:388 src/nav_ui.rs:36 src/nav_ui.rs:122
+msgid "Calendar"
+msgstr "Calendario"
+
+#: src/pages.rs:366 src/pages.rs:389 src/nav_ui.rs:41 src/nav_ui.rs:123
+msgid "Qibla"
+msgstr "Qibla"
+
+#: src/pages.rs:367 src/pages.rs:390 src/nav_ui.rs:46 src/nav_ui.rs:124
+msgid "Adkar"
+msgstr "Adkar"
+
+#: src/pages.rs:368 src/pages.rs:391 src/nav_ui.rs:51 src/nav_ui.rs:125
+msgid "Settings"
+msgstr "Ajustes"
+
+#: src/pages.rs:369 src/nav_ui.rs:56
+msgid "About"
+msgstr "Acerca de"
+
+#: src/calendar.rs:66 src/calendar.rs:124
+msgid "Date Details"
+msgstr "Detalles"
+
+#: src/home_ui.rs:71
+msgid "No more prayers today"
+msgstr "No más oraciones hoy"
+
+#: src/tray.rs:55
+msgid "Show Khushu"
+msgstr "Mostrar Khushu"
+
+#: src/tray.rs:63
+msgid "Quit"
+msgstr "Salir"
+
+msgid "Fajr"
+msgstr "Fajr"
+
+msgid "Sunrise"
+msgstr "Amanecer"
+
+msgid "Dhuhr"
+msgstr "Dhuhr"
+
+msgid "Asr"
+msgstr "Asr"
+
+msgid "Maghrib"
+msgstr "Maghrib"
+
+msgid "Isha"
+msgstr "Isha"
+
+msgid "Autostart"
+msgstr "Inicio automático"
+
+msgid "Start Automatically"
+msgstr "Iniciar Automáticamente"
+
+msgid "Run Khushu in the background when you log in."
+msgstr "Ejecutar Khushu en segundo plano al iniciar sesión."
+
+msgid "Sun"
+msgstr "Dom"
+
+msgid "Mon"
+msgstr "Lun"
+
+msgid "Tue"
+msgstr "Mar"
+
+msgid "Wed"
+msgstr "Mié"
+
+msgid "Thu"
+msgstr "Jue"
+
+msgid "Fri"
+msgstr "Vie"
+
+msgid "Sat"
+msgstr "Sáb"
+
+msgid "Muharram"
+msgstr "Muharram"
+
+msgid "Safar"
+msgstr "Safar"
+
+msgid "Rabi' al-Awwal"
+msgstr "Rabi' al-Awwal"
+
+msgid "Rabi' al-Thani"
+msgstr "Rabi' al-Thani"
+
+msgid "Jumada al-Ula"
+msgstr "Jumada al-Ula"
+
+msgid "Jumada al-Akhirah"
+msgstr "Jumada al-Akhirah"
+
+msgid "Rajab"
+msgstr "Rajab"
+
+msgid "Sha'ban"
+msgstr "Sha'ban"
+
+msgid "Ramadan"
+msgstr "Ramadán"
+
+msgid "Shawwal"
+msgstr "Shawwal"
+
+msgid "Dhu al-Qi'dah"
+msgstr "Dhu al-Qi'dah"
+
+msgid "Dhu al-Hijjah"
+msgstr "Dhu al-Hijjah"
+
+msgid "January"
+msgstr "Enero"
+
+msgid "February"
+msgstr "Febrero"
+
+msgid "March"
+msgstr "Marzo"
+
+msgid "April"
+msgstr "Abril"
+
+msgid "May"
+msgstr "Mayo"
+
+msgid "June"
+msgstr "Junio"
+
+msgid "July"
+msgstr "Julio"
+
+msgid "August"
+msgstr "Agosto"
+
+msgid "September"
+msgstr "Septiembre"
+
+msgid "October"
+msgstr "Octubre"
+
+msgid "November"
+msgstr "Noviembre"
+
+msgid "December"
+msgstr "Diciembre"
+
+msgid "Sunday"
+msgstr "Domingo"
+
+msgid "Monday"
+msgstr "Lunes"
+
+msgid "Tuesday"
+msgstr "Martes"
+
+msgid "Wednesday"
+msgstr "Miércoles"
+
+msgid "Thursday"
+msgstr "Jueves"
+
+msgid "Friday"
+msgstr "Viernes"
+
+msgid "Saturday"
+msgstr "Sábado"
+
+msgid "First Day of Ramadan"
+msgstr "Primer Día de Ramadán"
+
+msgid "Eid al-Fitr"
+msgstr "Eid al-Fitr"
+
+msgid "Eid al-Adha"
+msgstr "Eid al-Adha"
+
+msgid "Day of Arafah"
+msgstr "Día de Arafah"
+
+msgid "Islamic New Year"
+msgstr "Año Nuevo Islámico"
+
+msgid "Ashura"
+msgstr "Ashura"
+
+msgid "Mawlid al-Nabi"
+msgstr "Mawlid al-Nabi"
+
+msgid "Manual Calculation"
+msgstr "Cálculo Manual"
+
+#: src/location.rs:39
+msgid "Location service unavailable. Please check system settings."
+msgstr "Servicio de ubicación no disponible. Por favor, compruebe la configuración del sistema."
+
+#: src/location.rs:47 src/location.rs:56
+msgid "Location access denied or unavailable."
+msgstr "Acceso a la ubicación denegado o no disponible."
+
+#: src/location.rs:51
+msgid "Failed to receive location updates."
+msgstr "Error al recibir actualizaciones de ubicación."
+
+#: src/location.rs:64
+msgid "Location service disconnected unexpectedly."
+msgstr "Servicio de ubicación desconectado inesperadamente."
+
+#: src/location.rs:69
+msgid "Location request timed out. Please check your system settings."
+msgstr "La solicitud de ubicación expiró. Por favor, compruebe la configuración de su sistema."
+
+#: src/location.rs:89 src/location.rs:136
+msgid "Network client initialization failed."
+msgstr "Error al inicializar el cliente de red."
+
+#: src/location.rs:98
+msgid "Network error while resolving city."
+msgstr "Error de red al resolver la ciudad."
+
+#: src/location.rs:100 src/location.rs:146 src/location.rs:152 src/location.rs:156
+msgid "Invalid response from location service."
+msgstr "Respuesta inválida del servicio de ubicación."
+
+#: src/location.rs:103
+msgid "Could not find city name for these coordinates."
+msgstr "No se pudo encontrar el nombre de la ciudad para estas coordenadas."
+
+#: src/location.rs:141
+msgid "Network error. Please check your connection."
+msgstr "Error de red. Por favor, compruebe su conexión."
+
+#: src/location.rs:161
+msgid "City not found. Please check the spelling."
+msgstr "Ciudad no encontrada. Por favor, compruebe la ortografía."
+msgid "Found"
+msgstr "Encontrado"
+#
+msgid "Open Khushu"
+msgstr "Abrir Khushu"
+
+msgid "Stop Adhan"
+msgstr "Detener Adhan"
+

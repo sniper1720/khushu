@@ -1,0 +1,747 @@
+# Translation template for Khushu.
+# This file is distributed under the same license as the Khushu package.
+# Djalel Oukid <sniper1720@linuxtechmore.com>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Khushu 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-22 01:59+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/qibla_ui.rs:35
+msgid "Calculating..."
+msgstr ""
+
+#: src/qibla_ui.rs:71
+msgid "N"
+msgstr ""
+
+msgid "Found"
+msgstr ""
+
+#: src/qibla_ui.rs:72
+msgid "E"
+msgstr ""
+
+#: src/qibla_ui.rs:72
+msgid "E"
+msgstr ""
+
+#: src/qibla_ui.rs:73
+msgid "S"
+msgstr ""
+
+#: src/qibla_ui.rs:74
+msgid "W"
+msgstr ""
+
+#: src/qibla_ui.rs:208
+msgid "Sensor Active (Smooth)"
+msgstr ""
+
+#: src/timer_controller.rs:127
+msgid "in"
+msgstr ""
+
+#: src/timer_controller.rs:133 src/timer_controller.rs:161
+msgid "It's time for"
+msgstr ""
+
+#: src/timer_controller.rs:143
+msgid "Upcoming Prayer:"
+msgstr ""
+
+#: src/timer_controller.rs:147
+msgid "is in"
+msgstr ""
+
+#: src/timer_controller.rs:149
+msgid "minutes"
+msgstr ""
+
+#: src/timer_controller.rs:162
+msgid "It is now time for"
+msgstr ""
+
+#: src/timer_controller.rs:200 src/timer_controller.rs:213
+msgid "Morning Adkar"
+msgstr ""
+
+#: src/timer_controller.rs:230 src/timer_controller.rs:243
+msgid "Evening Adkar"
+msgstr ""
+
+#: src/timer_controller.rs:260 src/timer_controller.rs:273
+msgid "Night Adkar"
+msgstr ""
+
+#: src/adkar.rs:220 src/adkar.rs:240
+msgid "Morning"
+msgstr ""
+
+#: src/adkar.rs:227 src/adkar.rs:241
+msgid "Evening"
+msgstr ""
+
+#: src/adkar.rs:231 src/adkar.rs:242
+msgid "Night"
+msgstr ""
+
+#: src/main.rs:155 src/pages.rs:387 src/nav_ui.rs:121
+msgid "Prayer Times"
+msgstr ""
+
+#: src/main.rs:160 src/main.rs:162
+msgid "Toggle Sidebar"
+msgstr ""
+
+#: src/main.rs:183 src/main.rs:281 src/pages.rs:397 src/tray.rs:47
+msgid "Khushu"
+msgstr ""
+
+#: src/main.rs:283 src/main.rs:290
+msgid "Djalel Oukid (sniper1720)"
+msgstr ""
+
+#: src/main.rs:285
+msgid "An all-in-one Muslim app for Linux."
+msgstr ""
+
+#: src/main.rs:288
+msgid "© 2026 Djalel Oukid"
+msgstr ""
+
+#: src/main.rs:291
+msgid "translator-credits"
+msgstr ""
+
+#: src/main.rs:295
+msgid "Location Policy"
+msgstr ""
+
+#: src/main.rs:298
+msgid ""
+"Auto mode: GeoClue (system). City search: Nominatim (OpenStreetMap). Manual "
+"mode: zero network traffic."
+msgstr ""
+
+#: src/main.rs:301
+msgid "Privacy Policy"
+msgstr ""
+
+#: src/main.rs:304
+msgid ""
+"Coordinates stay on this device and are not sent to any external servers. No "
+"analytics, no telemetry, no accounts."
+msgstr ""
+
+#: src/settings_ui.rs:35 src/settings_ui.rs:45 src/welcome.rs:286
+msgid "Theme"
+msgstr ""
+
+#: src/settings_ui.rs:40 src/welcome.rs:290 src/welcome.rs:299 src/pages.rs:234
+#: src/pages.rs:348
+msgid "System Default"
+msgstr ""
+
+#: src/settings_ui.rs:41 src/welcome.rs:290
+msgid "Light"
+msgstr ""
+
+#: src/settings_ui.rs:42 src/welcome.rs:290
+msgid "Dark"
+msgstr ""
+
+#: src/settings_ui.rs:80 src/welcome.rs:308
+msgid "Location Settings"
+msgstr ""
+
+#: src/settings_ui.rs:87 src/welcome.rs:314
+msgid "Manual Coordinates"
+msgstr ""
+
+#: src/settings_ui.rs:88 src/welcome.rs:315
+msgid "City Selection"
+msgstr ""
+
+#: src/settings_ui.rs:89 src/welcome.rs:316
+msgid "Auto (GPS/Network)"
+msgstr ""
+
+#: src/settings_ui.rs:94 src/welcome.rs:309
+msgid "Location Method"
+msgstr ""
+
+#: src/settings_ui.rs:107 src/welcome.rs:320
+msgid "Latitude"
+msgstr ""
+
+#: src/settings_ui.rs:128 src/welcome.rs:321
+msgid "Longitude"
+msgstr ""
+
+#: src/settings_ui.rs:149
+msgid "Location Status"
+msgstr ""
+
+#: src/settings_ui.rs:157
+msgid "City Search"
+msgstr ""
+
+#: src/settings_ui.rs:164 src/welcome.rs:339
+msgid "Search"
+msgstr ""
+
+#: src/settings_ui.rs:232
+msgid "Auto Detection"
+msgstr ""
+
+#: src/settings_ui.rs:237
+msgid "Update Now"
+msgstr ""
+
+#: src/settings_ui.rs:298
+msgid "Calculation Settings"
+msgstr ""
+
+#: src/settings_ui.rs:313
+msgid "Hijri Date Correction"
+msgstr ""
+
+#: src/settings_ui.rs:314
+msgid "Adjust Hijri date by +/- days"
+msgstr ""
+
+#: src/settings_ui.rs:329
+msgid "MWL"
+msgstr ""
+
+#: src/settings_ui.rs:330
+msgid "ISNA"
+msgstr ""
+
+#: src/settings_ui.rs:331
+msgid "Egypt"
+msgstr ""
+
+#: src/settings_ui.rs:332
+msgid "Makkah"
+msgstr ""
+
+#: src/settings_ui.rs:333
+msgid "Karachi"
+msgstr ""
+
+#: src/settings_ui.rs:334
+msgid "Dubai"
+msgstr ""
+
+#: src/settings_ui.rs:335
+msgid "MoonsightingCommittee"
+msgstr ""
+
+#: src/settings_ui.rs:336
+msgid "Kuwait"
+msgstr ""
+
+#: src/settings_ui.rs:337
+msgid "Qatar"
+msgstr ""
+
+#: src/settings_ui.rs:338
+msgid "Singapore"
+msgstr ""
+
+#: src/settings_ui.rs:339
+msgid "Turkey"
+msgstr ""
+
+#: src/settings_ui.rs:344
+msgid "Calculation Method"
+msgstr ""
+
+#: src/settings_ui.rs:417
+msgid "Shafi (Standard/Maliki/Hanbali)"
+msgstr ""
+
+#: src/settings_ui.rs:418
+msgid "Hanafi"
+msgstr ""
+
+#: src/settings_ui.rs:423
+msgid "Asr Calculation (Madhab)"
+msgstr ""
+
+#: src/settings_ui.rs:450
+msgid "Note"
+msgstr ""
+
+#: src/settings_ui.rs:452
+msgid "Maliki/Hanbali use Standard (Shafi) for Asr."
+msgstr ""
+
+#: src/settings_ui.rs:459
+msgid "Notifications"
+msgstr ""
+
+#: src/settings_ui.rs:465
+msgid "Pre-Prayer Alert"
+msgstr ""
+
+#: src/settings_ui.rs:466
+msgid "Get notified before the prayer time."
+msgstr ""
+
+#: src/settings_ui.rs:478
+msgid "Alert Time"
+msgstr ""
+
+#: src/settings_ui.rs:479
+msgid "Minutes before prayer"
+msgstr ""
+
+#: src/settings_ui.rs:505
+msgid "Test Notification"
+msgstr ""
+
+msgid "Assalamu Alaikum"
+msgstr ""
+
+msgid "This is a test notification from Khushu. May your prayers be accepted."
+msgstr ""
+
+#: src/settings_ui.rs:529
+msgid "Audio"
+msgstr ""
+
+#: src/settings_ui.rs:549
+msgid "Default"
+msgstr ""
+
+#: src/settings_ui.rs:550
+msgid "Custom File..."
+msgstr ""
+
+#: src/settings_ui.rs:559
+msgid "Adhan Sound"
+msgstr ""
+
+#: src/settings_ui.rs:579 src/settings_ui.rs:593
+msgid "Using builtin default"
+msgstr ""
+
+#: src/settings_ui.rs:596
+msgid "Audio Files"
+msgstr ""
+
+#: src/settings_ui.rs:602
+msgid "Select Adhan Sound"
+msgstr ""
+
+#: src/settings_ui.rs:609
+msgid "Cancel"
+msgstr ""
+
+#: src/settings_ui.rs:610
+msgid "Select"
+msgstr ""
+
+#: src/settings_ui.rs:643
+msgid "Mute Adhan"
+msgstr ""
+
+#: src/settings_ui.rs:644
+msgid "Silence the Adhan sound at prayer time."
+msgstr ""
+
+#: src/settings_ui.rs:663
+msgid "Adhan Volume"
+msgstr ""
+
+#: src/settings_ui.rs:664
+msgid "Volume level (0–100%)"
+msgstr ""
+
+#: src/settings_ui.rs:683 src/settings_ui.rs:696
+msgid "▶ Preview Adhan"
+msgstr ""
+
+#: src/settings_ui.rs:709
+msgid "⏹ Stop Adhan"
+msgstr ""
+
+#: src/settings_ui.rs:722
+msgid "Makkah Adhan"
+msgstr ""
+
+#: src/settings_ui.rs:723
+msgid "Madinah Adhan"
+msgstr ""
+
+#: src/welcome.rs:278 src/welcome.rs:279
+msgid "Welcome to Khushu"
+msgstr ""
+
+#: src/welcome.rs:281
+msgid "Please configure your location to get accurate prayer times."
+msgstr ""
+
+#: src/welcome.rs:285
+msgid "Appearance"
+msgstr ""
+
+#: src/welcome.rs:293 src/welcome.rs:294 src/pages.rs:229 src/pages.rs:243
+#: src/pages.rs:344 src/pages.rs:345
+msgid "Language"
+msgstr ""
+
+#: src/welcome.rs:300 src/pages.rs:235 src/pages.rs:349
+msgid "English"
+msgstr ""
+
+#: src/welcome.rs:301 src/pages.rs:236 src/pages.rs:350
+msgid "Arabic"
+msgstr ""
+
+#: src/welcome.rs:302 src/pages.rs:237 src/pages.rs:351
+msgid "French"
+msgstr ""
+
+#: src/welcome.rs:303 src/pages.rs:238 src/pages.rs:352
+msgid "Spanish"
+msgstr ""
+
+#: src/welcome.rs:304 src/pages.rs:239 src/pages.rs:353
+msgid "Turkish"
+msgstr ""
+
+#: src/welcome.rs:322
+msgid "City Name"
+msgstr ""
+
+#: src/welcome.rs:324
+msgid "Status"
+msgstr ""
+
+#: src/welcome.rs:329 src/welcome.rs:330 src/welcome.rs:331 src/welcome.rs:332
+msgid "Enable location services in system settings."
+msgstr ""
+
+#: src/welcome.rs:337
+msgid "Detect Now"
+msgstr ""
+
+#: src/welcome.rs:338
+msgid "Continue"
+msgstr ""
+
+#: src/welcome.rs:429
+msgid "Detecting..."
+msgstr ""
+
+#: src/welcome.rs:455
+msgid "Detection failed. Check network/permissions."
+msgstr ""
+
+#: src/pages.rs:82
+msgid "Loading..."
+msgstr ""
+
+#: src/pages.rs:364 src/nav_ui.rs:31
+msgid "Home"
+msgstr ""
+
+#: src/pages.rs:365 src/pages.rs:388 src/nav_ui.rs:36 src/nav_ui.rs:122
+msgid "Calendar"
+msgstr ""
+
+#: src/pages.rs:366 src/pages.rs:389 src/nav_ui.rs:41 src/nav_ui.rs:123
+msgid "Qibla"
+msgstr ""
+
+#: src/pages.rs:367 src/pages.rs:390 src/nav_ui.rs:46 src/nav_ui.rs:124
+msgid "Adkar"
+msgstr ""
+
+#: src/pages.rs:368 src/pages.rs:391 src/nav_ui.rs:51 src/nav_ui.rs:125
+msgid "Settings"
+msgstr ""
+
+#: src/pages.rs:369 src/nav_ui.rs:56
+msgid "About"
+msgstr ""
+
+#: src/calendar.rs:66 src/calendar.rs:124
+msgid "Date Details"
+msgstr ""
+
+#: src/home_ui.rs:71
+msgid "No more prayers today"
+msgstr ""
+
+#: src/tray.rs:55
+msgid "Show Khushu"
+msgstr ""
+
+#: src/tray.rs:63
+msgid "Quit"
+msgstr ""
+
+msgid "Autostart"
+msgstr ""
+
+msgid "Start Automatically"
+msgstr ""
+
+msgid "Run Khushu in the background when you log in."
+msgstr ""
+
+#. Calendar day abbreviations (used in calendar grid headers)
+#: src/calendar.rs:136
+msgid "Sun"
+msgstr ""
+
+#: src/calendar.rs:136
+msgid "Mon"
+msgstr ""
+
+#: src/calendar.rs:136
+msgid "Tue"
+msgstr ""
+
+#: src/calendar.rs:136
+msgid "Wed"
+msgstr ""
+
+#: src/calendar.rs:136
+msgid "Thu"
+msgstr ""
+
+#: src/calendar.rs:136
+msgid "Fri"
+msgstr ""
+
+#: src/calendar.rs:136
+msgid "Sat"
+msgstr ""
+
+#. Hijri month names (used in calendar and home page)
+#: src/calendar.rs:264 src/home_ui.rs:28
+msgid "Muharram"
+msgstr ""
+
+#: src/calendar.rs:265 src/home_ui.rs:29
+msgid "Safar"
+msgstr ""
+
+#: src/calendar.rs:266 src/home_ui.rs:30
+msgid "Rabi' al-Awwal"
+msgstr ""
+
+#: src/calendar.rs:267 src/home_ui.rs:31
+msgid "Rabi' al-Thani"
+msgstr ""
+
+#: src/calendar.rs:268 src/home_ui.rs:32
+msgid "Jumada al-Ula"
+msgstr ""
+
+#: src/calendar.rs:269 src/home_ui.rs:33
+msgid "Jumada al-Akhirah"
+msgstr ""
+
+#: src/calendar.rs:270 src/home_ui.rs:34
+msgid "Rajab"
+msgstr ""
+
+#: src/calendar.rs:271 src/home_ui.rs:35
+msgid "Sha'ban"
+msgstr ""
+
+#: src/calendar.rs:272 src/home_ui.rs:36
+msgid "Ramadan"
+msgstr ""
+
+#: src/calendar.rs:273 src/home_ui.rs:37
+msgid "Shawwal"
+msgstr ""
+
+#: src/calendar.rs:274 src/home_ui.rs:38
+msgid "Dhu al-Qi'dah"
+msgstr ""
+
+#: src/calendar.rs:275 src/home_ui.rs:39
+msgid "Dhu al-Hijjah"
+msgstr ""
+
+#. Gregorian month names (used in calendar details)
+#: src/calendar.rs:329
+msgid "January"
+msgstr ""
+
+#: src/calendar.rs:330
+msgid "February"
+msgstr ""
+
+#: src/calendar.rs:331
+msgid "March"
+msgstr ""
+
+#: src/calendar.rs:332
+msgid "April"
+msgstr ""
+
+#: src/calendar.rs:333
+msgid "May"
+msgstr ""
+
+#: src/calendar.rs:334
+msgid "June"
+msgstr ""
+
+#: src/calendar.rs:335
+msgid "July"
+msgstr ""
+
+#: src/calendar.rs:336
+msgid "August"
+msgstr ""
+
+#: src/calendar.rs:337
+msgid "September"
+msgstr ""
+
+#: src/calendar.rs:338
+msgid "October"
+msgstr ""
+
+#: src/calendar.rs:339
+msgid "November"
+msgstr ""
+
+#: src/calendar.rs:340
+msgid "December"
+msgstr ""
+
+#. Full weekday names (used in calendar date details)
+#: src/calendar.rs:351
+msgid "Sunday"
+msgstr ""
+
+#: src/calendar.rs:352
+msgid "Monday"
+msgstr ""
+
+#: src/calendar.rs:353
+msgid "Tuesday"
+msgstr ""
+
+#: src/calendar.rs:354
+msgid "Wednesday"
+msgstr ""
+
+#: src/calendar.rs:355
+msgid "Thursday"
+msgstr ""
+
+#: src/calendar.rs:356
+msgid "Friday"
+msgstr ""
+
+#: src/calendar.rs:357
+msgid "Saturday"
+msgstr ""
+
+#. Islamic events (used in calendar event display)
+#: src/calendar.rs:308
+msgid "First Day of Ramadan"
+msgstr ""
+
+#: src/calendar.rs:309
+msgid "Eid al-Fitr"
+msgstr ""
+
+#: src/calendar.rs:310
+msgid "Eid al-Adha"
+msgstr ""
+
+#: src/calendar.rs:311
+msgid "Day of Arafah"
+msgstr ""
+
+#: src/calendar.rs:312
+msgid "Islamic New Year"
+msgstr ""
+
+#: src/calendar.rs:313
+msgid "Ashura"
+msgstr ""
+
+#: src/calendar.rs:314
+msgid "Mawlid al-Nabi"
+msgstr ""
+
+#. Qibla status (used in qibla_ui.rs)
+#: src/qibla_ui.rs:231
+msgid "Manual Calculation"
+msgstr ""
+
+#: src/location.rs:39
+msgid "Location service unavailable. Please check system settings."
+msgstr ""
+
+#: src/location.rs:47 src/location.rs:56
+msgid "Location access denied or unavailable."
+msgstr ""
+
+#: src/location.rs:51
+msgid "Failed to receive location updates."
+msgstr ""
+
+#: src/location.rs:64
+msgid "Location service disconnected unexpectedly."
+msgstr ""
+
+#: src/location.rs:69
+msgid "Location request timed out. Please check your system settings."
+msgstr ""
+
+#: src/location.rs:89 src/location.rs:136
+msgid "Network client initialization failed."
+msgstr ""
+
+#: src/location.rs:98
+msgid "Network error while resolving city."
+msgstr ""
+
+#: src/location.rs:100 src/location.rs:146 src/location.rs:152 src/location.rs:156
+msgid "Invalid response from location service."
+msgstr ""
+
+#: src/location.rs:103
+msgid "Could not find city name for these coordinates."
+msgstr ""
+
+#: src/location.rs:141
+msgid "Network error. Please check your connection."
+msgstr ""
+
+#: src/location.rs:161
+msgid "City not found. Please check the spelling."
+msgstr ""
+
+#: src/notifications.rs:12
+msgid "Open Khushu"
+msgstr ""
+
+#: src/notifications.rs:14
+msgid "Stop Adhan"
+msgstr ""

@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="assets/khushu.svg" width="128" alt="Khushu Logo" />
+  <img src="assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg" width="128" alt="Khushu Logo" />
   <h1>Khushu (خشوع)</h1>
 
   [![Rust](https://img.shields.io/badge/Language-Rust-fa4f28?style=flat-square&logo=rust)](https://www.rust-lang.org/)

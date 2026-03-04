@@ -17,8 +17,6 @@ finish-args:
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.a11y.Bus
   - --talk-name=org.kde.StatusNotifierWatcher
-  - --talk-name=org.freedesktop.portal.Background
-  - --talk-name=org.freedesktop.portal.Desktop
 modules:
   - name: khushu
     buildsystem: simple

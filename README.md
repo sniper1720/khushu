@@ -16,6 +16,25 @@
 
 Named after the state of heart-presence and humility in prayer (Salah), the app is designed to help you disconnect from digital noise and reconnect with your Creator. It brings together accurate prayer times and native Adkar notifications in a clean, modern interface—built with zero telemetry and total respect for your data.
 
+## Screenshots
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center"><img src="assets/screenshots/dashboard.png" width="380" alt="Dashboard"/><br/><sub>Prayer Times Dashboard</sub></td>
+    <td align="center"><img src="assets/screenshots/calendar.png" width="380" alt="Calendar"/><br/><sub>Hijri Calendar</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/qibla.png" width="380" alt="Qibla"/><br/><sub>Qibla Compass</sub></td>
+    <td align="center"><img src="assets/screenshots/adkar.png" width="380" alt="Adkar"/><br/><sub>Adkar</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/settings.png" width="380" alt="Settings"/><br/><sub>Settings</sub></td>
+    <td align="center"><img src="assets/screenshots/welcome.png" width="380" alt="Welcome"/><br/><sub>Welcome & Setup</sub></td>
+  </tr>
+</table>
+</div>
+
 ## Features
 
 - **Accurate Prayer (Salah) Times**: Calculations based on standard calculation methods (MWL, ISNA, Egypt, etc.).

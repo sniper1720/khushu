@@ -21,16 +21,16 @@ Named after the state of heart-presence and humility in prayer (Salah), the app 
 <div align="center">
 <table>
   <tr>
-    <td align="center"><img src="screenshots/prayer-times.png" width="380" alt="Dashboard"/><br/><sub>Prayer Times Dashboard</sub></td>
-    <td align="center"><img src="screenshots/hijri.png" width="380" alt="Calendar"/><br/><sub>Hijri Calendar</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="screenshots/qibla.png" width="380" alt="Qibla"/><br/><sub>Qibla Compass</sub></td>
-    <td align="center"><img src="screenshots/adkar.png" width="380" alt="Adkar"/><br/><sub>Adkar</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="screenshots/settings.png" width="380" alt="Settings"/><br/><sub>Settings</sub></td>
     <td align="center"><img src="screenshots/welcome.png" width="380" alt="Welcome"/><br/><sub>Welcome & Setup</sub></td>
+    <td align="center"><img src="screenshots/prayer-times.png" width="380" alt="Dashboard"/><br/><sub>Prayer Times Dashboard</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="screenshots/hijri.png" width="380" alt="Calendar"/><br/><sub>Hijri Calendar</sub></td>
+    <td align="center"><img src="screenshots/qibla.png" width="380" alt="Qibla"/><br/><sub>Qibla Compass</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="screenshots/adkar.png" width="380" alt="Adkar"/><br/><sub>Adkar</sub></td>
+    <td align="center"><img src="screenshots/settings.png" width="380" alt="Settings"/><br/><sub>Settings</sub></td>
   </tr>
 </table>
 </div>

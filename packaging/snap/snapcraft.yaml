@@ -63,9 +63,9 @@ parts:
       craftctl default
 
       # --- Fix GNOME Library Conflicts ---
-      rm -f $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/libharfbuzz*.so*
-      rm -f $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/libpango*.so*
-      rm -f $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/librsvg*.so*
+      rm -f $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libharfbuzz*.so*
+      rm -f $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libpango*.so*
+      rm -f $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/librsvg*.so*
 
       # --- Desktop file ---
       mkdir -p "$CRAFT_PART_INSTALL/usr/share/applications"

@@ -63,7 +63,7 @@
   <url type="bugtracker">https://github.com/sniper1720/khushu/issues</url>
   <url type="vcs-browser">https://github.com/sniper1720/khushu</url>
   <url type="help">https://github.com/sniper1720/khushu/discussions</url>
-  <developer type="person" id="com.github.sniper1720">
+  <developer type="person" id="io.github.sniper1720">
     <name>Djalel Oukid</name>
   </developer>
   <categories>

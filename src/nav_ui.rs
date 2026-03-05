@@ -39,7 +39,7 @@ pub fn build_sidebar(
         (
             "qibla",
             tr("Qibla", &current_lang.borrow()),
-            "/io/github/sniper1720/khushu/icons/hicolor/scalable/actions/qibla-symbolic.svg",
+            "qibla-symbolic",
         ),
         (
             "adkar",
@@ -60,7 +60,7 @@ pub fn build_sidebar(
 
     for (id, title, icon) in nav_items {
         let row = ActionRow::builder().title(&title).build();
-        let image = if icon.starts_with("/com/") {
+        let image = if icon.starts_with('/') {
             gtk::Image::from_resource(icon)
         } else {
             gtk::Image::from_icon_name(icon)

@@ -64,7 +64,7 @@ Khushu is under active development. Our goal is to build the premier all-in-one 
 
 ### Recommended Methods
 
-| Format | Command / Action |
+| Format | Command |
 | :--- | :--- |
 | **Flatpak (Flathub)** | `flatpak install flathub com.github.sniper1720.khushu` |
 | **Snap (Snap Store)** | `sudo snap install khushu` |

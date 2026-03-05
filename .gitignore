@@ -32,3 +32,6 @@ build-dir/
 *.deb
 *.rpm
 repo/
+
+# Compiled translations
+*.mo

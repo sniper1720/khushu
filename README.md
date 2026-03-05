@@ -127,14 +127,16 @@ Khushu is designed with privacy as a core principle. Here is exactly what data l
 
 **No analytics, no telemetry, no accounts.** All prayer calculations, Adkar, Hijri dates, and Qibla bearing are computed locally on your device.
 
-## Flatpak Permissions
-When installed via Flatpak, Khushu requests the following permissions to function correctly within the sandbox:
-* **Network (`--share=network`)**: Required for the "City Search" feature (OpenStreetMap Nominatim API).
-* **Location (`org.freedesktop.GeoClue2`)**: Required for the "Auto Detection" location mode.
-* **Notifications (`org.freedesktop.Notifications`)**: Required to send system alerts when it's time to pray.
-* **Audio (`--filesystem=xdg-run/pipewire-0:ro`)**: Required to play the Adhan sound via PipeWire.
-* **System Tray (`org.kde.StatusNotifierWatcher`)**: Required to display the background tray icon.
-* **Graphics & IPC (`wayland`, `fallback-x11`, `dri`, `ipc`)**: Standard permissions required by GTK4/libadwaita for display and hardware acceleration.
+## Contribute & Support
+
+- **Star the Repository** — It helps more people find the project!
+- **Report Bugs** — Found an issue? [Open a ticket](https://github.com/sniper1720/khushu/issues) on GitHub.
+- **Suggest Features** — Have a cool idea? Let me know!
+- **Share** — Tell your friends!
+
+> *Ibn Mas'ud (RAA) narrated that the Messenger of Allah (ﷺ) said:*
+> *"He who guides (others) to an act of goodness, will have a reward similar to that of its doer."*
+> *— Related by Muslim*
 
 ## License
 

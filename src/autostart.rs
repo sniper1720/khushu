@@ -6,7 +6,7 @@ use std::path::PathBuf;
 fn get_autostart_path() -> PathBuf {
     let mut path = glib::user_config_dir();
     path.push("autostart");
-    path.push("com.github.sniper1720.khushu.desktop");
+    path.push("io.github.sniper1720.khushu.desktop");
     path
 }
 
@@ -25,7 +25,7 @@ fn enable_fs() {
 Name=Khushu
 Comment=An all-in-one Muslim app for Linux.
 Exec=khushu --background
-Icon=com.github.sniper1720.khushu
+Icon=io.github.sniper1720.khushu
 Terminal=false
 Type=Application
 Categories=Utility;

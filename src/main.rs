@@ -35,7 +35,7 @@ use timer_controller::start_prayer_timer;
 
 use gtk::{Button, Label};
 
-const APP_ID: &str = "com.github.sniper1720.khushu";
+const APP_ID: &str = "io.github.sniper1720.khushu";
 
 #[tokio::main]
 async fn main() {
@@ -76,7 +76,7 @@ async fn main() {
 
         if let Some(display) = gtk::gdk::Display::default() {
             let theme = gtk::IconTheme::for_display(&display);
-            theme.add_resource_path("/com/github/sniper1720/khushu/icons/hicolor");
+            theme.add_resource_path("/io/github/sniper1720/khushu/icons/hicolor");
         }
 
         let quit_action = gtk::gio::SimpleAction::new("quit", None);
@@ -217,7 +217,7 @@ fn build_main_ui(app: &Application, config: Rc<RefCell<AppConfig>>) {
     let window = ApplicationWindow::builder()
         .application(app)
         .title(tr("Khushu", &current_lang.borrow()))
-        .icon_name("com.github.sniper1720.khushu")
+        .icon_name("io.github.sniper1720.khushu")
         .default_width(1000)
         .default_height(700)
         .content(&toolbar_view)
@@ -314,7 +314,7 @@ fn build_main_ui(app: &Application, config: Rc<RefCell<AppConfig>>) {
 fn show_about_window(parent: &impl IsA<gtk::Widget>, lang: &str) {
     let about = adw::AboutDialog::builder()
         .application_name(tr("Khushu", lang))
-        .application_icon("com.github.sniper1720.khushu")
+        .application_icon("io.github.sniper1720.khushu")
         .developer_name(tr("Djalel Oukid (sniper1720)", lang))
         .version("1.0.0")
         .comments(tr("An all-in-one Muslim app for Linux.", lang))

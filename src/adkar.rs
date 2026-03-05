@@ -24,7 +24,7 @@ pub fn load_adkar() -> Vec<Dikr> {
     ADKAR_CACHE
         .get_or_init(|| {
             if let Ok(bytes) = gtk::gio::resources_lookup_data(
-                "/com/github/sniper1720/khushu/adkar.json",
+                "/io/github/sniper1720/khushu/adkar.json",
                 gtk::gio::ResourceLookupFlags::NONE,
             ) {
                 if let Ok(content) = std::str::from_utf8(&bytes) {

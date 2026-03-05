@@ -10,11 +10,11 @@ struct KhushuTray {
 
 impl Tray for KhushuTray {
     fn icon_name(&self) -> String {
-        "com.github.sniper1720.khushu-symbolic".into()
+        "io.github.sniper1720.khushu-symbolic".into()
     }
 
     fn id(&self) -> String {
-        "com.github.sniper1720.khushu".into()
+        "io.github.sniper1720.khushu".into()
     }
 
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {

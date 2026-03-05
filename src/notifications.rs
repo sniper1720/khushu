@@ -6,7 +6,7 @@ pub fn show_notification(title: &str, body: &str, is_adhan: bool, open_lbl: &str
         log::debug!("Sending notification via GApplication (Portal-compatible)");
         let notification = gtk::gio::Notification::new(title);
         notification.set_body(Some(body));
-        let icon = gtk::gio::ThemedIcon::new("com.github.sniper1720.khushu");
+        let icon = gtk::gio::ThemedIcon::new("io.github.sniper1720.khushu");
         notification.set_icon(&icon);
         notification.set_default_action("app.open-main");
         notification.add_button(open_lbl, "app.open-main");
@@ -27,9 +27,9 @@ pub fn show_notification(title: &str, body: &str, is_adhan: bool, open_lbl: &str
                 .summary(&title)
                 .body(&body)
                 .appname("Khushu")
-                .icon("com.github.sniper1720.khushu")
+                .icon("io.github.sniper1720.khushu")
                 .hint(notify_rust::Hint::DesktopEntry(
-                    "com.github.sniper1720.khushu".to_string(),
+                    "io.github.sniper1720.khushu".to_string(),
                 ))
                 .action("open", &open_lbl);
 

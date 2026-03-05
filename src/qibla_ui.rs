@@ -52,7 +52,7 @@ pub fn create_qibla_page(
     let bearing_draw = bearing.clone();
 
     let qibla_icon = gtk::gdk_pixbuf::Pixbuf::from_resource_at_scale(
-        "/com/github/sniper1720/khushu/icons/hicolor/scalable/actions/qibla-symbolic.svg",
+        "/io/github/sniper1720/khushu/icons/hicolor/scalable/actions/qibla-symbolic.svg",
         32,
         32,
         true,

@@ -26,11 +26,11 @@ package() {
     cd "$pkgname-$pkgver"
     install -Dm755 target/release/khushu "$pkgdir/usr/bin/khushu"
     
-    install -Dm644 assets/khushu.desktop "$pkgdir/usr/share/applications/com.github.sniper1720.khushu.desktop"
+    install -Dm644 assets/khushu.desktop "$pkgdir/usr/share/applications/io.github.sniper1720.khushu.desktop"
 
-    install -Dm644 assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg"
-    install -Dm644 assets/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg "$pkgdir/usr/share/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg"
-    install -Dm644 assets/com.github.sniper1720.khushu.metainfo.xml "$pkgdir/usr/share/metainfo/com.github.sniper1720.khushu.metainfo.xml"
+    install -Dm644 assets/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg"
+    install -Dm644 assets/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg "$pkgdir/usr/share/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg"
+    install -Dm644 assets/io.github.sniper1720.khushu.metainfo.xml "$pkgdir/usr/share/metainfo/io.github.sniper1720.khushu.metainfo.xml"
     
 
     for mo_file in target/locale/*/LC_MESSAGES/khushu.mo; do

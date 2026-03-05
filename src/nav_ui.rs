@@ -39,7 +39,7 @@ pub fn build_sidebar(
         (
             "qibla",
             tr("Qibla", &current_lang.borrow()),
-            "/com/github/sniper1720/khushu/icons/hicolor/scalable/actions/qibla-symbolic.svg",
+            "/io/github/sniper1720/khushu/icons/hicolor/scalable/actions/qibla-symbolic.svg",
         ),
         (
             "adkar",

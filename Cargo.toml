@@ -48,10 +48,10 @@ section = "gnome"
 priority = "optional"
 assets = [
     ["target/release/khushu", "usr/bin/", "755"],
-    ["assets/khushu.desktop", "usr/share/applications/com.github.sniper1720.khushu.desktop", "644"],
-    ["assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg", "usr/share/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg", "644"],
-    ["assets/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg", "usr/share/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg", "644"],
-    ["assets/com.github.sniper1720.khushu.metainfo.xml", "usr/share/metainfo/", "644"],
+    ["assets/khushu.desktop", "usr/share/applications/io.github.sniper1720.khushu.desktop", "644"],
+    ["assets/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg", "usr/share/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg", "644"],
+    ["assets/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg", "usr/share/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg", "644"],
+    ["assets/io.github.sniper1720.khushu.metainfo.xml", "usr/share/metainfo/", "644"],
     ["target/locale/ar/LC_MESSAGES/khushu.mo", "usr/share/locale/ar/LC_MESSAGES/khushu.mo", "644"],
     ["target/locale/ar/LC_MESSAGES/gtk40.mo", "usr/share/khushu/locale/ar/LC_MESSAGES/gtk40.mo", "644"],
     ["target/locale/ar/LC_MESSAGES/libadwaita.mo", "usr/share/khushu/locale/ar/LC_MESSAGES/libadwaita.mo", "644"],
@@ -70,10 +70,10 @@ assets = [
 requires = { amiri-fonts = "*" }
 assets = [
     { source = "target/release/khushu", dest = "/usr/bin/khushu", mode = "755" },
-    { source = "assets/khushu.desktop", dest = "/usr/share/applications/com.github.sniper1720.khushu.desktop", mode = "644" },
-    { source = "assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg", dest = "/usr/share/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg", mode = "644" },
-    { source = "assets/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg", dest = "/usr/share/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg", mode = "644" },
-    { source = "assets/com.github.sniper1720.khushu.metainfo.xml", dest = "/usr/share/metainfo/com.github.sniper1720.khushu.metainfo.xml", mode = "644" },
+    { source = "assets/khushu.desktop", dest = "/usr/share/applications/io.github.sniper1720.khushu.desktop", mode = "644" },
+    { source = "assets/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg", dest = "/usr/share/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg", mode = "644" },
+    { source = "assets/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg", dest = "/usr/share/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg", mode = "644" },
+    { source = "assets/io.github.sniper1720.khushu.metainfo.xml", dest = "/usr/share/metainfo/io.github.sniper1720.khushu.metainfo.xml", mode = "644" },
     { source = "target/locale/ar/LC_MESSAGES/khushu.mo", dest = "/usr/share/locale/ar/LC_MESSAGES/khushu.mo", mode = "644" },
     { source = "target/locale/ar/LC_MESSAGES/gtk40.mo", dest = "/usr/share/khushu/locale/ar/LC_MESSAGES/gtk40.mo", mode = "644" },
     { source = "target/locale/ar/LC_MESSAGES/libadwaita.mo", dest = "/usr/share/khushu/locale/ar/LC_MESSAGES/libadwaita.mo", mode = "644" },

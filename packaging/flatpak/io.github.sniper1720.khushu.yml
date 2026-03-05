@@ -1,4 +1,4 @@
-app-id: com.github.sniper1720.khushu
+app-id: io.github.sniper1720.khushu
 runtime: org.gnome.Platform
 runtime-version: '49'
 sdk: org.gnome.Sdk
@@ -25,10 +25,10 @@ modules:
       - cp cargo/config .cargo/config.toml
       - cargo --offline build --release
       - install -Dm755 target/release/khushu /app/bin/khushu
-      - install -Dm644 assets/khushu.desktop /app/share/applications/com.github.sniper1720.khushu.desktop
-      - install -Dm644 assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg /app/share/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg
-      - install -Dm644 assets/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg /app/share/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg
-      - install -Dm644 assets/com.github.sniper1720.khushu.metainfo.xml /app/share/metainfo/com.github.sniper1720.khushu.metainfo.xml
+      - install -Dm644 assets/khushu.desktop /app/share/applications/io.github.sniper1720.khushu.desktop
+      - install -Dm644 assets/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg /app/share/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg
+      - install -Dm644 assets/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg /app/share/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg
+      - install -Dm644 assets/io.github.sniper1720.khushu.metainfo.xml /app/share/metainfo/io.github.sniper1720.khushu.metainfo.xml
       - install -Dm644 assets/Amiri-Regular.ttf /app/share/fonts/Amiri-Regular.ttf
       - install -Dm644 target/locale/ar/LC_MESSAGES/khushu.mo /app/share/locale/ar/LC_MESSAGES/khushu.mo
       - install -Dm644 target/locale/ar/LC_MESSAGES/gtk40.mo /app/share/locale/ar/LC_MESSAGES/gtk40.mo

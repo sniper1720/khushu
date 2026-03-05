@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg" width="128" alt="Khushu Logo" />
+  <img src="assets/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg" width="128" alt="Khushu Logo" />
   <h1>Khushu (خشوع)</h1>
 
   [![Rust](https://img.shields.io/badge/Language-Rust-fa4f28?style=flat-square&logo=rust)](https://www.rust-lang.org/)
@@ -66,7 +66,7 @@ Khushu is under active development. Our goal is to build the premier all-in-one 
 
 | Format | Command |
 | :--- | :--- |
-| **Flatpak (Flathub)** | `flatpak install flathub com.github.sniper1720.khushu` |
+| **Flatpak (Flathub)** | `flatpak install flathub io.github.sniper1720.khushu` |
 | **Snap (Snap Store)** | `sudo snap install khushu` |
 | **Arch Linux (AUR)** | `yay -S khushu` |
 

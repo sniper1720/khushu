@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.github.sniper1720.khushu</id>
+  <id>io.github.sniper1720.khushu</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <name>Khushu</name>
@@ -41,7 +41,7 @@
       <li xml:lang="ar">دعم تعدد اللغات</li>
     </ul>
   </description>
-  <launchable type="desktop-id">com.github.sniper1720.khushu.desktop</launchable>
+  <launchable type="desktop-id">io.github.sniper1720.khushu.desktop</launchable>
   <screenshots>
     <screenshot type="default">
       <caption xml:lang="en">Prayer Times Dashboard: View accurate daily Salah times, upcoming prayer countdown, and Hijri date.</caption>

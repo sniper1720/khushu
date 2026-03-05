@@ -15,20 +15,20 @@ donation: https://github.com/sponsors/sniper1720
 
 grade: stable
 confinement: strict
-icon: ../../assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg
+icon: ../../assets/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg
 
 slots:
   dbus-khushu:
     interface: dbus
     bus: session
-    name: com.github.sniper1720.khushu
+    name: io.github.sniper1720.khushu
 
 apps:
   khushu:
     command: bin/khushu
-    desktop: usr/share/applications/com.github.sniper1720.khushu.desktop
-    autostart: com.github.sniper1720.khushu.desktop
-    common-id: com.github.sniper1720.khushu
+    desktop: usr/share/applications/io.github.sniper1720.khushu.desktop
+    autostart: io.github.sniper1720.khushu.desktop
+    common-id: io.github.sniper1720.khushu
     extensions: [gnome]
     plugs:
       - network
@@ -69,17 +69,17 @@ parts:
 
       # --- Desktop file ---
       mkdir -p "$CRAFT_PART_INSTALL/usr/share/applications"
-      cp assets/khushu.desktop "$CRAFT_PART_INSTALL/usr/share/applications/com.github.sniper1720.khushu.desktop"
+      cp assets/khushu.desktop "$CRAFT_PART_INSTALL/usr/share/applications/io.github.sniper1720.khushu.desktop"
 
       # --- Icons ---
       mkdir -p $CRAFT_PART_INSTALL/usr/share/icons/hicolor/scalable/apps
-      cp assets/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg $CRAFT_PART_INSTALL/usr/share/icons/hicolor/scalable/apps/com.github.sniper1720.khushu.svg
+      cp assets/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg $CRAFT_PART_INSTALL/usr/share/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg
       mkdir -p $CRAFT_PART_INSTALL/usr/share/icons/hicolor/symbolic/apps
-      cp assets/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg $CRAFT_PART_INSTALL/usr/share/icons/hicolor/symbolic/apps/com.github.sniper1720.khushu-symbolic.svg
+      cp assets/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg $CRAFT_PART_INSTALL/usr/share/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg
 
       # --- Metainfo ---
       mkdir -p $CRAFT_PART_INSTALL/usr/share/metainfo
-      cp assets/com.github.sniper1720.khushu.metainfo.xml $CRAFT_PART_INSTALL/usr/share/metainfo/
+      cp assets/io.github.sniper1720.khushu.metainfo.xml $CRAFT_PART_INSTALL/usr/share/metainfo/
       
       # --- ALSA config ---
       mkdir -p $CRAFT_PART_INSTALL/assets

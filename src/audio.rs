@@ -78,7 +78,7 @@ fn run_audio_loop(rx: Receiver<AudioCommand>) {
                 }
 
                 let resource_path = format!(
-                    "/com/github/sniper1720/khushu/{}",
+                    "/io/github/sniper1720/khushu/{}",
                     path_str.trim_start_matches("assets/")
                 );
                 if let Ok(bytes) = gtk4::gio::resources_lookup_data(

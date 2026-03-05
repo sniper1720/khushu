@@ -45,7 +45,7 @@ where
     let status_page = adw::StatusPage::builder()
         .title("Welcome to Khushu")
         .description("Please configure your location to get accurate prayer times.")
-        .icon_name("com.github.sniper1720.khushu")
+        .icon_name("io.github.sniper1720.khushu")
         .vexpand(true)
         .build();
 

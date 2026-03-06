@@ -86,13 +86,11 @@ async fn request_portal(enable: bool) -> Result<(), ashpd::Error> {
 pub fn sync(should_enable: bool) {
     if is_sandboxed() {
         glib::spawn_future_local(async move {
-            if let Err(e) = request_portal(should_enable).await {
-                log::warn!("Portal autostart failed: {e}, falling back to filesystem");
-                if should_enable {
-                    enable_fs();
-                } else {
-                    disable_fs();
-                }
+            match request_portal(should_enable).await {
+                Ok(_) => log::info!("XDG Portal successfully processed autostart request."),
+                Err(e) => log::error!(
+                    "Portal autostart failed: {e}. Cannot fall back to filesystem in sandbox."
+                ),
             }
         });
     } else if should_enable {

@@ -33,7 +33,6 @@ apps:
     plugs:
       - network
       - audio-playback
-      - location-observe
       - desktop
       - desktop-legacy
       - unity7
@@ -59,6 +58,7 @@ parts:
       - libpulse0
       - alsa-utils
       - libasound2-plugins
+      - libayatana-appindicator3-1
     override-build: |
       craftctl default
 
@@ -90,5 +90,7 @@ parts:
       cp assets/Amiri-Regular.ttf $CRAFT_PART_INSTALL/usr/share/fonts/truetype/khushu/
 
       # --- Locales ---
-      mkdir -p "$CRAFT_PART_INSTALL/usr/share/locale"
-      cp -r target/locale/* "$CRAFT_PART_INSTALL/usr/share/locale/"
+      if [ -d "target/locale" ]; then
+        mkdir -p "$CRAFT_PART_INSTALL/usr/share/locale"
+        cp -r target/locale/* "$CRAFT_PART_INSTALL/usr/share/locale/"
+      fi

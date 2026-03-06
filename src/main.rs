@@ -51,9 +51,9 @@ async fn main() {
 
     crate::autostart::sync(config.borrow().autostart);
 
-    adw::init().expect("Failed to initialize Libadwaita");
-
     crate::i18n::update_locale(&config.borrow().language);
+
+    adw::init().expect("Failed to initialize Libadwaita");
 
     let app = Application::builder()
         .application_id(APP_ID)

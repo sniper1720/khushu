@@ -39,7 +39,7 @@ msgid "Select _All"
 msgstr "_Tümünü Seç"
 
 msgid "Change di_rection"
-msgstr ""
+msgstr "_Yönü değiştir"
 
 msgid "Insert _Emoji"
 msgstr "_Emoji Ekle"

@@ -40,7 +40,7 @@ msgid "Select _All"
 msgstr "Pilih Semu_a"
 
 msgid "Change di_rection"
-msgstr ""
+msgstr "Ubah a_rah"
 
 msgid "Insert _Emoji"
 msgstr "Sisipkan _Emoji"

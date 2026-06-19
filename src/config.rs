@@ -84,6 +84,21 @@ fn default_autostart() -> bool {
     false
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StopCondition {
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "ayat")]
+    #[default]
+    Ayat,
+    #[serde(rename = "page")]
+    Page,
+    #[serde(rename = "juz")]
+    Juz,
+    #[serde(rename = "surah")]
+    Surah,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct QuranBookmark {
     pub page: u32,
@@ -179,6 +194,14 @@ pub struct AppConfigData {
     pub global_ui_font_family: String,
     #[serde(default = "default_iqamah_minutes")]
     pub iqamah_minutes: HashMap<String, u32>,
+    #[serde(default = "default_reciter_slug")]
+    pub reciter_slug: String,
+    #[serde(default = "default_recitation_volume")]
+    pub recitation_volume: f32,
+    #[serde(default)]
+    pub stop_condition: StopCondition,
+    #[serde(default)]
+    pub installed_reciters: Vec<String>,
 }
 
 impl Default for AppConfigData {
@@ -221,6 +244,10 @@ impl Default for AppConfigData {
             global_arabic_font_family: default_global_arabic_font_family(),
             global_ui_font_family: default_global_ui_font_family(),
             iqamah_minutes: default_iqamah_minutes(),
+            reciter_slug: default_reciter_slug(),
+            recitation_volume: default_recitation_volume(),
+            stop_condition: StopCondition::default(),
+            installed_reciters: Vec::new(),
         }
     }
 }
@@ -243,6 +270,14 @@ fn default_global_arabic_font_family() -> String {
 
 fn default_global_ui_font_family() -> String {
     "Cantarell, sans-serif".to_string()
+}
+
+fn default_reciter_slug() -> String {
+    "Alafasy_128kbps".to_string()
+}
+
+fn default_recitation_volume() -> f32 {
+    0.8
 }
 
 fn default_iqamah_minutes() -> HashMap<String, u32> {
@@ -641,6 +676,47 @@ impl AppConfig {
     }
     pub fn set_iqamah_minutes(&self, val: HashMap<String, u32>) {
         self.imp().data.borrow_mut().iqamah_minutes = val;
+    }
+
+    pub fn reciter_slug(&self) -> String {
+        self.imp().data.borrow().reciter_slug.clone()
+    }
+    pub fn set_reciter_slug(&self, val: &str) {
+        self.imp().data.borrow_mut().reciter_slug = val.to_string();
+    }
+
+    pub fn recitation_volume(&self) -> f32 {
+        self.imp().data.borrow().recitation_volume
+    }
+    pub fn set_recitation_volume(&self, val: f32) {
+        self.imp().data.borrow_mut().recitation_volume = val;
+    }
+
+    pub fn stop_condition(&self) -> StopCondition {
+        self.imp().data.borrow().stop_condition
+    }
+    pub fn set_stop_condition(&self, val: StopCondition) {
+        self.imp().data.borrow_mut().stop_condition = val;
+    }
+
+    pub fn installed_reciters(&self) -> Vec<String> {
+        self.imp().data.borrow().installed_reciters.clone()
+    }
+    pub fn set_installed_reciters(&self, val: Vec<String>) {
+        self.imp().data.borrow_mut().installed_reciters = val;
+    }
+    pub fn add_installed_reciter(&self, slug: &str) {
+        let mut data = self.imp().data.borrow_mut();
+        if !data.installed_reciters.contains(&slug.to_string()) {
+            data.installed_reciters.push(slug.to_string());
+        }
+    }
+    pub fn remove_installed_reciter(&self, slug: &str) {
+        self.imp()
+            .data
+            .borrow_mut()
+            .installed_reciters
+            .retain(|s| s != slug);
     }
 
     fn load_data() -> AppConfigData {

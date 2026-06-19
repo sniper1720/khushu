@@ -2,7 +2,6 @@ data/io.github.sniper1720.khushu.desktop.in
 data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 src/adkar.rs
 src/background.rs
-src/background_tasks.rs
 src/calendar.rs
 src/home_ui.rs
 src/i18n.rs
@@ -13,6 +12,7 @@ src/nav_ui.rs
 src/pages.rs
 src/qibla_ui.rs
 src/quran.rs
+src/reciter_ui.rs
 src/settings_ui.rs
 src/timer_controller.rs
 src/welcome.rs

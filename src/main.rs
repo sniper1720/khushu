@@ -14,6 +14,7 @@ mod platform;
 mod qibla;
 mod qibla_ui;
 mod quran;
+mod reciter_ui;
 mod settings_ui;
 mod time;
 mod timer_controller;
@@ -432,12 +433,6 @@ fn show_about_window(parent: &impl IsA<gtk::Widget>, lang: &str) {
         .developers(vec![tr("Djalel Oukid (sniper1720)", &resolved_lang)])
         .translator_credits(tr("translator-credits", &resolved_lang))
         .build();
-
-    about.set_direction(if resolved_lang == "ar" {
-        gtk::TextDirection::Rtl
-    } else {
-        gtk::TextDirection::Ltr
-    });
 
     about.add_legal_section(
             &tr("Location Policy", &resolved_lang),

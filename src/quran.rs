@@ -1,8 +1,9 @@
-use crate::config::{AppConfig, QuranBookmark};
+use crate::config::{AppConfig, QuranBookmark, StopCondition};
 use crate::i18n::tr;
 
 use gtk::ListBox;
 use gtk4 as gtk;
+use gtk4::glib;
 use libadwaita as adw;
 use libadwaita::prelude::*;
 use serde::Deserialize;
@@ -10,6 +11,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::time::Duration;
+
+type RebuildFn = Rc<RefCell<Option<Box<dyn Fn()>>>>;
+type PlayFn = Rc<RefCell<Option<Box<dyn Fn(u32)>>>>;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Verse {
@@ -1425,7 +1430,7 @@ fn page_label_text(global_page: u32, total_pages: u32, lang: &str) -> String {
     format!("{} {} / {}", tr("page", lang), global_page, total_pages)
 }
 
-fn surah_total_verses(surah: u32) -> Option<u32> {
+pub(crate) fn surah_total_verses(surah: u32) -> Option<u32> {
     get_chapter_info().and_then(|info| info.iter().find(|c| c.id == surah).map(|c| c.total_verses))
 }
 
@@ -1539,6 +1544,329 @@ fn update_marker_frame(frame: &gtk::Box, page: u32, lang: &str) {
         frame.append(&l);
     }
     frame.set_visible(true);
+}
+
+#[derive(Clone)]
+struct RecitationState {
+    selected_verse: Option<u32>,
+    playing: bool,
+}
+
+#[derive(Clone, Debug)]
+struct VerseBoundary {
+    verse: u32,
+    byte_start: usize,
+    byte_end: usize,
+}
+
+fn get_verse_display_len(content: &str, verse: u32) -> usize {
+    content.len() + 1 + 4 + to_arabic_indic(verse).chars().count() + 1
+}
+
+fn compute_verse_boundaries(page: u32, _chapter: u32) -> Vec<VerseBoundary> {
+    let mut bounds = Vec::new();
+    let mut offset: usize = 0;
+    if let Some(verses_data) = get_page_verses(page) {
+        for pv in verses_data.iter() {
+            let len = get_verse_display_len(&pv.content, pv.verse);
+            bounds.push(VerseBoundary {
+                verse: pv.verse,
+                byte_start: offset,
+                byte_end: offset + len,
+            });
+            offset += len + 1; // +1 for trailing space
+        }
+    }
+    bounds
+}
+
+fn find_verse_at_offset(offset: usize, boundaries: &[VerseBoundary]) -> Option<u32> {
+    for b in boundaries {
+        if offset >= b.byte_start && offset < b.byte_end {
+            return Some(b.verse);
+        }
+    }
+    None
+}
+
+fn attach_verse_click_handlers(
+    content: &gtk::Box,
+    page: u32,
+    chapter: u32,
+    quran_lang: &str,
+    rec_state: Rc<RefCell<RecitationState>>,
+    boundaries_cache: Rc<RefCell<HashMap<u32, Vec<VerseBoundary>>>>,
+    rebuild_fn: RebuildFn,
+) {
+    if quran_lang == "ar" {
+        if !boundaries_cache.borrow().contains_key(&page) {
+            let b = compute_verse_boundaries(page, chapter);
+            boundaries_cache.borrow_mut().insert(page, b);
+        }
+        let mut child = content.first_child();
+        while let Some(widget) = child {
+            if let Some(label) = widget.downcast_ref::<gtk::Label>()
+                && label.has_css_class("quran-arabic")
+            {
+                let click = gtk::GestureClick::builder().button(1).build();
+                let rec_state_c = rec_state.clone();
+                let boundaries = boundaries_cache.borrow().get(&page).cloned();
+                let rebuild_fn_c = rebuild_fn.clone();
+                let label_c = label.clone();
+                click.connect_pressed(move |_, _, x, y| {
+                    let layout = label_c.layout();
+                    let (within_text, byte_offset, _) = layout.xy_to_index(
+                        (x * f64::from(gtk::pango::SCALE)) as i32,
+                        (y * f64::from(gtk::pango::SCALE)) as i32,
+                    );
+                    if within_text
+                        && let Some(ref bounds) = boundaries
+                        && let Some(verse) = find_verse_at_offset(byte_offset as usize, bounds)
+                    {
+                        rec_state_c.borrow_mut().selected_verse = Some(verse);
+                        if let Some(ref rebuild) = *rebuild_fn_c.borrow() {
+                            rebuild();
+                        }
+                    }
+                });
+                label.add_controller(click);
+            }
+            child = widget.next_sibling();
+        }
+    } else {
+        let mut child = content.first_child();
+        while let Some(widget) = child {
+            let wname = widget.widget_name();
+            if wname.starts_with(&format!("verse_{}_", chapter))
+                && let Some(parts) = wname.rsplit_once('_')
+                && let Ok(verse) = parts.1.parse::<u32>()
+            {
+                let click = gtk::GestureClick::builder().button(1).build();
+                let rec_state_c = rec_state.clone();
+                let rebuild_fn_c = rebuild_fn.clone();
+                click.connect_pressed(move |_, _, _, _| {
+                    let mut state = rec_state_c.borrow_mut();
+                    state.selected_verse = Some(verse);
+                    if let Some(ref rebuild) = *rebuild_fn_c.borrow() {
+                        rebuild();
+                    }
+                });
+                widget.add_controller(click);
+            }
+            child = widget.next_sibling();
+        }
+    }
+}
+
+fn compute_stop_boundary(surah: u32, verse: u32, stop: StopCondition) -> Option<u32> {
+    match stop {
+        StopCondition::None | StopCondition::Ayat => Some(verse),
+        StopCondition::Page => {
+            let page = get_verse_page(surah, verse)?;
+            let verses = get_page_verses(page)?;
+            verses
+                .iter()
+                .filter(|v| v.surah == surah)
+                .map(|v| v.verse)
+                .max()
+        }
+        StopCondition::Juz => {
+            let juz_index = get_juz_index();
+            let current_juz = juz_index.get(&(surah, verse)).copied()?;
+            let total = surah_total_verses(surah).unwrap_or(u32::MAX);
+            let mut last = verse;
+            for v in (verse + 1)..=total {
+                match juz_index.get(&(surah, v)) {
+                    Some(&j) if j == current_juz => last = v,
+                    _ => break,
+                }
+            }
+            Some(last)
+        }
+        StopCondition::Surah => surah_total_verses(surah),
+    }
+}
+
+fn build_recitation_toolbar(
+    rec_state: Rc<RefCell<RecitationState>>,
+    config: &AppConfig,
+    play_fn: PlayFn,
+    lang: &str,
+    chapter: u32,
+) -> (gtk::CenterBox, gtk::Button, gtk::Button, gtk::Button) {
+    let toolbar = gtk::CenterBox::new();
+    toolbar.set_margin_top(4);
+    toolbar.set_margin_bottom(4);
+    toolbar.set_margin_start(8);
+    toolbar.set_margin_end(8);
+    toolbar.add_css_class("toolbar");
+
+    let prev_btn = gtk::Button::new();
+    prev_btn.set_icon_name("media-skip-backward-symbolic");
+    prev_btn.add_css_class("flat");
+
+    let play_btn = gtk::Button::new();
+    play_btn.set_icon_name("media-playback-start-symbolic");
+    play_btn.add_css_class("flat");
+
+    let next_btn = gtk::Button::new();
+    next_btn.set_icon_name("media-skip-forward-symbolic");
+    next_btn.add_css_class("flat");
+
+    let sync_nav = {
+        let rec_state = rec_state.clone();
+        let prev_btn = prev_btn.clone();
+        let next_btn = next_btn.clone();
+        move || {
+            let total = surah_total_verses(chapter).unwrap_or(u32::MAX);
+            let prev_enabled = rec_state.borrow().selected_verse.is_some_and(|v| v > 1);
+            let next_enabled = rec_state.borrow().selected_verse.is_some_and(|v| v < total);
+            prev_btn.set_sensitive(prev_enabled);
+            next_btn.set_sensitive(next_enabled);
+        }
+    };
+    sync_nav();
+
+    let media_box = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+    media_box.append(&prev_btn);
+    media_box.append(&play_btn);
+    media_box.append(&next_btn);
+
+    let lang_owned = lang.to_string();
+    let current_slug = config.reciter_slug();
+    let current_pos = crate::reciter_ui::RECITERS
+        .iter()
+        .position(|r| r.slug == current_slug);
+    let reciter_box = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+    let reciter_label = gtk::Label::new(Some(
+        current_pos
+            .and_then(|p| crate::reciter_ui::RECITERS.get(p))
+            .map(|r| tr(r.display, &lang_owned))
+            .as_deref()
+            .unwrap_or(&tr("Reciter", &lang_owned)),
+    ));
+    reciter_label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    reciter_box.append(&reciter_label);
+    let reciter_btn = gtk::Button::new();
+    reciter_btn.set_child(Some(&reciter_box));
+    let dialog_btn = reciter_btn.clone();
+    let dialog_cfg = config.clone();
+    let dialog_lang = lang_owned.clone();
+    reciter_btn.connect_clicked(move |_| {
+        crate::reciter_ui::open_reciter_dialog(
+            &dialog_btn,
+            dialog_cfg.clone(),
+            &dialog_lang,
+            reciter_label.clone(),
+        );
+    });
+
+    let stop_items = [
+        tr("None", &lang_owned),
+        tr("End of Ayat", &lang_owned),
+        tr("End of Page", &lang_owned),
+        tr("End of Juz", &lang_owned),
+        tr("End of Surah", &lang_owned),
+    ];
+    let stop_refs: Vec<&str> = stop_items.iter().map(|s| s.as_str()).collect();
+    let stop_model = gtk::StringList::new(&stop_refs);
+    let stop_dropdown = gtk::DropDown::new(Some(stop_model), Option::<&gtk::Expression>::None);
+    stop_dropdown.add_css_class("flat");
+    stop_dropdown.set_selected(match config.stop_condition() {
+        StopCondition::None => 0,
+        StopCondition::Ayat => 1,
+        StopCondition::Page => 2,
+        StopCondition::Juz => 3,
+        StopCondition::Surah => 4,
+    });
+    let stop_cfg = config.clone();
+    stop_dropdown.connect_selected_notify(move |dd| {
+        let cond = match dd.selected() {
+            0 => StopCondition::None,
+            1 => StopCondition::Ayat,
+            2 => StopCondition::Page,
+            3 => StopCondition::Juz,
+            _ => StopCondition::Surah,
+        };
+        stop_cfg.set_stop_condition(cond);
+        stop_cfg.save();
+    });
+
+    let left_box = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    left_box.append(&media_box);
+
+    let right_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    right_box.append(&stop_dropdown);
+
+    toolbar.set_start_widget(Some(&left_box));
+    toolbar.set_center_widget(Some(&reciter_btn));
+    toolbar.set_end_widget(Some(&right_box));
+
+    let play_rec_state = rec_state.clone();
+    let play_fn_c = play_fn.clone();
+    let play_btn_return = play_btn.clone();
+    play_btn.connect_clicked(move |btn| {
+        let was_playing = play_rec_state.borrow().playing;
+        let verse = play_rec_state.borrow().selected_verse.unwrap_or(1);
+        if was_playing {
+            play_rec_state.borrow_mut().playing = false;
+            crate::audio::stop();
+            btn.set_icon_name("media-playback-start-symbolic");
+        } else {
+            if let Some(ref play) = *play_fn_c.borrow() {
+                play(verse);
+            }
+            btn.set_icon_name("media-playback-pause-symbolic");
+        }
+    });
+
+    let prev_sync = sync_nav.clone();
+    let prev_rec_state = rec_state.clone();
+    let play_fn_c2 = play_fn.clone();
+    let prev_play_btn = play_btn.clone();
+    prev_btn.connect_clicked(move |_| {
+        let v = prev_rec_state.borrow().selected_verse.filter(|&v| v > 1);
+        if let Some(verse) = v {
+            prev_rec_state.borrow_mut().selected_verse = Some(verse - 1);
+            if let Some(ref play) = *play_fn_c2.borrow() {
+                play(verse - 1);
+            }
+            prev_play_btn.set_icon_name("media-playback-pause-symbolic");
+        }
+        prev_sync();
+    });
+
+    let next_sync = sync_nav.clone();
+    let next_rec_state = rec_state.clone();
+    let play_fn_c3 = play_fn;
+    let next_play_btn = play_btn.clone();
+    next_btn.connect_clicked(move |_| {
+        let v = next_rec_state.borrow().selected_verse;
+        if let Some(verse) = v {
+            next_rec_state.borrow_mut().selected_verse = Some(verse + 1);
+            if let Some(ref play) = *play_fn_c3.borrow() {
+                play(verse + 1);
+            }
+            next_play_btn.set_icon_name("media-playback-pause-symbolic");
+        }
+        next_sync();
+    });
+
+    (toolbar, play_btn_return, prev_btn, next_btn)
+}
+
+fn is_verse_on_page(surah: u32, verse: u32, page: u32) -> bool {
+    if let Some(verses) = get_page_verses(page) {
+        verses
+            .iter()
+            .any(|pv| pv.surah == surah && pv.verse == verse)
+    } else {
+        false
+    }
+}
+
+fn get_page_for_verse(surah: u32, verse: u32) -> Option<u32> {
+    (1..=get_total_pages()).find(|&p| is_verse_on_page(surah, verse, p))
 }
 
 #[allow(dead_code)]
@@ -1823,6 +2151,16 @@ pub fn create_surah_view(
     let surah_chapter_rc = Rc::new(surah_chapter);
     let quran_lang_rc = Rc::new(quran_lang.to_string());
     let config_rc = config.clone();
+
+    let rec_state = Rc::new(RefCell::new(RecitationState {
+        selected_verse: None,
+        playing: false,
+    }));
+    let verse_boundaries: Rc<RefCell<HashMap<u32, Vec<VerseBoundary>>>> =
+        Rc::new(RefCell::new(HashMap::new()));
+
+    let rebuild_fn: RebuildFn = Rc::new(RefCell::new(None));
+    let play_fn: PlayFn = Rc::new(RefCell::new(None));
 
     fn build_page_content(
         page: u32,
@@ -2191,18 +2529,11 @@ pub fn create_surah_view(
     }
 
     if highlight_verse.is_some() {
-        let scrolled_for_hl = scrolled.clone();
-        let surah_for_hl = surah_chapter_rc.clone();
-        let lang_for_hl = quran_lang_rc.clone();
-        let current_page_for_hl = current_page.clone();
+        let rebuild_fn_for_hl = rebuild_fn.clone();
         gtk::glib::timeout_add_local(std::time::Duration::from_millis(5000), move || {
-            let p = *current_page_for_hl.borrow();
-            let adj = scrolled_for_hl.vadjustment();
-            let val = adj.value();
-            let new_content =
-                build_page_content(p, chapter, &lang_for_hl, (*surah_for_hl).clone(), None);
-            scrolled_for_hl.set_child(Some(&new_content));
-            scrolled_for_hl.vadjustment().set_value(val);
+            if let Some(ref rebuild) = *rebuild_fn_for_hl.borrow() {
+                rebuild();
+            }
             gtk::glib::ControlFlow::Break
         });
     }
@@ -2262,120 +2593,229 @@ pub fn create_surah_view(
     content_area.append(&content_clamp);
     container.append(&content_area);
 
-    let scrolled_for_prev = scrolled.clone();
-    let page_entry_for_prev = page_entry.clone();
-    let prev_btn_for_prev = prev_btn.clone();
-    let next_btn_for_prev = next_btn.clone();
+    let rebuild_scrolled = scrolled.clone();
+    let rebuild_chapter = chapter;
+    let rebuild_lang = quran_lang_rc.clone();
+    let rebuild_surah = surah_chapter_rc.clone();
+    let rebuild_ending = end_page;
+    let rebuild_start = start_page;
+    let _rebuild_total = total_pages;
+    let rebuild_marker = marker_frame.clone();
+    let rebuild_entry = page_entry.clone();
+    let rebuild_prev_btn = prev_btn.clone();
+    let rebuild_next_btn = next_btn.clone();
+    let rebuild_config = config_rc.clone();
+    let rebuild_current_page = current_page.clone();
+    let rebuild_rec_state = rec_state.clone();
+    let rebuild_bounds = verse_boundaries.clone();
+    let rebuild_fn_c = rebuild_fn.clone();
+    *rebuild_fn.borrow_mut() = Some(Box::new(move || {
+        let page = *rebuild_current_page.borrow();
+        let verse = rebuild_rec_state.borrow().selected_verse;
+        let mut new_page = page;
+        if let Some(v) = verse
+            && !is_verse_on_page(rebuild_chapter, v, page)
+            && let Some(fp) = get_page_for_verse(rebuild_chapter, v)
+        {
+            new_page = fp;
+            *rebuild_current_page.borrow_mut() = fp;
+        }
+        let new_content = build_page_content(
+            new_page,
+            rebuild_chapter,
+            &rebuild_lang,
+            (*rebuild_surah).clone(),
+            verse,
+        );
+        rebuild_scrolled.set_child(Some(&new_content));
+        attach_verse_click_handlers(
+            &new_content,
+            new_page,
+            rebuild_chapter,
+            &rebuild_lang,
+            rebuild_rec_state.clone(),
+            rebuild_bounds.clone(),
+            rebuild_fn_c.clone(),
+        );
+        if new_page != page {
+            let adj = rebuild_scrolled.vadjustment();
+            adj.set_value(0.0);
+            update_marker_frame(&rebuild_marker, new_page, &rebuild_lang);
+            gtk::prelude::EditableExt::set_text(&rebuild_entry, &new_page.to_string());
+            rebuild_prev_btn.set_sensitive(new_page > rebuild_start || rebuild_chapter > 1);
+            rebuild_next_btn.set_sensitive(new_page < rebuild_ending || rebuild_chapter < 114);
+            SURAH_READING_POSITIONS.with(|pos| pos.borrow_mut().insert(rebuild_chapter, new_page));
+            rebuild_config.set_quran_last_surah(Some(rebuild_chapter));
+            rebuild_config.set_quran_last_page(Some(new_page));
+            rebuild_config.save();
+        }
+    }));
+
+    let play_rec_state = rec_state.clone();
+    let play_config = config_rc.clone();
+    let play_rebuild = rebuild_fn.clone();
+    let play_chapter = chapter;
+    *play_fn.borrow_mut() = Some(Box::new(move |verse| {
+        log::info!("Play fn called: surah={}, verse={}", play_chapter, verse);
+        play_rec_state.borrow_mut().playing = true;
+        play_rec_state.borrow_mut().selected_verse = Some(verse);
+        if let Some(ref rebuild) = *play_rebuild.borrow() {
+            rebuild();
+        }
+        let slug = play_config.reciter_slug();
+        let vol = play_config.recitation_volume();
+        log::info!(
+            "Playing verse: slug={}, surah={}, verse={}, vol={}",
+            slug,
+            play_chapter,
+            verse,
+            vol
+        );
+        match play_config.stop_condition() {
+            StopCondition::None | StopCondition::Ayat => {
+                crate::audio::play_verse(&slug, play_chapter, verse, vol);
+            }
+            _ => {
+                let total = surah_total_verses(play_chapter).unwrap_or(u32::MAX);
+                let end_verse =
+                    compute_stop_boundary(play_chapter, verse, play_config.stop_condition())
+                        .unwrap_or(total);
+                crate::audio::play_surah(&slug, play_chapter, verse, end_verse.min(total), vol);
+            }
+        }
+    }));
+
+    let (toolbar, rec_play_btn, rec_prev_btn, rec_next_btn) = build_recitation_toolbar(
+        rec_state.clone(),
+        &config_rc,
+        play_fn.clone(),
+        quran_lang,
+        chapter,
+    );
+    content_stack.insert_child_after(&toolbar, Some(&scrolled));
+
+    attach_verse_click_handlers(
+        &initial_content,
+        initial_page,
+        chapter,
+        quran_lang,
+        rec_state.clone(),
+        verse_boundaries.clone(),
+        rebuild_fn.clone(),
+    );
+
+    let poll_rec_state = rec_state.clone();
+    let poll_chapter = chapter;
+    let poll_rebuild = rebuild_fn.clone();
+    let poll_play_btn = rec_play_btn.clone();
+    let poll_prev_btn = rec_prev_btn.clone();
+    let poll_next_btn = rec_next_btn.clone();
+    glib::timeout_add_local(Duration::from_millis(200), move || {
+        let total = surah_total_verses(poll_chapter).unwrap_or(u32::MAX);
+        {
+            let state = poll_rec_state.borrow();
+            poll_prev_btn.set_sensitive(state.selected_verse.is_some_and(|v| v > 1));
+            poll_next_btn.set_sensitive(state.selected_verse.is_some_and(|v| v < total));
+        }
+
+        if let Some((surah, verse)) = crate::audio::poll_verse_finished() {
+            if surah == poll_chapter {
+                let currently_playing = poll_rec_state.borrow().playing;
+                if currently_playing {
+                    let next_verse = verse + 1;
+                    if next_verse <= total && crate::audio::is_playing() {
+                        poll_rec_state.borrow_mut().selected_verse = Some(next_verse);
+                        if let Some(ref rebuild) = *poll_rebuild.borrow() {
+                            rebuild();
+                        }
+                    } else {
+                        poll_rec_state.borrow_mut().playing = false;
+                        poll_play_btn.set_icon_name("media-playback-start-symbolic");
+                    }
+                }
+            }
+        } else {
+            let currently_playing = poll_rec_state.borrow().playing;
+            if !crate::audio::is_playing() && currently_playing {
+                poll_rec_state.borrow_mut().playing = false;
+                poll_play_btn.set_icon_name("media-playback-start-symbolic");
+            }
+        }
+        glib::ControlFlow::Continue
+    });
+
+    let _scrolled_for_prev = scrolled.clone();
+    let _page_entry_for_prev = page_entry.clone();
     let current_page_for_prev = current_page.clone();
     let lang_for_prev = quran_lang_rc.clone();
-    let surah_for_prev = surah_chapter_rc.clone();
     let view_stack_for_prev = view_stack.clone();
-    let bookmark_btn_for_prev = bookmark_toggle_btn.clone();
-    let marker_frame_for_prev = marker_frame.clone();
     let config_for_prev = config_rc.clone();
+    let rebuild_fn_for_prev = rebuild_fn.clone();
+
+    fn navigate_to_surah(
+        target_chapter: u32,
+        scroll_verse: Option<u32>,
+        vs: &adw::ViewStack,
+        cfg: AppConfig,
+        lang: &str,
+    ) {
+        let page_name = format!("surah_{}", target_chapter);
+        if let Some(existing) = vs.child_by_name(&page_name) {
+            vs.set_visible_child(&existing);
+        } else {
+            let surah_view = create_surah_view(target_chapter, lang, vs, scroll_verse, None, cfg);
+            surah_view.set_vexpand(true);
+            vs.add_named(&surah_view, Some(&page_name));
+            vs.set_visible_child_name(&page_name);
+        }
+    }
 
     prev_btn.connect_clicked(move |_| {
         let mut page = current_page_for_prev.borrow_mut();
         if *page > start_page {
             *page -= 1;
-            let p = *page;
-            let new_content =
-                build_page_content(p, chapter, &lang_for_prev, (*surah_for_prev).clone(), None);
-            scrolled_for_prev.set_child(Some(&new_content));
-            let adj = scrolled_for_prev.vadjustment();
-            adj.set_value(0.0);
-            update_marker_frame(&marker_frame_for_prev, p, &lang_for_prev);
-            gtk::prelude::EditableExt::set_text(&page_entry_for_prev, &p.to_string());
-            page_entry_for_prev.set_tooltip_text(Some(&page_label_text(
-                p,
-                total_pages,
-                &lang_for_prev,
-            )));
-            set_bookmark_state(&bookmark_btn_for_prev, p, &config_for_prev);
-            prev_btn_for_prev.set_sensitive(p > start_page || chapter > 1);
-            next_btn_for_prev.set_sensitive(true);
-            SURAH_READING_POSITIONS.with(|pos| pos.borrow_mut().insert(chapter, p));
-            config_for_prev.set_quran_last_surah(Some(chapter));
-            config_for_prev.set_quran_last_page(Some(p));
-            config_for_prev.save();
+            drop(page);
+            if let Some(ref rebuild) = *rebuild_fn_for_prev.borrow() {
+                rebuild();
+            }
         } else if chapter > 1 {
             let prev_chapter = chapter - 1;
             let last_verse = surah_total_verses(prev_chapter).unwrap_or(1);
-            let page_name = format!("surah_{}", prev_chapter);
-            if let Some(old) = view_stack_for_prev.child_by_name(&page_name) {
-                view_stack_for_prev.remove(&old);
-            }
-            CREATED_SURAH_PAGES.with(|set| set.borrow_mut().remove(&page_name));
-            let surah_view = create_surah_view(
+            navigate_to_surah(
                 prev_chapter,
-                &lang_for_prev,
-                &view_stack_for_prev,
                 Some(last_verse),
-                None,
+                &view_stack_for_prev,
                 config_for_prev.clone(),
+                &lang_for_prev,
             );
-            surah_view.set_vexpand(true);
-            view_stack_for_prev.add_named(&surah_view, Some(&page_name));
-            CREATED_SURAH_PAGES.with(|set| set.borrow_mut().insert(page_name.clone()));
-            view_stack_for_prev.set_visible_child_name(&page_name);
         }
     });
 
-    let scrolled_for_next = scrolled.clone();
-    let page_entry_for_next = page_entry.clone();
-    let prev_btn_for_next = prev_btn.clone();
-    let next_btn_for_next = next_btn.clone();
+    let _scrolled_for_next = scrolled.clone();
+    let _page_entry_for_next = page_entry.clone();
     let current_page_for_next = current_page.clone();
     let lang_for_next = quran_lang_rc.clone();
-    let surah_for_next = surah_chapter_rc.clone();
     let view_stack_for_next = view_stack.clone();
-    let bookmark_btn_for_next = bookmark_toggle_btn.clone();
-    let marker_frame_for_next = marker_frame.clone();
     let config_for_next = config_rc.clone();
+    let rebuild_fn_for_next = rebuild_fn.clone();
 
     next_btn.connect_clicked(move |_| {
         let mut page = current_page_for_next.borrow_mut();
         if *page < end_page {
             *page += 1;
-            let p = *page;
-            let new_content =
-                build_page_content(p, chapter, &lang_for_next, (*surah_for_next).clone(), None);
-            scrolled_for_next.set_child(Some(&new_content));
-            let adj = scrolled_for_next.vadjustment();
-            adj.set_value(0.0);
-            update_marker_frame(&marker_frame_for_next, p, &lang_for_next);
-            gtk::prelude::EditableExt::set_text(&page_entry_for_next, &p.to_string());
-            page_entry_for_next.set_tooltip_text(Some(&page_label_text(
-                p,
-                total_pages,
-                &lang_for_next,
-            )));
-            set_bookmark_state(&bookmark_btn_for_next, p, &config_for_next);
-            prev_btn_for_next.set_sensitive(true);
-            next_btn_for_next.set_sensitive(p < end_page || chapter < 114);
-            SURAH_READING_POSITIONS.with(|pos| pos.borrow_mut().insert(chapter, p));
-            config_for_next.set_quran_last_surah(Some(chapter));
-            config_for_next.set_quran_last_page(Some(p));
-            config_for_next.save();
+            drop(page);
+            if let Some(ref rebuild) = *rebuild_fn_for_next.borrow() {
+                rebuild();
+            }
         } else if chapter < 114 {
             let next_chapter = chapter + 1;
-            let page_name = format!("surah_{}", next_chapter);
-            if let Some(old) = view_stack_for_next.child_by_name(&page_name) {
-                view_stack_for_next.remove(&old);
-            }
-            CREATED_SURAH_PAGES.with(|set| set.borrow_mut().remove(&page_name));
-            let surah_view = create_surah_view(
+            navigate_to_surah(
                 next_chapter,
-                &lang_for_next,
-                &view_stack_for_next,
                 Some(1),
-                None,
+                &view_stack_for_next,
                 config_for_next.clone(),
+                &lang_for_next,
             );
-            surah_view.set_vexpand(true);
-            view_stack_for_next.add_named(&surah_view, Some(&page_name));
-            CREATED_SURAH_PAGES.with(|set| set.borrow_mut().insert(page_name.clone()));
-            view_stack_for_next.set_visible_child_name(&page_name);
         }
     });
 
@@ -2393,43 +2833,13 @@ pub fn create_surah_view(
         view_stack_back.set_visible_child_name("quran");
     });
 
-    let scrolled_for_start = scrolled.clone();
-    let marker_frame_for_start = marker_frame.clone();
-    let page_entry_for_start = page_entry.clone();
-    let prev_btn_for_start = prev_btn.clone();
-    let next_btn_for_start = next_btn.clone();
-    let current_page_for_start = current_page.clone();
-    let lang_for_start = quran_lang_rc.clone();
-    let surah_for_start = surah_chapter_rc.clone();
-    let bookmark_btn_for_start = bookmark_toggle_btn.clone();
-    let config_for_start = config_rc.clone();
+    let rebuild_fn_for_start = rebuild_fn.clone();
+    let start_page_cp = current_page.clone();
     start_btn.connect_clicked(move |_| {
-        let p = start_page;
-        *current_page_for_start.borrow_mut() = p;
-        let new_content = build_page_content(
-            p,
-            chapter,
-            &lang_for_start,
-            (*surah_for_start).clone(),
-            None,
-        );
-        scrolled_for_start.set_child(Some(&new_content));
-        let adj = scrolled_for_start.vadjustment();
-        adj.set_value(0.0);
-        update_marker_frame(&marker_frame_for_start, p, &lang_for_start);
-        gtk::prelude::EditableExt::set_text(&page_entry_for_start, &p.to_string());
-        page_entry_for_start.set_tooltip_text(Some(&page_label_text(
-            p,
-            total_pages,
-            &lang_for_start,
-        )));
-        set_bookmark_state(&bookmark_btn_for_start, p, &config_for_start);
-        prev_btn_for_start.set_sensitive(p > start_page || chapter > 1);
-        next_btn_for_start.set_sensitive(p < end_page || chapter < 114);
-        SURAH_READING_POSITIONS.with(|pos| pos.borrow_mut().insert(chapter, p));
-        config_for_start.set_quran_last_surah(Some(chapter));
-        config_for_start.set_quran_last_page(Some(p));
-        config_for_start.save();
+        *start_page_cp.borrow_mut() = start_page;
+        if let Some(ref rebuild) = *rebuild_fn_for_start.borrow() {
+            rebuild();
+        }
     });
 
     let current_page_for_bm = current_page.clone();

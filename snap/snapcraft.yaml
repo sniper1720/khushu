@@ -91,4 +91,4 @@ parts:
 
       # --- Icon fallback (prevent "..." tray icon in snap) ---
       mkdir -p $CRAFT_PART_INSTALL/meta/gui/
-      cp $CRAFT_PART_SRC/data/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg $CRAFT_PART_INSTALL/meta/gui/
+      cp $CRAFT_PART_SRC/data/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg $CRAFT_PART_INSTALL/meta/gui/io.github.sniper1720.khushu-symbolic.svg

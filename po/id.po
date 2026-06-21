@@ -92,7 +92,7 @@ msgid ""
 "Welcome & Onboarding: Easy first-time setup for location, language, and "
 "calculation method"
 msgstr ""
-"Selamat Datang & Panduan Awal: Pengaturan awal yang mudah untuk lokasi, "
+"Selamat Datang &amp; Panduan Awal: Pengaturan awal yang mudah untuk lokasi, "
 "bahasa, dan metode perhitungan"
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in

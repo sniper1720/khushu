@@ -38,7 +38,7 @@ fn get_flatpak_tray_icon() -> Option<std::path::PathBuf> {
 impl Tray for KhushuTray {
     fn icon_name(&self) -> String {
         if let Ok(snap) = std::env::var("SNAP") {
-            let svg_path = format!("{snap}/meta/gui/io.github.sniper1720.khushu.svg");
+            let svg_path = format!("{snap}/meta/gui/io.github.sniper1720.khushu-symbolic.svg");
             if std::path::Path::new(&svg_path).exists() {
                 return svg_path;
             }

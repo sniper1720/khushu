@@ -32,7 +32,8 @@ pub fn get_flatpak_tray_icon_path() -> Option<PathBuf> {
                 return None;
             }
 
-            let source = "/app/share/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg";
+            let source =
+                "/app/share/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg";
             if let Ok(data) = std::fs::read(source)
                 && std::fs::write(&icon_path, &data).is_ok()
             {

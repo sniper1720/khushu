@@ -86,27 +86,24 @@ fn delete_downloaded_reciter(reciter_slug: &str) {
 pub(crate) fn open_reciter_dialog(
     parent: &impl IsA<gtk::Widget>,
     config: AppConfig,
-    lang: &str,
     label: gtk::Label,
 ) {
     // RECITERS: Quran reciter display names — translate to native script
     if false {
-        tr("Mishary Alafasy", "");
-        tr("Abdul Basit", "");
-        tr("Al-Husary", "");
-        tr("Al-Ghamdi", "");
-        tr("Al-Huthaify", "");
-        tr("Al-Menshawy", "");
-        tr("Al-Shatri", "");
+        tr("Mishary Alafasy");
+        tr("Abdul Basit");
+        tr("Al-Husary");
+        tr("Al-Ghamdi");
+        tr("Al-Huthaify");
+        tr("Al-Menshawy");
+        tr("Al-Shatri");
     }
-
-    let lang = lang.to_string();
     let total = total_quran_verses();
 
     let dialog = adw::Dialog::new();
     dialog.set_content_width(420);
     dialog.set_content_height(500);
-    dialog.set_title(&tr("Reciter", &lang));
+    dialog.set_title(&tr("Reciter"));
 
     let toolbar_view = adw::ToolbarView::new();
 
@@ -116,7 +113,7 @@ pub(crate) fn open_reciter_dialog(
     let content_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
 
     let search_entry = gtk::SearchEntry::new();
-    search_entry.set_placeholder_text(Some(&tr("Search reciters...", &lang)));
+    search_entry.set_placeholder_text(Some(&tr("Search reciters...")));
     search_entry.set_margin_start(12);
     search_entry.set_margin_end(12);
     search_entry.set_margin_bottom(6);
@@ -134,20 +131,20 @@ pub(crate) fn open_reciter_dialog(
     toolbar_view.set_content(Some(&content_box));
     dialog.set_child(Some(&toolbar_view));
 
-    let verses_template = tr("{} / {} verses downloaded", &lang);
-    let not_downloaded = tr("Not downloaded", &lang);
-    let delete_label = tr("Delete", &lang);
-    let delete_tooltip = tr("Delete downloaded verses", &lang);
-    let download_label = tr("Download", &lang);
-    let download_tooltip = tr("Download for offline use", &lang);
-    let downloading_label = tr("Downloading...", &lang);
+    let verses_template = tr("{} / {} verses downloaded");
+    let not_downloaded = tr("Not downloaded");
+    let delete_label = tr("Delete");
+    let delete_tooltip = tr("Delete downloaded verses");
+    let download_label = tr("Download");
+    let download_tooltip = tr("Download for offline use");
+    let downloading_label = tr("Downloading...");
 
     let btn_map: Rc<RefCell<HashMap<String, gtk::Button>>> = Rc::new(RefCell::new(HashMap::new()));
     let (dl_tx, dl_rx) = std::sync::mpsc::channel::<(String, i32)>();
 
     for (i, reciter) in RECITERS.iter().enumerate() {
         let row = adw::ActionRow::new();
-        row.set_title(&tr(reciter.display, &lang));
+        row.set_title(&tr(reciter.display));
         row.set_activatable(true);
 
         let downloaded = count_downloaded_verses(reciter.slug);
@@ -212,13 +209,12 @@ pub(crate) fn open_reciter_dialog(
             let cfg = config.clone();
             let slug = slug.clone();
             let label_c = label.clone();
-            let lang_c = lang.clone();
             let dialog_c = dialog.clone();
             let display = reciter.display;
             move |_| {
                 cfg.set_reciter_slug(&slug);
                 cfg.save();
-                label_c.set_label(&tr(display, &lang_c));
+                label_c.set_label(&tr(display));
                 dialog_c.close();
             }
         });

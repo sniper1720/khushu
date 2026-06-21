@@ -23,7 +23,7 @@ pub fn refresh_home_ui(
     config: &AppConfig,
 ) {
     let now = crate::time::effective_now(config);
-    let hijri_text = crate::time::format_hijri_date(now, config.hijri_offset(), lang);
+    let hijri_text = crate::time::format_hijri_date(now, config.hijri_offset());
     hijri_label.set_label(&hijri_text);
 
     let mawaqit_cache = if config.prayer_times_source() == crate::config::PrayerTimesSource::Mawaqit

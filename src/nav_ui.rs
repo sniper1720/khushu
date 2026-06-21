@@ -9,10 +9,7 @@ use libadwaita as adw;
 
 use crate::i18n::tr;
 
-pub fn build_sidebar(
-    split_view: &adw::OverlaySplitView,
-    current_lang: &Rc<RefCell<String>>,
-) -> ListBox {
+pub fn build_sidebar(split_view: &adw::OverlaySplitView) -> ListBox {
     let sidebar_box = Box::new(Orientation::Vertical, 0);
     sidebar_box.set_vexpand(true);
 
@@ -26,41 +23,13 @@ pub fn build_sidebar(
         .build();
 
     let nav_items = vec![
-        (
-            "home",
-            tr("Home", &current_lang.borrow()),
-            "user-home-symbolic",
-        ),
-        (
-            "calendar",
-            tr("Calendar", &current_lang.borrow()),
-            "x-office-calendar-symbolic",
-        ),
-        (
-            "qibla",
-            tr("Qibla", &current_lang.borrow()),
-            "qibla-symbolic",
-        ),
-        (
-            "adkar",
-            tr("Adkar", &current_lang.borrow()),
-            "emblem-documents-symbolic",
-        ),
-        (
-            "quran",
-            tr("Noble Quran", &current_lang.borrow()),
-            "noble-quran-symbolic",
-        ),
-        (
-            "settings",
-            tr("Settings", &current_lang.borrow()),
-            "emblem-system-symbolic",
-        ),
-        (
-            "about",
-            tr("About", &current_lang.borrow()),
-            "help-about-symbolic",
-        ),
+        ("home", tr("Home"), "user-home-symbolic"),
+        ("calendar", tr("Calendar"), "x-office-calendar-symbolic"),
+        ("qibla", tr("Qibla"), "qibla-symbolic"),
+        ("adkar", tr("Adkar"), "emblem-documents-symbolic"),
+        ("quran", tr("Noble Quran"), "noble-quran-symbolic"),
+        ("settings", tr("Settings"), "emblem-system-symbolic"),
+        ("about", tr("About"), "help-about-symbolic"),
     ];
 
     for (id, title, icon) in nav_items {
@@ -114,7 +83,7 @@ pub fn connect_sidebar_navigation(
     sidebar_list.connect_row_activated(move |list, row| {
         let name = row.widget_name();
         if name == "about" {
-            crate::show_about_window(&window_sidebar, &current_lang_sidebar.borrow());
+            crate::show_about_window(&window_sidebar);
             let prev = last_valid_row_act.borrow().as_ref().cloned();
             if let Some(p) = prev {
                 list.select_row(Some(&p));
@@ -135,14 +104,13 @@ pub fn connect_sidebar_navigation(
                 split_view_hide.set_show_sidebar(false);
             }
 
-            let lang = current_lang_sidebar.borrow();
             let title = match name.as_str() {
-                "home" => tr("Prayer Times", &lang),
-                "calendar" => tr("Calendar", &lang),
-                "qibla" => tr("Qibla", &lang),
-                "adkar" => tr("Adkar", &lang),
-                "quran" => tr("Noble Quran", &lang),
-                "settings" => tr("Settings", &lang),
+                "home" => tr("Prayer Times"),
+                "calendar" => tr("Calendar"),
+                "qibla" => tr("Qibla"),
+                "adkar" => tr("Adkar"),
+                "quran" => tr("Noble Quran"),
+                "settings" => tr("Settings"),
                 _ => "Khushu".to_string(),
             };
             window_title_sidebar.set_title(&title);

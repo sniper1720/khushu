@@ -363,108 +363,103 @@ where
             crate::i18n::update_locale(&detected);
             crate::apply_font_css(l, &config_font);
 
-            window.set_title(Some(&tr("Welcome to Khushu", l)));
-            status_page.set_title(&tr("Welcome to Khushu", l));
+            window.set_title(Some(&tr("Welcome to Khushu")));
+            status_page.set_title(&tr("Welcome to Khushu"));
             status_page.set_description(Some(&tr(
                 "Please configure your location to get accurate prayer times.",
-                l,
             )));
 
-            appearance_group.set_title(&tr("Appearance", l));
-            theme_row.set_title(&tr("Theme", l));
-            theme_model.splice(
-                0,
-                3,
-                &[&tr("System Default", l), &tr("Light", l), &tr("Dark", l)],
-            );
+            appearance_group.set_title(&tr("Appearance"));
+            theme_row.set_title(&tr("Theme"));
+            theme_model.splice(0, 3, &[&tr("System Default"), &tr("Light"), &tr("Dark")]);
 
-            lang_group.set_title(&tr("Language", l));
-            lang_row.set_title(&tr("Language", l));
+            lang_group.set_title(&tr("Language"));
+            lang_row.set_title(&tr("Language"));
             lang_model.splice(
                 0,
                 7,
                 &[
-                    &tr("System Default", l),
-                    &tr("English", l),
-                    &tr("Arabic", l),
-                    &tr("French", l),
-                    &tr("Spanish", l),
-                    &tr("Turkish", l),
-                    &tr("Indonesian", l),
+                    &tr("System Default"),
+                    &tr("English"),
+                    &tr("Arabic"),
+                    &tr("French"),
+                    &tr("Spanish"),
+                    &tr("Turkish"),
+                    &tr("Indonesian"),
                 ],
             );
 
-            behavior_group.set_title(&tr("Autostart", l));
-            autostart_row.set_title(&tr("Start Automatically", l));
-            autostart_row.set_subtitle(&tr("Run Khushu in the background when you log in.", l));
+            behavior_group.set_title(&tr("Autostart"));
+            autostart_row.set_title(&tr("Start Automatically"));
+            autostart_row.set_subtitle(&tr("Run Khushu in the background when you log in."));
 
-            prayer_group.set_title(&tr("Prayer Setup", l));
-            method_row.set_title(&tr("Calculation Method", l));
+            prayer_group.set_title(&tr("Prayer Setup"));
+            method_row.set_title(&tr("Calculation Method"));
             method_model.splice(
                 0,
                 14,
                 &[
-                    &tr("MWL", l),
-                    &tr("ISNA", l),
-                    &tr("Egypt", l),
-                    &tr("Makkah", l),
-                    &tr("Karachi", l),
-                    &tr("Dubai", l),
-                    &tr("MoonsightingCommittee", l),
-                    &tr("Kuwait", l),
-                    &tr("Qatar", l),
-                    &tr("Singapore", l),
-                    &tr("Turkey", l),
-                    &tr("KEMENAG", l),
-                    &tr("France (UOIF)", l),
-                    &tr("Algeria", l),
+                    &tr("MWL"),
+                    &tr("ISNA"),
+                    &tr("Egypt"),
+                    &tr("Makkah"),
+                    &tr("Karachi"),
+                    &tr("Dubai"),
+                    &tr("MoonsightingCommittee"),
+                    &tr("Kuwait"),
+                    &tr("Qatar"),
+                    &tr("Singapore"),
+                    &tr("Turkey"),
+                    &tr("KEMENAG"),
+                    &tr("France (UOIF)"),
+                    &tr("Algeria"),
                 ],
             );
 
-            location_group.set_title(&tr("Location Settings", l));
-            mode_row.set_title(&tr("Location Method", l));
+            location_group.set_title(&tr("Location Settings"));
+            mode_row.set_title(&tr("Location Method"));
             modes.splice(
                 0,
                 3,
                 &[
-                    &tr("Manual Coordinates", l),
-                    &tr("City Selection", l),
-                    &tr("Auto (GPS/Network)", l),
+                    &tr("Manual Coordinates"),
+                    &tr("City Selection"),
+                    &tr("Auto (GPS/Network)"),
                 ],
             );
 
-            lat_row.set_title(&tr("Latitude", l));
-            lon_row.set_title(&tr("Longitude", l));
-            city_row.set_title(&tr("City Name", l));
+            lat_row.set_title(&tr("Latitude"));
+            lon_row.set_title(&tr("Longitude"));
+            city_row.set_title(&tr("City Name"));
 
-            auto_status_row.set_title(&tr("Status", l));
+            auto_status_row.set_title(&tr("Status"));
 
             let state = location_state.borrow().clone();
             match state {
                 LocationState::Initial => {
                     auto_status_row
-                        .set_subtitle(&tr("Enable location services in system settings.", l));
+                        .set_subtitle(&tr("Enable location services in system settings."));
                 }
                 LocationState::Searching => {
-                    auto_status_row.set_subtitle(&tr("Detecting...", l));
+                    auto_status_row.set_subtitle(&tr("Detecting..."));
                 }
                 LocationState::Success(city, lat, lon) => {
                     auto_status_row.set_subtitle(&format!(
                         "{}: {} ({:.2}, {:.2})",
-                        tr("Found", l),
+                        tr("Found"),
                         city,
                         lat,
                         lon
                     ));
                 }
                 LocationState::Error(key) => {
-                    auto_status_row.set_subtitle(&tr(&key, l));
+                    auto_status_row.set_subtitle(&tr(&key));
                 }
             }
 
-            detect_btn.set_label(&tr("Detect Now", l));
-            continue_btn.set_label(&tr("Continue", l));
-            city_search_btn.set_label(&tr("Search", l));
+            detect_btn.set_label(&tr("Detect Now"));
+            continue_btn.set_label(&tr("Continue"));
+            city_search_btn.set_label(&tr("Search"));
         }
     });
 
@@ -556,11 +551,10 @@ where
     let location_state_for_detect = location_state.clone();
     detect_btn.connect_clicked(move |_| {
         let label_row = auto_status_label.borrow().clone();
-        let lang = current_lang_for_detect.borrow().clone();
 
         label_row.remove_css_class("success");
         label_row.remove_css_class("error");
-        label_row.set_subtitle(&tr("Detecting...", &lang));
+        label_row.set_subtitle(&tr("Detecting..."));
         *location_state_for_detect.borrow_mut() = LocationState::Searching;
 
         let config_clone = config_clone.clone();
@@ -576,10 +570,9 @@ where
                     config_clone.set_city_name(Some(city.clone()));
                     config_clone.set_location_mode(LocationMode::Auto);
 
-                    let lang = current_lang_for_status.borrow().clone();
                     label_row.set_subtitle(&format!(
                         "{}: {} ({:.2}, {:.2})",
-                        tr("Found", &lang),
+                        tr("Found"),
                         city,
                         lat,
                         lon
@@ -588,8 +581,7 @@ where
                     *state_clone.borrow_mut() = LocationState::Success(city, lat, lon);
                 }
                 Err(e) => {
-                    let lang = current_lang_for_status.borrow().clone();
-                    label_row.set_subtitle(&tr(&e, &lang));
+                    label_row.set_subtitle(&tr(&e));
                     label_row.add_css_class("error");
                     *state_clone.borrow_mut() = LocationState::Error(e);
                 }
@@ -668,7 +660,6 @@ where
                         if let Some(overlay) = crate::settings_ui::find_toast_overlay(&window_ref) {
                             overlay.add_toast(adw::Toast::new(&tr(
                                 "Autostart was denied by the system.",
-                                "",
                             )));
                         }
                     }

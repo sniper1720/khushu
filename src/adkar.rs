@@ -212,22 +212,13 @@ pub fn create_adkar_page(config: AppConfig) -> (gtk::Box, Rc<dyn Fn()>) {
 
     rebuild_lists(config.clone());
 
-    let initial_lang = config.language();
-    let morning_page = stack.add_titled(
-        &morning_scroll,
-        Some("morning"),
-        &tr("Morning", &initial_lang),
-    );
+    let morning_page = stack.add_titled(&morning_scroll, Some("morning"), &tr("Morning"));
     morning_page.set_icon_name(Some("weather-clear-symbolic"));
 
-    let evening_page = stack.add_titled(
-        &evening_scroll,
-        Some("evening"),
-        &tr("Evening", &initial_lang),
-    );
+    let evening_page = stack.add_titled(&evening_scroll, Some("evening"), &tr("Evening"));
     evening_page.set_icon_name(Some("weather-few-clouds-night-symbolic"));
 
-    let night_page = stack.add_titled(&night_scroll, Some("night"), &tr("Night", &initial_lang));
+    let night_page = stack.add_titled(&night_scroll, Some("night"), &tr("Night"));
     night_page.set_icon_name(Some("weather-clear-night-symbolic"));
 
     container.append(&stack);
@@ -235,10 +226,9 @@ pub fn create_adkar_page(config: AppConfig) -> (gtk::Box, Rc<dyn Fn()>) {
     let rebuild_lists_refresh = rebuild_lists.clone();
     let config_refresh = config.clone();
     let refresh_ui = Rc::new(move || {
-        let lang = config_refresh.language();
-        morning_page.set_title(Some(&tr("Morning", &lang)));
-        evening_page.set_title(Some(&tr("Evening", &lang)));
-        night_page.set_title(Some(&tr("Night", &lang)));
+        morning_page.set_title(Some(&tr("Morning")));
+        evening_page.set_title(Some(&tr("Evening")));
+        night_page.set_title(Some(&tr("Night")));
         rebuild_lists_refresh(config_refresh.clone());
     });
 
@@ -337,8 +327,6 @@ fn create_dikr_row(
         .css_classes(["caption"])
         .build();
 
-    let lang = config.language();
-
     let mut translated_source = dikr.reference.clone();
 
     let books = [
@@ -352,13 +340,13 @@ fn create_dikr_row(
 
     for book in books.iter() {
         if let Some(rest) = translated_source.strip_prefix(book) {
-            translated_source = format!("{}{}", tr(book, &lang), rest);
+            translated_source = format!("{}{}", tr(book), rest);
             break;
         }
     }
 
     if translated_source.contains("(no. ") {
-        translated_source = translated_source.replace("(no. ", &tr("(no. ", &lang));
+        translated_source = translated_source.replace("(no. ", &tr("(no. "));
     }
 
     let hbox_meta = gtk::Box::new(gtk::Orientation::Horizontal, 12);

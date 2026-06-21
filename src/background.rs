@@ -128,14 +128,11 @@ async fn setup_tray_icon() {
         return;
     }
 
-    let lang = std::env::var("LANGUAGE").unwrap_or_default();
-    let lang_ref = if lang.is_empty() { "en" } else { &lang };
-
     let data = get_tray_data();
     {
         let mut d = data.write().expect("KhushuTray data lock poisoned");
-        d.open_label = tr("Open Khushu", lang_ref);
-        d.quit_label = tr("Quit", lang_ref);
+        d.open_label = tr("Open Khushu");
+        d.quit_label = tr("Quit");
     }
 
     let tray = KhushuTray { data };
@@ -163,12 +160,12 @@ async fn setup_tray_icon() {
     }
 }
 
-pub fn update_tray_labels(lang: &str) {
+pub fn update_tray_labels() {
     let data = get_tray_data();
     {
         let mut d = data.write().expect("KhushuTray data lock poisoned");
-        d.open_label = tr("Open Khushu", lang);
-        d.quit_label = tr("Quit", lang);
+        d.open_label = tr("Open Khushu");
+        d.quit_label = tr("Quit");
     }
 
     if let Some(handle) = TRAY_HANDLE.get().cloned() {

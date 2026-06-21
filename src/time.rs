@@ -239,7 +239,7 @@ pub fn effective_today(config: &AppConfig) -> NaiveDate {
     effective_now(config).date_naive()
 }
 
-pub fn format_hijri_date(dt: DateTime<Local>, hijri_offset: i64, lang: &str) -> String {
+pub fn format_hijri_date(dt: DateTime<Local>, hijri_offset: i64) -> String {
     use chrono::Duration;
     use hijri_date::HijriDate;
 
@@ -250,10 +250,7 @@ pub fn format_hijri_date(dt: DateTime<Local>, hijri_offset: i64, lang: &str) -> 
         adjusted.day() as usize,
     ) {
         Ok(hijri) => {
-            let m_name = crate::i18n::tr(
-                HIJRI_MONTH_NAMES.get(hijri.month() - 1).unwrap_or(&""),
-                lang,
-            );
+            let m_name = crate::i18n::tr(HIJRI_MONTH_NAMES.get(hijri.month() - 1).unwrap_or(&""));
             format!("{} {} {}", hijri.day(), m_name, hijri.year())
         }
         Err(e) => {

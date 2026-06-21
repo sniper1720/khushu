@@ -53,7 +53,7 @@ fn compute_daily_state(config: &AppConfig, engine: &PrayerEngine, today: NaiveDa
             .map(|s| apply_timezone_override(config, s))
     };
 
-    let hijri_text = crate::time::format_hijri_date(now, config.hijri_offset(), &lang);
+    let hijri_text = crate::time::format_hijri_date(now, config.hijri_offset());
 
     let mawaqit_cache = if use_mawaqit {
         config.mawaqit_cache()
@@ -284,14 +284,14 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
             let hero_text = if total_seconds > 0 {
                 format!(
                     "{} {} {:02}:{:02}:{:02}",
-                    tr(&name, &lang),
-                    tr("in", &lang),
+                    tr(&name),
+                    tr("in"),
                     hours,
                     minutes,
                     seconds
                 )
             } else {
-                format!("{} {}", tr("It's time for", &lang), tr(&name, &lang))
+                format!("{} {}", tr("It's time for"), tr(&name))
             };
 
             if is_core_timer
@@ -304,17 +304,17 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                 let mut last_pre = last_pre_notified.borrow_mut();
                 if last_pre.as_deref() != Some(name.as_str()) {
                     show_notification(
-                        &format!("{} {}", tr("Upcoming Prayer:", &lang), tr(&name, &lang)),
+                        &format!("{} {}", tr("Upcoming Prayer:"), tr(&name)),
                         &format!(
                             "{} {} {} {}",
-                            tr(&name, &lang),
-                            tr("is in", &lang),
+                            tr(&name),
+                            tr("is in"),
                             config.pre_prayer_minutes(),
-                            tr("minutes", &lang)
+                            tr("minutes")
                         ),
                         false,
-                        &tr("Open Khushu", &lang),
-                        &tr("Stop Adhan", &lang),
+                        &tr("Open Khushu"),
+                        &tr("Stop Adhan"),
                     );
                     *last_pre = Some(name.clone());
                 }
@@ -325,11 +325,11 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                 if last_pray.as_deref() != Some(name.as_str()) {
                     let is_prayer = name != "Sunrise";
                     show_notification(
-                        &format!("{} {}", tr("It's time for", &lang), tr(&name, &lang)),
-                        &format!("{} {}.", tr("It is now time for", &lang), tr(&name, &lang)),
+                        &format!("{} {}", tr("It's time for"), tr(&name)),
+                        &format!("{} {}.", tr("It is now time for"), tr(&name)),
                         is_prayer,
-                        &tr("Open Khushu", &lang),
-                        &tr("Stop Adhan", &lang),
+                        &tr("Open Khushu"),
+                        &tr("Stop Adhan"),
                     );
 
                     if name != "Sunrise" {
@@ -378,11 +378,11 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                                     &dikr.translation
                                 };
                                 show_notification(
-                                    &tr("Morning Adkar", &lang),
+                                    &tr("Morning Adkar"),
                                     body,
                                     false,
-                                    &tr("Open Khushu", &lang),
-                                    &tr("Stop Adhan", &lang),
+                                    &tr("Open Khushu"),
+                                    &tr("Stop Adhan"),
                                 );
                             }
                             *state = Some(today);
@@ -399,11 +399,11 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                                     &dikr.translation
                                 };
                                 show_notification(
-                                    &tr("Morning Adkar", &lang),
+                                    &tr("Morning Adkar"),
                                     body,
                                     false,
-                                    &tr("Open Khushu", &lang),
-                                    &tr("Stop Adhan", &lang),
+                                    &tr("Open Khushu"),
+                                    &tr("Stop Adhan"),
                                 );
                             }
                             *state = Some(today);
@@ -421,11 +421,11 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                                     &dikr.translation
                                 };
                                 show_notification(
-                                    &tr("Evening Adkar", &lang),
+                                    &tr("Evening Adkar"),
                                     body,
                                     false,
-                                    &tr("Open Khushu", &lang),
-                                    &tr("Stop Adhan", &lang),
+                                    &tr("Open Khushu"),
+                                    &tr("Stop Adhan"),
                                 );
                             }
                             *state = Some(today);
@@ -442,11 +442,11 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                                     &dikr.translation
                                 };
                                 show_notification(
-                                    &tr("Evening Adkar", &lang),
+                                    &tr("Evening Adkar"),
                                     body,
                                     false,
-                                    &tr("Open Khushu", &lang),
-                                    &tr("Stop Adhan", &lang),
+                                    &tr("Open Khushu"),
+                                    &tr("Stop Adhan"),
                                 );
                             }
                             *state = Some(today);
@@ -464,11 +464,11 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                                     &dikr.translation
                                 };
                                 show_notification(
-                                    &tr("Night Adkar", &lang),
+                                    &tr("Night Adkar"),
                                     body,
                                     false,
-                                    &tr("Open Khushu", &lang),
-                                    &tr("Stop Adhan", &lang),
+                                    &tr("Open Khushu"),
+                                    &tr("Stop Adhan"),
                                 );
                             }
                             *state = Some(today);
@@ -485,11 +485,11 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                                     &dikr.translation
                                 };
                                 show_notification(
-                                    &tr("Night Adkar", &lang),
+                                    &tr("Night Adkar"),
                                     body,
                                     false,
-                                    &tr("Open Khushu", &lang),
-                                    &tr("Stop Adhan", &lang),
+                                    &tr("Open Khushu"),
+                                    &tr("Stop Adhan"),
                                 );
                             }
                             *state = Some(today);
@@ -512,8 +512,8 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                         let s = remaining % 60;
                         Some(format!(
                             "{} {} {:02}:{:02}",
-                            tr("Iqamah", &lang),
-                            tr(iq_name, &lang),
+                            tr("Iqamah"),
+                            tr(iq_name),
                             m,
                             s
                         ))
@@ -538,15 +538,11 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                     && let Some((iq_name, _)) = iqamah_state.borrow().as_ref()
                 {
                     show_notification(
-                        &format!("{} {}", tr("Iqamah", &lang), tr(iq_name, &lang)),
-                        &format!(
-                            "{} {}.",
-                            tr("It is time for Iqamah of", &lang),
-                            tr(iq_name, &lang)
-                        ),
+                        &format!("{} {}", tr("Iqamah"), tr(iq_name)),
+                        &format!("{} {}.", tr("It is time for Iqamah of"), tr(iq_name)),
                         false,
-                        &tr("Open Khushu", &lang),
-                        &tr("Stop Adhan", &lang),
+                        &tr("Open Khushu"),
+                        &tr("Stop Adhan"),
                     );
                     *iqamah_notified.borrow_mut() = Some(iq_name.clone());
                 }

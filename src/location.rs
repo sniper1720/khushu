@@ -311,10 +311,7 @@ async fn fetch_portal_location(lang: &str) -> Result<(f64, f64, String), String>
 
     let proxy = LocationProxy::new().await.map_err(|e| {
         log::error!("Failed to create Location proxy: {}", e);
-        tr(
-            "Location service unavailable. Please check system settings.",
-            lang,
-        )
+        tr("Location service unavailable. Please check system settings.")
     })?;
 
     let session = proxy
@@ -322,17 +319,17 @@ async fn fetch_portal_location(lang: &str) -> Result<(f64, f64, String), String>
         .await
         .map_err(|e| {
             log::error!("Failed to create location session: {}", e);
-            tr("Location access denied or unavailable.", lang)
+            tr("Location access denied or unavailable.")
         })?;
 
     let mut stream = proxy.receive_location_updated().await.map_err(|e| {
         log::error!("Failed to receive location updates: {}", e);
-        tr("Failed to receive location updates.", lang)
+        tr("Failed to receive location updates.")
     })?;
 
     proxy.start(&session, None).await.map_err(|e| {
         log::error!("Failed to start location session: {}", e);
-        tr("Location access denied or unavailable.", lang)
+        tr("Location access denied or unavailable.")
     })?;
 
     use futures_util::future::Either;
@@ -343,14 +340,13 @@ async fn fetch_portal_location(lang: &str) -> Result<(f64, f64, String), String>
         Either::Right((None, _)) => {
             let _ = session.close().await;
             log::error!("Location stream ended unexpectedly");
-            return Err(tr("Location service disconnected unexpectedly.", lang));
+            return Err(tr("Location service disconnected unexpectedly."));
         }
         Either::Left((_, _)) => {
             let _ = session.close().await;
             log::error!("Location request timed out (possible permission denial)");
             return Err(tr(
                 "Location request timed out. Please check your system settings.",
-                lang,
             ));
         }
     };
@@ -389,15 +385,15 @@ async fn reverse_geocode(lat: f64, lon: f64, lang: &str) -> Result<String, Strin
         .get(url)
         .send()
         .await
-        .map_err(|_| tr("Network error while resolving city.", lang))?;
+        .map_err(|_| tr("Network error while resolving city."))?;
 
     let result: GeocodeResult = resp
         .json()
         .await
-        .map_err(|_| tr("Invalid response from location service.", lang))?;
+        .map_err(|_| tr("Invalid response from location service."))?;
 
     if result.display_name.is_empty() {
-        return Err(tr("Could not find city name for these coordinates.", lang));
+        return Err(tr("Could not find city name for these coordinates."));
     }
 
     if let Some(ref addr) = result.address
@@ -444,22 +440,22 @@ pub async fn search_city(
 
     let resp = http.get(url).send().await.map_err(|e| {
         log::error!("Geocoding request failed: {}", e);
-        tr("Network error. Please check your connection.", lang)
+        tr("Network error. Please check your connection.")
     })?;
 
     let results: Vec<GeocodeResult> = resp.json().await.map_err(|e| {
         log::error!("Geocoding JSON parsing failed: {}", e);
-        tr("Invalid response from location service.", lang)
+        tr("Invalid response from location service.")
     })?;
 
     if let Some(res) = results.first() {
         let lat = res.lat.parse::<f64>().map_err(|_| {
             log::error!("Invalid latitude from API: {}", res.lat);
-            tr("Invalid response from location service.", lang)
+            tr("Invalid response from location service.")
         })?;
         let lon = res.lon.parse::<f64>().map_err(|_| {
             log::error!("Invalid longitude from API: {}", res.lon);
-            tr("Invalid response from location service.", lang)
+            tr("Invalid response from location service.")
         })?;
 
         let mut display_name = res.display_name.clone();
@@ -493,7 +489,7 @@ pub async fn search_city(
         Ok((lat, lon, display_name, res.timezone.clone()))
     } else {
         log::warn!("City not found for query: {}", query);
-        Err(tr("City not found. Please check the spelling.", lang))
+        Err(tr("City not found. Please check the spelling."))
     }
 }
 

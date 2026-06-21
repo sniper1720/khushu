@@ -5,8 +5,8 @@ use std::path::Path;
 
 fn assert_po_file_contains_keys(po_path: &Path, keys: &[&str]) {
     assert!(po_path.exists(), "PO file does not exist: {:?}", po_path);
-    let content =
-        fs::read_to_string(po_path).expect(&format!("Failed to read PO file: {:?}", po_path));
+    let content = fs::read_to_string(po_path)
+        .unwrap_or_else(|_| panic!("Failed to read PO file: {:?}", po_path));
     for key in keys {
         assert!(
             content.contains(&format!("msgid \"{}\"", key)),
@@ -20,8 +20,8 @@ fn assert_po_file_contains_keys(po_path: &Path, keys: &[&str]) {
 
 fn assert_file_contains_patterns(file_path: &Path, patterns: &[&str]) {
     assert!(file_path.exists(), "File does not exist: {:?}", file_path);
-    let content =
-        fs::read_to_string(file_path).expect(&format!("Failed to read file: {:?}", file_path));
+    let content = fs::read_to_string(file_path)
+        .unwrap_or_else(|_| panic!("Failed to read file: {:?}", file_path));
     for pattern in patterns {
         assert!(
             content.contains(pattern),
@@ -37,7 +37,7 @@ fn assert_file_contains_patterns(file_path: &Path, patterns: &[&str]) {
 fn test_arabic_translations_exist_in_po_file() {
     let arabic_po = Path::new("po/ar.po");
     let required_keys = ["Open Khushu", "Quit"];
-    assert_po_file_contains_keys(&arabic_po, &required_keys);
+    assert_po_file_contains_keys(arabic_po, &required_keys);
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn test_default_arabic_font_includes_amiri() {
         "\"Amiri, Noto Sans Arabic\"",
         "global_arabic_font_family: default_global_arabic_font_family()",
     ];
-    assert_file_contains_patterns(&config_file, &patterns);
+    assert_file_contains_patterns(config_file, &patterns);
 }
 
 #[test]
@@ -77,12 +77,11 @@ fn test_css_generation_for_arabic_language() {
 fn test_arabic_locale_special_handling() {
     let i18n_file = Path::new("src/i18n.rs");
     let patterns = [
-        "ar_DZ.UTF-8",
-        "ar_SA.UTF-8",
         "fn locale_candidates",
         "fn update_locale_internal",
+        "fn detect_system_locale",
     ];
-    assert_file_contains_patterns(&i18n_file, &patterns);
+    assert_file_contains_patterns(i18n_file, &patterns);
 }
 
 #[test]
@@ -91,7 +90,8 @@ fn test_rtl_direction_pattern_in_codebase() {
     let files = ["src/main.rs", "src/pages.rs", "src/welcome.rs"];
     for file in files {
         let path = Path::new(file);
-        let content = fs::read_to_string(path).expect(&format!("Failed to read {:?}", path));
+        let content =
+            fs::read_to_string(path).unwrap_or_else(|_| panic!("Failed to read {:?}", path));
         let mut found = false;
         for pattern in &rtl_patterns {
             if content.contains(pattern) {
@@ -115,7 +115,7 @@ fn test_tray_label_update_functionality() {
         "tr(\"Open Khushu\"",
         "tr(\"Quit\"",
     ];
-    assert_file_contains_patterns(&background_file, &patterns);
+    assert_file_contains_patterns(background_file, &patterns);
     let i18n_file = Path::new("src/i18n.rs");
     let i18n_content = fs::read_to_string(i18n_file).expect("Failed to read i18n.rs");
     assert!(
@@ -125,16 +125,16 @@ fn test_tray_label_update_functionality() {
 }
 
 #[test]
-fn test_arabic_utf8_locale_support() {
+fn test_arabic_locale_handling_with_language_env() {
     let i18n_file = Path::new("src/i18n.rs");
     let content = fs::read_to_string(i18n_file).expect("Failed to read i18n.rs");
-    let has_arabic_check = content.contains("lang == \"ar\"") || content.contains("\"ar\" =>");
-    assert!(has_arabic_check, "i18n should check for Arabic language");
-    let has_arabic_special_case =
-        content.contains("\"ar\" =>") || content.contains("if lang == \"ar\"");
     assert!(
-        has_arabic_special_case,
-        "i18n should have special case for Arabic locale"
+        content.contains("LANGUAGE"),
+        "i18n should use LANGUAGE env var for locale switching"
+    );
+    assert!(
+        content.contains("fn locale_candidates"),
+        "i18n should have locale_candidates for domain discovery"
     );
 }
 
@@ -148,7 +148,7 @@ fn test_comprehensive_arabic_support() {
 
     let arabic_po = Path::new("po/ar.po");
     let required_keys = ["Open Khushu", "Quit"];
-    assert_po_file_contains_keys(&arabic_po, &required_keys);
+    assert_po_file_contains_keys(arabic_po, &required_keys);
 
     let source_files = [
         "src/config.rs",
@@ -174,8 +174,8 @@ fn test_comprehensive_arabic_support() {
     let rtl_patterns = ["set_default_direction", "TextDirection::Rtl", "== \"ar\""];
     let mut found_rtl = false;
     for file in &rtl_files {
-        let content =
-            fs::read_to_string(Path::new(file)).expect(&format!("Failed to read {}", file));
+        let content = fs::read_to_string(Path::new(file))
+            .unwrap_or_else(|_| panic!("Failed to read {}", file));
         if rtl_patterns.iter().any(|p| content.contains(p)) {
             found_rtl = true;
             break;
@@ -218,7 +218,7 @@ fn test_i18n_tray_integration() {
     let content = fs::read_to_string(i18n_file).expect("Failed to read i18n.rs");
 
     assert!(
-        content.contains("update_tray_labels(lang)"),
+        content.contains("update_tray_labels()"),
         "i18n should call update_tray_labels when language changes"
     );
 
@@ -227,11 +227,8 @@ fn test_i18n_tray_integration() {
         "i18n should have detect_system_locale function"
     );
 
-    let arabic_locale_handling = content.contains("ar_DZ.UTF-8")
-        && content.contains("ar_SA.UTF-8")
-        && content.contains("ar.UTF-8");
     assert!(
-        arabic_locale_handling,
-        "i18n should have special UTF-8 handling for Arabic locales"
+        content.contains("set_locale_env"),
+        "i18n should set LANGUAGE env var for locale switching"
     );
 }

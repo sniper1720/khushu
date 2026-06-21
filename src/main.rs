@@ -268,16 +268,13 @@ fn build_main_ui(app: &Application, config: AppConfig) {
     split_view.set_overflow(gtk::Overflow::Hidden);
 
     let header_bar = HeaderBar::new();
-    let initial_title = tr("Prayer Times", &current_lang.borrow());
+    let initial_title = tr("Prayer Times");
     let window_title = adw::WindowTitle::new(&initial_title, "");
     header_bar.set_title_widget(Some(&window_title));
 
     let menu_btn = Button::from_icon_name("open-menu-symbolic");
-    menu_btn.set_tooltip_text(Some(&tr("Toggle Sidebar", &current_lang.borrow())));
-    menu_btn.update_property(&[gtk::accessible::Property::Label(&tr(
-        "Toggle Sidebar",
-        &current_lang.borrow(),
-    ))]);
+    menu_btn.set_tooltip_text(Some(&tr("Toggle Sidebar")));
+    menu_btn.update_property(&[gtk::accessible::Property::Label(&tr("Toggle Sidebar"))]);
     header_bar.pack_start(&menu_btn);
 
     let split_view_clone = split_view.clone();
@@ -296,7 +293,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
 
     let window = ApplicationWindow::builder()
         .application(app)
-        .title(tr("Khushu", &current_lang.borrow()))
+        .title(tr("Khushu"))
         .icon_name("io.github.sniper1720.khushu")
         .default_width(1000)
         .default_height(700)
@@ -335,7 +332,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
     view_stack.set_hexpand(true);
     let view_stack_rc = Rc::new(view_stack);
 
-    let sidebar_list = nav_ui::build_sidebar(&split_view, &current_lang);
+    let sidebar_list = nav_ui::build_sidebar(&split_view);
 
     let pages_context = pages::build_pages(pages::PagesParams {
         view_stack: view_stack_rc.clone(),
@@ -366,7 +363,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
     let lb = pages_context.list_box.clone();
     let stop_btn = gtk::Button::from_icon_name("media-playback-stop-symbolic");
     stop_btn.add_css_class("flat");
-    stop_btn.set_tooltip_text(Some(&tr("Stop Adhan", &current_lang.borrow())));
+    stop_btn.set_tooltip_text(Some(&tr("Stop Adhan")));
     let stop_btn_rc = Rc::new(stop_btn);
     let stop_btn_for_click = stop_btn_rc.clone();
     stop_btn_for_click.connect_clicked(move |_| {
@@ -407,7 +404,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
                     .is_some_and(|n| row.widget_name() == n)
                 && let Ok(action_row) = row.clone().downcast::<adw::ActionRow>()
             {
-                stop_btn_rc.set_tooltip_text(Some(&tr("Stop Adhan", &current_lang.borrow())));
+                stop_btn_rc.set_tooltip_text(Some(&tr("Stop Adhan")));
                 stop_btn_rc.set_visible(true);
                 action_row.add_suffix(&*stop_btn_rc);
             }
@@ -418,45 +415,44 @@ fn build_main_ui(app: &Application, config: AppConfig) {
     window.present();
 }
 
-fn show_about_window(parent: &impl IsA<gtk::Widget>, lang: &str) {
-    let resolved_lang = resolved_language_code(lang);
+fn show_about_window(parent: &impl IsA<gtk::Widget>) {
     let about = adw::AboutDialog::builder()
-        .application_name(tr("Khushu", &resolved_lang))
+        .application_name(tr("Khushu"))
         .application_icon("io.github.sniper1720.khushu")
-        .developer_name(tr("Djalel Oukid (sniper1720)", &resolved_lang))
+        .developer_name(tr("Djalel Oukid (sniper1720)"))
         .version(env!("CARGO_PKG_VERSION"))
-        .comments(tr("An all-in-one Muslim app for Linux", &resolved_lang))
+        .comments(tr("An all-in-one Muslim app for Linux"))
         .website("https://github.com/sniper1720/khushu")
         .issue_url("https://github.com/sniper1720/khushu/issues")
-        .copyright(tr("© 2026 Djalel Oukid", &resolved_lang))
+        .copyright(tr("© 2026 Djalel Oukid"))
         .license_type(gtk::License::Gpl30)
-        .developers(vec![tr("Djalel Oukid (sniper1720)", &resolved_lang)])
-        .translator_credits(tr("translator-credits", &resolved_lang))
+        .developers(vec![tr("Djalel Oukid (sniper1720)")])
+        .translator_credits(tr("translator-credits"))
         .build();
 
     about.add_legal_section(
-            &tr("Location Policy", &resolved_lang),
+            &tr("Location Policy"),
             None,
             gtk::License::Custom,
-            Some(&tr("Auto mode: XDG Desktop Portal (GeoClue). City search: Nominatim (OpenStreetMap). Manual mode: zero network traffic.", &resolved_lang)),
+            Some(&tr("Auto mode: XDG Desktop Portal (GeoClue). City search: Nominatim (OpenStreetMap). Manual mode: zero network traffic.")),
         );
     about.add_legal_section(
-            &tr("Privacy Policy", &resolved_lang),
+            &tr("Privacy Policy"),
             None,
             gtk::License::Custom,
-            Some(&tr("Coordinates stay on this device and are not sent to any external servers. No analytics, no telemetry, no accounts.", &resolved_lang)),
+            Some(&tr("Coordinates stay on this device and are not sent to any external servers. No analytics, no telemetry, no accounts.")),
         );
     about.add_legal_section(
-        &tr("Quran Text & Translations", &resolved_lang),
+        &tr("Quran Text & Translations"),
         None,
         gtk::License::Custom,
-        Some(&tr("Arabic text from Tanzil.net. English, French, Spanish, and Turkish translations from Tanzil.net. Indonesian translation from QuranEnc.com (Encyclopedia of the Noble Quran).", &resolved_lang)),
+        Some(&tr("Arabic text from Tanzil.net. English, French, Spanish, and Turkish translations from Tanzil.net. Indonesian translation from QuranEnc.com (Encyclopedia of the Noble Quran).")),
     );
     about.add_legal_section(
-        &tr("Quran Translations Disclaimer", &resolved_lang),
+        &tr("Quran Translations Disclaimer"),
         None,
         gtk::License::Custom,
-        Some(&tr("No translation of Quran can be a hundred percent accurate, nor it can be used as a replacement of the Quran text. We got Quran translations from Tanzil.net and QuranEnc.com websites, we cannot guarantee their authenticity and/or accuracy. Please use them at your own discretion.", &resolved_lang)),
+        Some(&tr("No translation of Quran can be a hundred percent accurate, nor it can be used as a replacement of the Quran text. We got Quran translations from Tanzil.net and QuranEnc.com websites, we cannot guarantee their authenticity and/or accuracy. Please use them at your own discretion.")),
     );
 
     about.present(Some(parent));
@@ -536,6 +532,33 @@ pub fn apply_font_css(lang: &str, config: &crate::config::AppConfig) {
             );
             provider.load_from_data(&css);
             add_calendar_compact_styles();
+        }
+    });
+}
+
+pub fn add_calendar_compact_styles() {
+    thread_local! {
+        static CALENDAR_PROVIDER: std::cell::RefCell<Option<gtk::CssProvider>> = const { std::cell::RefCell::new(None) };
+    }
+
+    CALENDAR_PROVIDER.with(|cell| {
+        let mut provider_opt = cell.borrow_mut();
+        if provider_opt.is_none() {
+            let provider = gtk::CssProvider::new();
+            gtk::style_context_add_provider_for_display(
+                &gtk::gdk::Display::default().expect("Could not get default display"),
+                &provider,
+                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+            *provider_opt = Some(provider);
+        }
+        if let Some(provider) = provider_opt.as_ref() {
+            let css = "\
+.calendar-grid button { min-height: 24px; min-width: 24px; font-size: 0.9em; padding: 0; }\
+.calendar-grid.compact-calendar button { min-height: 20px; min-width: 20px; font-size: 0.8em; }\
+.calendar-grid.compact-calendar .dim-label { font-size: 0.8em; }\
+";
+            provider.load_from_data(css);
         }
     });
 }
@@ -622,31 +645,4 @@ mod tests {
         assert!(!css.contains("direction:"));
         assert!(!css.contains("rtl"));
     }
-}
-
-pub fn add_calendar_compact_styles() {
-    thread_local! {
-        static CALENDAR_PROVIDER: std::cell::RefCell<Option<gtk::CssProvider>> = const { std::cell::RefCell::new(None) };
-    }
-
-    CALENDAR_PROVIDER.with(|cell| {
-        let mut provider_opt = cell.borrow_mut();
-        if provider_opt.is_none() {
-            let provider = gtk::CssProvider::new();
-            gtk::style_context_add_provider_for_display(
-                &gtk::gdk::Display::default().expect("Could not get default display"),
-                &provider,
-                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-            );
-            *provider_opt = Some(provider);
-        }
-        if let Some(provider) = provider_opt.as_ref() {
-            let css = "\
-.calendar-grid button { min-height: 24px; min-width: 24px; font-size: 0.9em; padding: 0; }\
-.calendar-grid.compact-calendar button { min-height: 20px; min-width: 20px; font-size: 0.8em; }\
-.calendar-grid.compact-calendar .dim-label { font-size: 0.8em; }\
-";
-            provider.load_from_data(css);
-        }
-    });
 }

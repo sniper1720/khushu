@@ -120,13 +120,13 @@ fn handle_lang_change(
 
     let sidebar_for_update = sidebar.clone();
     let labels_deferred = [
-        tr("Home", &detected_lang),
-        tr("Calendar", &detected_lang),
-        tr("Qibla", &detected_lang),
-        tr("Adkar", &detected_lang),
-        tr("Noble Quran", &detected_lang),
-        tr("Settings", &detected_lang),
-        tr("About", &detected_lang),
+        tr("Home"),
+        tr("Calendar"),
+        tr("Qibla"),
+        tr("Adkar"),
+        tr("Noble Quran"),
+        tr("Settings"),
+        tr("About"),
     ];
     gtk::glib::idle_add_local(move || {
         let mut curr = sidebar_for_update.first_child();
@@ -148,23 +148,23 @@ fn handle_lang_change(
 
     if let Some(name) = view_stack.visible_child_name() {
         let title = match name.as_str() {
-            "home" => tr("Prayer Times", &selected_lang),
-            "calendar" => tr("Calendar", &selected_lang),
-            "qibla" => tr("Qibla", &selected_lang),
-            "adkar" => tr("Adkar", &selected_lang),
-            "quran" => tr("Noble Quran", &selected_lang),
-            "settings" => tr("Settings", &selected_lang),
+            "home" => tr("Prayer Times"),
+            "calendar" => tr("Calendar"),
+            "qibla" => tr("Qibla"),
+            "adkar" => tr("Adkar"),
+            "quran" => tr("Noble Quran"),
+            "settings" => tr("Settings"),
             _ => "Khushu".to_string(),
         };
         window_title.set_title(&title);
     }
 
-    window_app.set_title(Some(&tr("Khushu", &selected_lang)));
+    window_app.set_title(Some(&tr("Khushu")));
 
     refresh_cal();
     refresh_adkar();
     refresh_qibla();
-    qibla_page.rebuild_cardinals(&detected_lang);
+    qibla_page.rebuild_cardinals();
     crate::quran::refresh_quran_ui(view_stack, &detected_lang, cfg.clone());
 
     let ctx_for_geo = settings_ctx.clone();
@@ -195,14 +195,14 @@ fn handle_lang_change(
                             let subtitle = if tz_label.is_empty() {
                                 format!(
                                     "{} • {}",
-                                    crate::i18n::tr("Last updated", &lang_geo),
+                                    crate::i18n::tr("Last updated"),
                                     cache.fetched_on
                                 )
                             } else {
                                 format!(
                                     "{} • {} • {}",
                                     tz_label,
-                                    crate::i18n::tr("Last updated", &lang_geo),
+                                    crate::i18n::tr("Last updated"),
                                     cache.fetched_on
                                 )
                             };
@@ -342,8 +342,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
 
     view_stack.add_named(&home_scroll, Some("home"));
 
-    let (calendar_page, refresh_calendar) =
-        calendar::create_calendar_page(current_lang.clone(), config.clone());
+    let (calendar_page, refresh_calendar) = calendar::create_calendar_page(config.clone());
 
     let calendar_clamp = adw::Clamp::builder()
         .maximum_size(800)

@@ -18,7 +18,6 @@ use crate::notifications;
 
 struct AudioButtonEntry {
     btn: WeakRef<Button>,
-    current_lang: Rc<RefCell<String>>,
     idle_label_key: &'static str,
 }
 
@@ -26,19 +25,11 @@ thread_local! {
     static AUDIO_BUTTONS: RefCell<Vec<AudioButtonEntry>> = const { RefCell::new(Vec::new()) };
 }
 
-pub fn register_audio_button(
-    btn: &Button,
-    current_lang: Rc<RefCell<String>>,
-    idle_label_key: &'static str,
-) {
-    {
-        let lang = current_lang.borrow();
-        set_audio_toggle_button_label(btn, &lang, idle_label_key, crate::audio::is_playing());
-    }
+pub fn register_audio_button(btn: &Button, idle_label_key: &'static str) {
+    set_audio_toggle_button_label(btn, idle_label_key, crate::audio::is_playing());
     AUDIO_BUTTONS.with(|reg| {
         reg.borrow_mut().push(AudioButtonEntry {
             btn: btn.downgrade(),
-            current_lang,
             idle_label_key,
         });
     });
@@ -50,8 +41,7 @@ pub fn on_audio_state_changed(is_playing: bool) {
             let reg = reg.borrow();
             for entry in reg.iter() {
                 if let Some(btn) = entry.btn.upgrade() {
-                    let lang = entry.current_lang.borrow();
-                    set_audio_toggle_button_label(&btn, &lang, entry.idle_label_key, is_playing);
+                    set_audio_toggle_button_label(&btn, entry.idle_label_key, is_playing);
                 }
             }
         });
@@ -75,21 +65,17 @@ pub fn find_toast_overlay(window: &adw::ApplicationWindow) -> Option<adw::ToastO
     window.content().as_ref().and_then(search)
 }
 
-fn set_audio_toggle_button_label(btn: &Button, lang: &str, idle_label_key: &str, is_playing: bool) {
+fn set_audio_toggle_button_label(btn: &Button, idle_label_key: &str, is_playing: bool) {
     let label = if is_playing {
-        tr("⏹ Stop Adhan", lang)
+        tr("⏹ Stop Adhan")
     } else {
-        tr(idle_label_key, lang)
+        tr(idle_label_key)
     };
     btn.set_label(&label);
 }
 
-fn bind_audio_toggle_button_sync(
-    btn: &Button,
-    current_lang: Rc<RefCell<String>>,
-    idle_label_key: &'static str,
-) {
-    register_audio_button(btn, current_lang, idle_label_key);
+fn bind_audio_toggle_button_sync(btn: &Button, idle_label_key: &'static str) {
+    register_audio_button(btn, idle_label_key);
 }
 
 fn finish_entry_row_interaction(row: &adw::EntryRow) {
@@ -231,11 +217,8 @@ pub fn setup_settings_ui<'a>(
 
     let (general_heading, general_desc) = append_settings_section_heading(
         settings_box,
-        &tr("General", &lang_val),
-        Some(&tr(
-            "Customize the app's appearance and startup behavior.",
-            &lang_val,
-        )),
+        &tr("General"),
+        Some(&tr("Customize the app's appearance and startup behavior.")),
         0,
     );
     let general_desc = general_desc.expect("general section description label");
@@ -245,16 +228,16 @@ pub fn setup_settings_ui<'a>(
     settings_box.append(&general_group);
 
     let lang_model = StringList::new(&[
-        &tr("System Default", &lang_val),
-        &tr("English", &lang_val),
-        &tr("Arabic", &lang_val),
-        &tr("French", &lang_val),
-        &tr("Spanish", &lang_val),
-        &tr("Turkish", &lang_val),
-        &tr("Indonesian", &lang_val),
+        &tr("System Default"),
+        &tr("English"),
+        &tr("Arabic"),
+        &tr("French"),
+        &tr("Spanish"),
+        &tr("Turkish"),
+        &tr("Indonesian"),
     ]);
     let lang_row = ComboRow::builder()
-        .title(tr("Language", &lang_val))
+        .title(tr("Language"))
         .model(&lang_model)
         .build();
 
@@ -270,13 +253,9 @@ pub fn setup_settings_ui<'a>(
 
     general_group.add(&lang_row);
 
-    let theme_model = StringList::new(&[
-        &tr("System Default", &lang_val),
-        &tr("Light", &lang_val),
-        &tr("Dark", &lang_val),
-    ]);
+    let theme_model = StringList::new(&[&tr("System Default"), &tr("Light"), &tr("Dark")]);
     let theme_row = ComboRow::builder()
-        .title(tr("Theme", &lang_val))
+        .title(tr("Theme"))
         .model(&theme_model)
         .build();
 
@@ -306,17 +285,13 @@ pub fn setup_settings_ui<'a>(
     general_group.add(&theme_row);
 
     let autostart_toggle = adw::SwitchRow::builder()
-        .title(tr("Start Automatically", &lang_val))
-        .subtitle(tr(
-            "Run Khushu in the background when you log in.",
-            &lang_val,
-        ))
+        .title(tr("Start Automatically"))
+        .subtitle(tr("Run Khushu in the background when you log in."))
         .build();
     autostart_toggle.set_active(config.autostart());
     let config_autostart = config.clone();
 
     let window_autostart = window.clone();
-    let current_lang_autostart = current_lang.clone();
     autostart_toggle.connect_active_notify(move |row| {
         let is_active = row.is_active();
         let was_active = !is_active;
@@ -326,7 +301,6 @@ pub fn setup_settings_ui<'a>(
         if let Some(handle) = crate::autostart::sync(is_active) {
             let row_ref = row.clone();
             let window_ref = window_autostart.clone();
-            let current_lang_ref = current_lang_autostart.clone();
             let config_future = config_autostart.clone();
             gtk::glib::spawn_future_local(async move {
                 let granted = handle.await.unwrap_or(false);
@@ -336,10 +310,8 @@ pub fn setup_settings_ui<'a>(
                     config_future.save();
                     crate::autostart::sync(was_active);
                     if let Some(overlay) = find_toast_overlay(&window_ref) {
-                        overlay.add_toast(adw::Toast::new(&tr(
-                            "Autostart was denied by the system.",
-                            &current_lang_ref.borrow(),
-                        )));
+                        overlay
+                            .add_toast(adw::Toast::new(&tr("Autostart was denied by the system.")));
                     }
                 }
             });
@@ -349,23 +321,18 @@ pub fn setup_settings_ui<'a>(
 
     let (prayer_setup_heading, prayer_setup_desc) = append_settings_section_heading(
         settings_box,
-        &tr("Prayer Setup", &lang_val),
+        &tr("Prayer Setup"),
         Some(&tr(
             "Set your location, prayer times source, timezone, calculation methods, and Iqamah delays for each prayer.",
-            &lang_val,
         )),
         24,
     );
     let prayer_setup_desc = prayer_setup_desc.expect("prayer setup description label");
 
     let location_group = PreferencesGroup::builder()
-        .title(gtk::glib::markup_escape_text(&tr(
-            "Location & Source",
-            &lang_val,
-        )))
+        .title(gtk::glib::markup_escape_text(&tr("Location & Source")))
         .description(tr(
             "Set your location and choose the prayer times data source.",
-            &lang_val,
         ))
         .build();
     location_group.set_margin_top(0);
@@ -373,14 +340,14 @@ pub fn setup_settings_ui<'a>(
     settings_box.append(&location_group);
 
     let modes_strings = [
-        tr("Manual Coordinates", &lang_val),
-        tr("City Selection", &lang_val),
-        tr("Auto (GPS/Network)", &lang_val),
+        tr("Manual Coordinates"),
+        tr("City Selection"),
+        tr("Auto (GPS/Network)"),
     ];
     let modes_slices: Vec<&str> = modes_strings.iter().map(|s| s.as_str()).collect();
     let modes = StringList::new(&modes_slices);
     let mode_row = ComboRow::builder()
-        .title(tr("Location Method", &lang_val))
+        .title(tr("Location Method"))
         .model(&modes)
         .build();
 
@@ -392,7 +359,7 @@ pub fn setup_settings_ui<'a>(
     });
 
     let lat_row = adw::SpinRow::builder()
-        .title(tr("Latitude", &lang_val))
+        .title(tr("Latitude"))
         .adjustment(&gtk::Adjustment::new(
             config.latitude(),
             -90.0,
@@ -414,7 +381,7 @@ pub fn setup_settings_ui<'a>(
     });
 
     let lon_row = adw::SpinRow::builder()
-        .title(tr("Longitude", &lang_val))
+        .title(tr("Longitude"))
         .adjustment(&gtk::Adjustment::new(
             config.longitude(),
             -180.0,
@@ -436,16 +403,14 @@ pub fn setup_settings_ui<'a>(
     });
 
     let status_row = adw::ActionRow::builder()
-        .title(tr("Location Status", &lang_val))
+        .title(tr("Location Status"))
         .visible(false)
         .build();
     status_row.add_css_class("error");
     let status_row_clone = status_row.clone();
     let status_row_clone2 = status_row.clone();
 
-    let city_row = adw::EntryRow::builder()
-        .title(tr("City Search", &lang_val))
-        .build();
+    let city_row = adw::EntryRow::builder().title(tr("City Search")).build();
 
     if config.location_mode() == LocationMode::City {
         let city_name = config.city_name();
@@ -461,7 +426,7 @@ pub fn setup_settings_ui<'a>(
         }
     }
 
-    let city_btn = Button::with_label(&tr("Search", &lang_val));
+    let city_btn = Button::with_label(&tr("Search"));
     city_btn.set_valign(gtk::Align::Center);
     city_btn.set_halign(gtk::Align::End);
     city_btn.set_hexpand(false);
@@ -498,7 +463,7 @@ pub fn setup_settings_ui<'a>(
                 Err(e) => {
                     log::error!("City search failed: {}", e);
                     city_row_for_update.add_css_class("error");
-                    status_row_clone.set_subtitle(&tr("City not found. Please try again.", &lang));
+                    status_row_clone.set_subtitle(&tr("City not found. Please try again."));
                     status_row_clone.set_visible(true);
                 }
             }
@@ -519,12 +484,12 @@ pub fn setup_settings_ui<'a>(
     city_row.add_suffix(&city_btn);
 
     let auto_row = adw::ActionRow::builder()
-        .title(tr("Auto Detection", &lang_val))
+        .title(tr("Auto Detection"))
         .build();
     if let Some(name) = &config.city_name() {
         auto_row.set_subtitle(&location::short_city_with_country(name));
     }
-    let auto_btn = Button::with_label(&tr("Update Now", &lang_val));
+    let auto_btn = Button::with_label(&tr("Update Now"));
     auto_btn.set_valign(gtk::Align::Center);
     auto_btn.set_halign(gtk::Align::End);
     auto_btn.set_hexpand(false);
@@ -560,7 +525,7 @@ pub fn setup_settings_ui<'a>(
                 Err(e) => {
                     log::error!("Auto-location failed: {}", e);
                     auto_row_for_update.add_css_class("error");
-                    status_for_update.set_subtitle(&tr(&e, &lang));
+                    status_for_update.set_subtitle(&tr(&e));
                     status_for_update.set_visible(true);
                 }
             }
@@ -570,14 +535,11 @@ pub fn setup_settings_ui<'a>(
 
     auto_row.add_suffix(&auto_btn);
 
-    let source_items = [
-        tr("Calculated (Offline)", &lang_val),
-        tr("Connected Mosque (URL)", &lang_val),
-    ];
+    let source_items = [tr("Calculated (Offline)"), tr("Connected Mosque (URL)")];
     let source_refs: Vec<&str> = source_items.iter().map(|s| s.as_str()).collect();
     let source_model = StringList::new(&source_refs);
     let source_row = ComboRow::builder()
-        .title(tr("Prayer Times Source", &lang_val))
+        .title(tr("Prayer Times Source"))
         .model(&source_model)
         .build();
     source_row.set_selected(match config.prayer_times_source() {
@@ -587,7 +549,7 @@ pub fn setup_settings_ui<'a>(
     location_group.add(&source_row);
 
     let url_row = adw::EntryRow::builder()
-        .title(tr("Connected Mosque URL (mawaqit.net)", &lang_val))
+        .title(tr("Connected Mosque URL (mawaqit.net)"))
         .visible(config.prayer_times_source() == PrayerTimesSource::Mawaqit)
         .build();
     if let Some(url) = &config.mawaqit_url() {
@@ -598,10 +560,9 @@ pub fn setup_settings_ui<'a>(
     location_group.add(&url_row);
 
     let auto_refresh_row = adw::SwitchRow::builder()
-        .title(tr("Auto refresh daily", &lang_val))
+        .title(tr("Auto refresh daily"))
         .subtitle(tr(
             "Refresh mosque prayer times once per day while the app is open.",
-            &lang_val,
         ))
         .visible(config.prayer_times_source() == PrayerTimesSource::Mawaqit)
         .build();
@@ -609,7 +570,7 @@ pub fn setup_settings_ui<'a>(
     location_group.add(&auto_refresh_row);
 
     let mawaqit_status_row = adw::ActionRow::builder()
-        .title(tr("Connected Mosque", &lang_val))
+        .title(tr("Connected Mosque"))
         .visible(config.prayer_times_source() == PrayerTimesSource::Mawaqit)
         .build();
     if let Some(cache) = config.mawaqit_cache().as_ref() {
@@ -624,22 +585,22 @@ pub fn setup_settings_ui<'a>(
             location::localized_time_zone_label(&tz, &lang_val)
         };
         let subtitle = if tz_label.is_empty() {
-            format!("{} • {}", tr("Last updated", &lang_val), cache.fetched_on)
+            format!("{} • {}", tr("Last updated"), cache.fetched_on)
         } else {
             format!(
                 "{} • {} • {}",
                 tz_label,
-                tr("Last updated", &lang_val),
+                tr("Last updated"),
                 cache.fetched_on
             )
         };
         mawaqit_status_row.set_subtitle(&subtitle);
         mawaqit_status_row.set_title(&title);
     } else {
-        mawaqit_status_row.set_subtitle(&tr("Not configured", &lang_val));
+        mawaqit_status_row.set_subtitle(&tr("Not configured"));
     }
 
-    let refresh_btn = Button::with_label(&tr("Refresh now", &lang_val));
+    let refresh_btn = Button::with_label(&tr("Refresh now"));
     refresh_btn.set_valign(gtk::Align::Center);
     refresh_btn.set_halign(gtk::Align::End);
     mawaqit_status_row.add_suffix(&refresh_btn);
@@ -689,14 +650,13 @@ pub fn setup_settings_ui<'a>(
     let do_fetch: Rc<dyn Fn()> = Rc::new(move || {
         let raw = url_row_for_fetch.text().to_string();
         if raw.trim().is_empty() {
-            status_for_fetch
-                .set_subtitle(&tr("Invalid Mawaqit URL", &current_lang_for_fetch.borrow()));
+            status_for_fetch.set_subtitle(&tr("Invalid Mawaqit URL"));
             status_for_fetch.add_css_class("error");
             return;
         }
         let lang = current_lang_for_fetch.borrow().clone();
         status_for_fetch.remove_css_class("error");
-        status_for_fetch.set_subtitle(&tr("Fetching...", &lang));
+        status_for_fetch.set_subtitle(&tr("Fetching..."));
         let cfg = config_for_fetch.clone();
         let list_box = list_box_for_fetch.clone();
         let status = status_for_fetch.clone();
@@ -770,12 +730,12 @@ pub fn setup_settings_ui<'a>(
                         location::localized_time_zone_label(&tz, &lang)
                     };
                     let subtitle = if tz_label.is_empty() {
-                        format!("{} • {}", tr("Last updated", &lang), cache.fetched_on)
+                        format!("{} • {}", tr("Last updated"), cache.fetched_on)
                     } else {
                         format!(
                             "{} • {} • {}",
                             tz_label,
-                            tr("Last updated", &lang),
+                            tr("Last updated"),
                             cache.fetched_on
                         )
                     };
@@ -787,7 +747,7 @@ pub fn setup_settings_ui<'a>(
                 }
                 Err(e) => {
                     status.add_css_class("error");
-                    status.set_subtitle(&tr(&e, &lang));
+                    status.set_subtitle(&tr(&e));
                 }
             }
         });
@@ -804,32 +764,23 @@ pub fn setup_settings_ui<'a>(
     });
 
     let travel_group = PreferencesGroup::builder()
-        .title(gtk::glib::markup_escape_text(&tr(
-            "Timezone & Travel",
-            &lang_val,
-        )))
-        .description(tr(
-            "Override the timezone for prayer time calculations.",
-            &lang_val,
-        ))
+        .title(gtk::glib::markup_escape_text(&tr("Timezone & Travel")))
+        .description(tr("Override the timezone for prayer time calculations."))
         .build();
     travel_group.set_margin_top(12);
     travel_group.set_margin_bottom(24);
     settings_box.append(&travel_group);
 
     let tz_mode_strings = [
-        tr("Automatic (System)", &lang_val),
-        tr("Custom Timezone (IANA)", &lang_val),
-        tr("Manual UTC Offset", &lang_val),
+        tr("Automatic (System)"),
+        tr("Custom Timezone (IANA)"),
+        tr("Manual UTC Offset"),
     ];
     let tz_mode_slices: Vec<&str> = tz_mode_strings.iter().map(|s| s.as_str()).collect();
     let tz_modes = StringList::new(&tz_mode_slices);
     let tz_mode_row = ComboRow::builder()
-        .title(tr("Timezone Mode", &lang_val))
-        .subtitle(tr(
-            "How prayer times are adjusted for your timezone.",
-            &lang_val,
-        ))
+        .title(tr("Timezone Mode"))
+        .subtitle(tr("How prayer times are adjusted for your timezone."))
         .model(&tz_modes)
         .build();
 
@@ -847,7 +798,7 @@ pub fn setup_settings_ui<'a>(
         _ => location::system_time_zone_id().unwrap_or_default(),
     };
     let tz_named_row = adw::EntryRow::builder()
-        .title(tr("IANA Timezone", &lang_val))
+        .title(tr("IANA Timezone"))
         .text(&tz_named_init)
         .show_apply_button(false)
         .visible(tz_init_selected == 1)
@@ -886,8 +837,8 @@ pub fn setup_settings_ui<'a>(
         tz_adj.set_value(*mins as f64 / 60.0);
     }
     let tz_offset_row = adw::SpinRow::builder()
-        .title(tr("UTC Offset (hours)", &lang_val))
-        .subtitle(tr("Example: +2.0 for UTC+2, -5.0 for UTC-5", &lang_val))
+        .title(tr("UTC Offset (hours)"))
+        .subtitle(tr("Example: +2.0 for UTC+2, -5.0 for UTC-5"))
         .adjustment(&tz_adj)
         .digits(1)
         .visible(tz_init_selected == 2)
@@ -984,17 +935,15 @@ pub fn setup_settings_ui<'a>(
         }
     });
 
-    let calc_group = PreferencesGroup::builder()
-        .title(tr("Calculation", &lang_val))
-        .build();
+    let calc_group = PreferencesGroup::builder().title(tr("Calculation")).build();
     calc_group.set_margin_top(12);
     calc_group.set_margin_bottom(24);
     settings_box.append(&calc_group);
 
     let hijri_adj = gtk::Adjustment::new(config.hijri_offset() as f64, -2.0, 2.0, 1.0, 0.0, 0.0);
     let hijri_row = adw::SpinRow::builder()
-        .title(tr("Hijri Date Correction", &lang_val))
-        .subtitle(tr("Adjust Hijri date by +/- days", &lang_val))
+        .title(tr("Hijri Date Correction"))
+        .subtitle(tr("Adjust Hijri date by +/- days"))
         .adjustment(&hijri_adj)
         .digits(0)
         .build();
@@ -1009,25 +958,25 @@ pub fn setup_settings_ui<'a>(
     calc_group.add(&hijri_row);
 
     let methods_strings = [
-        tr("MWL", &lang_val),
-        tr("ISNA", &lang_val),
-        tr("Egypt", &lang_val),
-        tr("Makkah", &lang_val),
-        tr("Karachi", &lang_val),
-        tr("Dubai", &lang_val),
-        tr("MoonsightingCommittee", &lang_val),
-        tr("Kuwait", &lang_val),
-        tr("Qatar", &lang_val),
-        tr("Singapore", &lang_val),
-        tr("Turkey", &lang_val),
-        tr("KEMENAG", &lang_val),
-        tr("France (UOIF)", &lang_val),
-        tr("Algeria", &lang_val),
+        tr("MWL"),
+        tr("ISNA"),
+        tr("Egypt"),
+        tr("Makkah"),
+        tr("Karachi"),
+        tr("Dubai"),
+        tr("MoonsightingCommittee"),
+        tr("Kuwait"),
+        tr("Qatar"),
+        tr("Singapore"),
+        tr("Turkey"),
+        tr("KEMENAG"),
+        tr("France (UOIF)"),
+        tr("Algeria"),
     ];
     let methods_slices: Vec<&str> = methods_strings.iter().map(|s| s.as_str()).collect();
     let methods = StringList::new(&methods_slices);
     let method_row = ComboRow::builder()
-        .title(tr("Calculation Method", &lang_val))
+        .title(tr("Calculation Method"))
         .model(&methods)
         .build();
 
@@ -1124,14 +1073,11 @@ pub fn setup_settings_ui<'a>(
         refresh_prayers(&config_mode, &list_box_mode);
     });
 
-    let madhab_strings = [
-        tr("Shafi (Standard/Maliki/Hanbali)", &lang_val),
-        tr("Hanafi", &lang_val),
-    ];
+    let madhab_strings = [tr("Shafi (Standard/Maliki/Hanbali)"), tr("Hanafi")];
     let madhab_slices: Vec<&str> = madhab_strings.iter().map(|s| s.as_str()).collect();
     let madhabs = StringList::new(&madhab_slices);
     let madhab_row = ComboRow::builder()
-        .title(tr("Asr Calculation (Madhab)", &lang_val))
+        .title(tr("Asr Calculation (Madhab)"))
         .model(&madhabs)
         .build();
 
@@ -1158,19 +1104,15 @@ pub fn setup_settings_ui<'a>(
     calc_group.add(&madhab_row);
 
     let note_row = adw::ActionRow::builder()
-        .title(tr("Note", &lang_val))
-        .subtitle(tr(
-            "Maliki/Hanbali use Standard (Shafi) for Asr.",
-            &lang_val,
-        ))
+        .title(tr("Note"))
+        .subtitle(tr("Maliki/Hanbali use Standard (Shafi) for Asr."))
         .build();
     calc_group.add(&note_row);
 
     let iqamah_group = PreferencesGroup::builder()
-        .title(tr("Iqamah Delays", &lang_val))
+        .title(tr("Iqamah Delays"))
         .description(tr(
             "Minutes to wait after the Adhan before the Iqamah (second call to prayer).",
-            &lang_val,
         ))
         .build();
     iqamah_group.set_margin_top(12);
@@ -1179,10 +1121,9 @@ pub fn setup_settings_ui<'a>(
 
     let (notif_audio_heading, notif_audio_desc) = append_settings_section_heading(
         settings_box,
-        &tr("Notifications & Audio", &lang_val),
+        &tr("Notifications & Audio"),
         Some(&tr(
             "Choose when and how you receive prayer reminders and the Adhan sound.",
-            &lang_val,
         )),
         24,
     );
@@ -1194,21 +1135,18 @@ pub fn setup_settings_ui<'a>(
     settings_box.append(&notif_group);
 
     let notify_toggle = adw::SwitchRow::builder()
-        .title(tr("Pre-Prayer Alert", &lang_val))
-        .subtitle(tr("Get notified before the prayer time.", &lang_val))
+        .title(tr("Pre-Prayer Alert"))
+        .subtitle(tr("Get notified before the prayer time."))
         .build();
     notify_toggle.set_active(config.pre_prayer_notify());
 
     let iqamah_notify_toggle = adw::SwitchRow::builder()
-        .title(tr("Iqamah Alert", &lang_val))
-        .subtitle(tr("Get notified when it's time for Iqamah.", &lang_val))
+        .title(tr("Iqamah Alert"))
+        .subtitle(tr("Get notified when it's time for Iqamah."))
         .build();
     let adkar_toggle = adw::SwitchRow::builder()
-        .title(tr("Adkar", &lang_val))
-        .subtitle(tr(
-            "Morning, evening, and night invocation reminders.",
-            &lang_val,
-        ))
+        .title(tr("Adkar"))
+        .subtitle(tr("Morning, evening, and night invocation reminders."))
         .build();
 
     iqamah_notify_toggle.set_active(config.iqamah_notify());
@@ -1219,10 +1157,9 @@ pub fn setup_settings_ui<'a>(
     let adkar_toggle_for_sync = adkar_toggle.clone();
 
     let adhan_only_toggle = adw::SwitchRow::builder()
-        .title(tr("Adhan Only Mode", &lang_val))
+        .title(tr("Adhan Only Mode"))
         .subtitle(tr(
             "Show only the Adhan notification. Disables all other notifications.",
-            &lang_val,
         ))
         .build();
     adhan_only_toggle.set_active(config.adhan_only_mode());
@@ -1268,8 +1205,8 @@ pub fn setup_settings_ui<'a>(
     notif_group.add(&notify_toggle);
 
     let notify_time = adw::SpinRow::builder()
-        .title(tr("Alert Time", &lang_val))
-        .subtitle(tr("Minutes before prayer", &lang_val))
+        .title(tr("Alert Time"))
+        .subtitle(tr("Minutes before prayer"))
         .adjustment(&gtk::Adjustment::new(
             config.pre_prayer_minutes() as f64,
             1.0,
@@ -1319,35 +1256,30 @@ pub fn setup_settings_ui<'a>(
     });
 
     let test_notify_btn = Button::builder()
-        .label(tr("Test Notification", &lang_val))
+        .label(tr("Test Notification"))
         .margin_top(12)
         .build();
 
     let config_test_notif = config.clone();
-    let current_lang_notif = current_lang.clone();
-    bind_audio_toggle_button_sync(&test_notify_btn, current_lang.clone(), "Test Notification");
+    bind_audio_toggle_button_sync(&test_notify_btn, "Test Notification");
     test_notify_btn.connect_clicked(move |btn| {
-        let lang = current_lang_notif.borrow().clone();
         if crate::audio::is_playing() {
             crate::audio::stop();
-            set_audio_toggle_button_label(btn, &lang, "Test Notification", false);
+            set_audio_toggle_button_label(btn, "Test Notification", false);
         } else {
             notifications::show_notification(
-                &tr("It's time for", &lang),
-                &tr(
-                    "This is a test notification from Khushu. May your prayers be accepted.",
-                    &lang,
-                ),
+                &tr("It's time for"),
+                &tr("This is a test notification from Khushu. May your prayers be accepted."),
                 true,
-                &tr("Open Khushu", &lang),
-                &tr("Stop Adhan", &lang),
+                &tr("Open Khushu"),
+                &tr("Stop Adhan"),
             );
             if !config_test_notif.adhan_muted() {
                 let path = config_test_notif
                     .adhan_sound_path()
                     .unwrap_or_else(|| "assets/audio/Madinah.mp3".to_string());
                 crate::audio::play_adhan(&path, config_test_notif.adhan_volume());
-                set_audio_toggle_button_label(btn, &lang, "Test Notification", true);
+                set_audio_toggle_button_label(btn, "Test Notification", true);
             }
         }
     });
@@ -1371,8 +1303,8 @@ pub fn setup_settings_ui<'a>(
             .unwrap_or(default_mins);
         let iq_adj = gtk::Adjustment::new(current as f64, 0.0, 60.0, 1.0, 5.0, 0.0);
         let iq_row = adw::SpinRow::builder()
-            .title(tr(prayer_name, &lang_val))
-            .subtitle(tr("Minutes", &lang_val))
+            .title(tr(prayer_name))
+            .subtitle(tr("Minutes"))
             .adjustment(&iq_adj)
             .digits(0)
             .build();
@@ -1396,17 +1328,17 @@ pub fn setup_settings_ui<'a>(
     let preset_files: Vec<String> = vec!["Madinah.mp3".to_string(), "Makkah.mp3".to_string()];
 
     let mut preset_labels: Vec<String> = Vec::new();
-    preset_labels.push(tr("Default", &lang_val));
-    preset_labels.push(tr("Custom File...", &lang_val));
+    preset_labels.push(tr("Default"));
+    preset_labels.push(tr("Custom File..."));
     for name in &preset_files {
-        preset_labels.push(adhan_preset_label(name, &lang_val));
+        preset_labels.push(adhan_preset_label(name));
     }
 
     let label_refs: Vec<&str> = preset_labels.iter().map(|s| s.as_str()).collect();
     let model = gtk::StringList::new(&label_refs);
 
     let sound_combo = ComboRow::builder()
-        .title(tr("Adhan Sound", &lang_val))
+        .title(tr("Adhan Sound"))
         .model(&model)
         .build();
 
@@ -1426,25 +1358,23 @@ pub fn setup_settings_ui<'a>(
         }
     } else {
         sound_combo.set_selected(0);
-        sound_combo.set_subtitle(&tr("Using builtin default", &lang_val));
+        sound_combo.set_subtitle(&tr("Using builtin default"));
     }
 
     let window_clone_sound = window.clone();
     let config_sound = config.clone();
     let preset_files_clone = preset_files.clone();
-    let current_lang_audio_combo = current_lang.clone();
 
     sound_combo.connect_selected_notify(move |combo| {
-        let lang = current_lang_audio_combo.borrow().clone();
         let index = combo.selected() as usize;
 
         if index == 0 {
             config_sound.set_adhan_sound_path(None);
             config_sound.save();
-            combo.set_subtitle(&tr("Using builtin default", &lang));
+            combo.set_subtitle(&tr("Using builtin default"));
         } else if index == 1 {
             let file_filter = gtk::FileFilter::new();
-            file_filter.set_name(Some(&tr("Audio Files", &lang)));
+            file_filter.set_name(Some(&tr("Audio Files")));
             file_filter.add_mime_type("audio/mpeg");
             file_filter.add_mime_type("audio/mp3");
             file_filter.add_mime_type("audio/ogg");
@@ -1453,7 +1383,7 @@ pub fn setup_settings_ui<'a>(
             filters.append(&file_filter);
 
             let dialog = gtk::FileDialog::builder()
-                .title(tr("Select Adhan Sound", &lang))
+                .title(tr("Select Adhan Sound"))
                 .modal(true)
                 .filters(&filters)
                 .build();
@@ -1461,7 +1391,6 @@ pub fn setup_settings_ui<'a>(
             let _config_dialog = config_sound.clone();
             let combo_dialog = combo.clone();
             let parent_window = window_clone_sound.clone();
-            let lang_for_dialog = lang.to_string();
 
             gtk::glib::spawn_future_local(async move {
                 if let Ok(file) = dialog.open_future(Some(&parent_window)).await
@@ -1469,9 +1398,8 @@ pub fn setup_settings_ui<'a>(
                     && let Some(path_str) = path.to_str()
                 {
                     let combo = combo_dialog.clone();
-                    let lang = lang_for_dialog.clone();
                     let parent = parent_window.clone();
-                    crate::audio::validate_audio_async(path_str.to_string(), combo, lang, parent);
+                    crate::audio::validate_audio_async(path_str.to_string(), combo, parent);
                 }
             });
         } else {
@@ -1489,8 +1417,8 @@ pub fn setup_settings_ui<'a>(
     audio_group.add(&sound_combo);
 
     let mute_toggle = adw::SwitchRow::builder()
-        .title(tr("Mute Adhan", &lang_val))
-        .subtitle(tr("Silence the Adhan sound at prayer time.", &lang_val))
+        .title(tr("Mute Adhan"))
+        .subtitle(tr("Silence the Adhan sound at prayer time."))
         .build();
     mute_toggle.set_active(config.adhan_muted());
     let config_mute = config.clone();
@@ -1509,8 +1437,8 @@ pub fn setup_settings_ui<'a>(
         0.0,
     );
     let volume_row = adw::SpinRow::builder()
-        .title(tr("Adhan Volume", &lang_val))
-        .subtitle(tr("Volume level (0–100%)", &lang_val))
+        .title(tr("Adhan Volume"))
+        .subtitle(tr("Volume level (0–100%)"))
         .adjustment(&volume_adj)
         .digits(0)
         .build();
@@ -1529,18 +1457,16 @@ pub fn setup_settings_ui<'a>(
     });
 
     let test_audio_btn = Button::builder()
-        .label(tr("▶ Preview Adhan", &lang_val))
+        .label(tr("▶ Preview Adhan"))
         .margin_top(8)
         .build();
 
     let config_test = config.clone();
-    let current_lang_audio = current_lang.clone();
-    bind_audio_toggle_button_sync(&test_audio_btn, current_lang.clone(), "▶ Preview Adhan");
+    bind_audio_toggle_button_sync(&test_audio_btn, "▶ Preview Adhan");
     test_audio_btn.connect_clicked(move |btn| {
-        let lang = current_lang_audio.borrow().clone();
         if crate::audio::is_playing() {
             crate::audio::stop();
-            set_audio_toggle_button_label(btn, &lang, "▶ Preview Adhan", false);
+            set_audio_toggle_button_label(btn, "▶ Preview Adhan", false);
         } else {
             if config_test.adhan_muted() {
                 return;
@@ -1550,7 +1476,7 @@ pub fn setup_settings_ui<'a>(
                 .unwrap_or_else(|| "assets/audio/Madinah.mp3".to_string());
 
             crate::audio::play_adhan(&path, config_test.adhan_volume());
-            set_audio_toggle_button_label(btn, &lang, "▶ Preview Adhan", true);
+            set_audio_toggle_button_label(btn, "▶ Preview Adhan", true);
         }
     });
     audio_group.add(&test_audio_btn);
@@ -1632,72 +1558,60 @@ pub fn setup_settings_ui<'a>(
 pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
     let cfg = &ctx.config;
 
-    ctx.general_heading.set_label(&tr("General", lang));
-    ctx.general_desc.set_label(&tr(
-        "Customize the app's appearance and startup behavior.",
-        lang,
-    ));
+    ctx.general_heading.set_label(&tr("General"));
+    ctx.general_desc
+        .set_label(&tr("Customize the app's appearance and startup behavior."));
 
-    ctx.lang_row.set_title(&tr("Language", lang));
+    ctx.lang_row.set_title(&tr("Language"));
     let lang_items = [
-        tr("System Default", lang),
-        tr("English", lang),
-        tr("Arabic", lang),
-        tr("French", lang),
-        tr("Spanish", lang),
-        tr("Turkish", lang),
-        tr("Indonesian", lang),
+        tr("System Default"),
+        tr("English"),
+        tr("Arabic"),
+        tr("French"),
+        tr("Spanish"),
+        tr("Turkish"),
+        tr("Indonesian"),
     ];
     let lang_refs: Vec<&str> = lang_items.iter().map(|s| s.as_str()).collect();
     ctx.lang_model
         .splice(0, ctx.lang_model.n_items(), &lang_refs);
 
-    ctx.theme_row.set_title(&tr("Theme", lang));
-    let theme_items = [
-        tr("System Default", lang),
-        tr("Light", lang),
-        tr("Dark", lang),
-    ];
+    ctx.theme_row.set_title(&tr("Theme"));
+    let theme_items = [tr("System Default"), tr("Light"), tr("Dark")];
     let theme_refs: Vec<&str> = theme_items.iter().map(|s| s.as_str()).collect();
     ctx.theme_model
         .splice(0, ctx.theme_model.n_items(), &theme_refs);
 
+    ctx.autostart_toggle.set_title(&tr("Start Automatically"));
     ctx.autostart_toggle
-        .set_title(&tr("Start Automatically", lang));
-    ctx.autostart_toggle
-        .set_subtitle(&tr("Run Khushu in the background when you log in.", lang));
+        .set_subtitle(&tr("Run Khushu in the background when you log in."));
 
-    ctx.prayer_setup_heading
-        .set_label(&tr("Prayer Setup", lang));
-    ctx.prayer_setup_desc.set_label(&tr("Set your location, prayer times source, timezone, calculation methods, and Iqamah delays for each prayer.", lang));
+    ctx.prayer_setup_heading.set_label(&tr("Prayer Setup"));
+    ctx.prayer_setup_desc.set_label(&tr("Set your location, prayer times source, timezone, calculation methods, and Iqamah delays for each prayer."));
 
     ctx.location_group
-        .set_title(&gtk::glib::markup_escape_text(&tr(
-            "Location & Source",
-            lang,
-        )));
+        .set_title(&gtk::glib::markup_escape_text(&tr("Location & Source")));
     ctx.location_group.set_description(Some(&tr(
         "Set your location and choose the prayer times data source.",
-        lang,
     )));
 
     let mode_items = [
-        tr("Manual Coordinates", lang),
-        tr("City Selection", lang),
-        tr("Auto (GPS/Network)", lang),
+        tr("Manual Coordinates"),
+        tr("City Selection"),
+        tr("Auto (GPS/Network)"),
     ];
     let mode_refs: Vec<&str> = mode_items.iter().map(|s| s.as_str()).collect();
     ctx.mode_model
         .splice(0, ctx.mode_model.n_items(), &mode_refs);
-    ctx.mode_row.set_title(&tr("Location Method", lang));
+    ctx.mode_row.set_title(&tr("Location Method"));
 
-    ctx.lat_row.set_title(&tr("Latitude", lang));
-    ctx.lon_row.set_title(&tr("Longitude", lang));
+    ctx.lat_row.set_title(&tr("Latitude"));
+    ctx.lon_row.set_title(&tr("Longitude"));
 
-    ctx.status_row.set_title(&tr("Location Status", lang));
+    ctx.status_row.set_title(&tr("Location Status"));
 
-    ctx.city_row.set_title(&tr("City Search", lang));
-    ctx.city_btn.set_label(&tr("Search", lang));
+    ctx.city_row.set_title(&tr("City Search"));
+    ctx.city_btn.set_label(&tr("Search"));
 
     let city_row_reloc = ctx.city_row.clone();
     let auto_row_reloc = ctx.auto_row.clone();
@@ -1717,8 +1631,8 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
         ctx.city_row.set_text(&text);
     }
 
-    ctx.auto_row.set_title(&tr("Auto Detection", lang));
-    ctx.auto_btn.set_label(&tr("Update Now", lang));
+    ctx.auto_row.set_title(&tr("Auto Detection"));
+    ctx.auto_btn.set_label(&tr("Update Now"));
 
     if cfg.location_mode() == crate::config::LocationMode::Auto
         && let Some(name) = &cfg.city_name()
@@ -1747,27 +1661,21 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
         });
     }
 
-    let source_items = [
-        tr("Calculated (Offline)", lang),
-        tr("Connected Mosque (URL)", lang),
-    ];
+    let source_items = [tr("Calculated (Offline)"), tr("Connected Mosque (URL)")];
     let source_refs: Vec<&str> = source_items.iter().map(|s| s.as_str()).collect();
     ctx.source_model
         .splice(0, ctx.source_model.n_items(), &source_refs);
-    ctx.source_row.set_title(&tr("Prayer Times Source", lang));
+    ctx.source_row.set_title(&tr("Prayer Times Source"));
 
     ctx.url_row
-        .set_title(&tr("Connected Mosque URL (mawaqit.net)", lang));
+        .set_title(&tr("Connected Mosque URL (mawaqit.net)"));
 
-    ctx.auto_refresh_row
-        .set_title(&tr("Auto refresh daily", lang));
+    ctx.auto_refresh_row.set_title(&tr("Auto refresh daily"));
     ctx.auto_refresh_row.set_subtitle(&tr(
         "Refresh mosque prayer times once per day while the app is open.",
-        lang,
     ));
 
-    ctx.mawaqit_status_row
-        .set_title(&tr("Connected Mosque", lang));
+    ctx.mawaqit_status_row.set_title(&tr("Connected Mosque"));
     if let Some(cache) = cfg.mawaqit_cache().as_ref() {
         let tz = cache.timezone.clone().unwrap_or_default();
         let tz_label = if tz.is_empty() {
@@ -1776,154 +1684,134 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
             location::localized_time_zone_label(&tz, lang)
         };
         let subtitle = if tz_label.is_empty() {
-            format!("{} • {}", tr("Last updated", lang), cache.fetched_on)
+            format!("{} • {}", tr("Last updated"), cache.fetched_on)
         } else {
             format!(
                 "{} • {} • {}",
                 tz_label,
-                tr("Last updated", lang),
+                tr("Last updated"),
                 cache.fetched_on
             )
         };
         ctx.mawaqit_status_row.set_subtitle(&subtitle);
     } else {
-        ctx.mawaqit_status_row
-            .set_subtitle(&tr("Not configured", lang));
+        ctx.mawaqit_status_row.set_subtitle(&tr("Not configured"));
     }
-    ctx.refresh_btn.set_label(&tr("Refresh now", lang));
+    ctx.refresh_btn.set_label(&tr("Refresh now"));
 
     ctx.travel_group
-        .set_title(&gtk::glib::markup_escape_text(&tr(
-            "Timezone & Travel",
-            lang,
-        )));
+        .set_title(&gtk::glib::markup_escape_text(&tr("Timezone & Travel")));
     ctx.travel_group.set_description(Some(&tr(
         "Override the timezone for prayer time calculations.",
-        lang,
     )));
 
     let tz_mode_items = [
-        tr("Automatic (System)", lang),
-        tr("Custom Timezone (IANA)", lang),
-        tr("Manual UTC Offset", lang),
+        tr("Automatic (System)"),
+        tr("Custom Timezone (IANA)"),
+        tr("Manual UTC Offset"),
     ];
     let tz_mode_refs: Vec<&str> = tz_mode_items.iter().map(|s| s.as_str()).collect();
     ctx.tz_mode_model
         .splice(0, ctx.tz_mode_model.n_items(), &tz_mode_refs);
-    ctx.tz_mode_row.set_title(&tr("Timezone Mode", lang));
-    ctx.tz_mode_row.set_subtitle(&tr(
-        "How prayer times are adjusted for your timezone.",
-        lang,
-    ));
+    ctx.tz_mode_row.set_title(&tr("Timezone Mode"));
+    ctx.tz_mode_row
+        .set_subtitle(&tr("How prayer times are adjusted for your timezone."));
 
-    ctx.tz_named_row.set_title(&tr("IANA Timezone", lang));
+    ctx.tz_named_row.set_title(&tr("IANA Timezone"));
 
-    ctx.tz_offset_row.set_title(&tr("UTC Offset (hours)", lang));
+    ctx.tz_offset_row.set_title(&tr("UTC Offset (hours)"));
     ctx.tz_offset_row
-        .set_subtitle(&tr("Example: +2.0 for UTC+2, -5.0 for UTC-5", lang));
+        .set_subtitle(&tr("Example: +2.0 for UTC+2, -5.0 for UTC-5"));
 
     ctx.calc_group
-        .set_title(&gtk::glib::markup_escape_text(&tr("Calculation", lang)));
+        .set_title(&gtk::glib::markup_escape_text(&tr("Calculation")));
 
-    ctx.hijri_row.set_title(&tr("Hijri Date Correction", lang));
+    ctx.hijri_row.set_title(&tr("Hijri Date Correction"));
     ctx.hijri_row
-        .set_subtitle(&tr("Adjust Hijri date by +/- days", lang));
+        .set_subtitle(&tr("Adjust Hijri date by +/- days"));
 
     let method_items = [
-        tr("MWL", lang),
-        tr("ISNA", lang),
-        tr("Egypt", lang),
-        tr("Makkah", lang),
-        tr("Karachi", lang),
-        tr("Dubai", lang),
-        tr("MoonsightingCommittee", lang),
-        tr("Kuwait", lang),
-        tr("Qatar", lang),
-        tr("Singapore", lang),
-        tr("Turkey", lang),
-        tr("KEMENAG", lang),
-        tr("France (UOIF)", lang),
-        tr("Algeria", lang),
+        tr("MWL"),
+        tr("ISNA"),
+        tr("Egypt"),
+        tr("Makkah"),
+        tr("Karachi"),
+        tr("Dubai"),
+        tr("MoonsightingCommittee"),
+        tr("Kuwait"),
+        tr("Qatar"),
+        tr("Singapore"),
+        tr("Turkey"),
+        tr("KEMENAG"),
+        tr("France (UOIF)"),
+        tr("Algeria"),
     ];
     let method_refs: Vec<&str> = method_items.iter().map(|s| s.as_str()).collect();
     ctx.method_model
         .splice(0, ctx.method_model.n_items(), &method_refs);
-    ctx.method_row.set_title(&tr("Calculation Method", lang));
+    ctx.method_row.set_title(&tr("Calculation Method"));
 
-    let madhab_items = [
-        tr("Shafi (Standard/Maliki/Hanbali)", lang),
-        tr("Hanafi", lang),
-    ];
+    let madhab_items = [tr("Shafi (Standard/Maliki/Hanbali)"), tr("Hanafi")];
     let madhab_refs: Vec<&str> = madhab_items.iter().map(|s| s.as_str()).collect();
     ctx.madhab_model
         .splice(0, ctx.madhab_model.n_items(), &madhab_refs);
-    ctx.madhab_row
-        .set_title(&tr("Asr Calculation (Madhab)", lang));
+    ctx.madhab_row.set_title(&tr("Asr Calculation (Madhab)"));
 
-    ctx.note_row.set_title(&tr("Note", lang));
+    ctx.note_row.set_title(&tr("Note"));
     ctx.note_row
-        .set_subtitle(&tr("Maliki/Hanbali use Standard (Shafi) for Asr.", lang));
+        .set_subtitle(&tr("Maliki/Hanbali use Standard (Shafi) for Asr."));
 
-    ctx.iqamah_group.set_title(&tr("Iqamah Delays", lang));
+    ctx.iqamah_group.set_title(&tr("Iqamah Delays"));
     ctx.iqamah_group.set_description(Some(&tr(
         "Minutes to wait after the Adhan before the Iqamah (second call to prayer).",
-        lang,
     )));
 
     let prayer_names = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
     for (i, name) in prayer_names.iter().enumerate() {
         if let Some(row) = ctx.iqamah_rows.get(i) {
-            row.set_title(&tr(name, lang));
-            row.set_subtitle(&tr("Minutes", lang));
+            row.set_title(&tr(name));
+            row.set_subtitle(&tr("Minutes"));
         }
     }
 
     ctx.notif_audio_heading
-        .set_label(&tr("Notifications & Audio", lang));
+        .set_label(&tr("Notifications & Audio"));
     ctx.notif_audio_desc.set_label(&tr(
         "Choose when and how you receive prayer reminders and the Adhan sound.",
-        lang,
     ));
 
-    ctx.notify_toggle.set_title(&tr("Pre-Prayer Alert", lang));
+    ctx.notify_toggle.set_title(&tr("Pre-Prayer Alert"));
     ctx.notify_toggle
-        .set_subtitle(&tr("Get notified before the prayer time.", lang));
+        .set_subtitle(&tr("Get notified before the prayer time."));
 
-    ctx.notify_time.set_title(&tr("Alert Time", lang));
-    ctx.notify_time
-        .set_subtitle(&tr("Minutes before prayer", lang));
+    ctx.notify_time.set_title(&tr("Alert Time"));
+    ctx.notify_time.set_subtitle(&tr("Minutes before prayer"));
 
+    ctx.iqamah_notify_toggle.set_title(&tr("Iqamah Alert"));
     ctx.iqamah_notify_toggle
-        .set_title(&tr("Iqamah Alert", lang));
-    ctx.iqamah_notify_toggle
-        .set_subtitle(&tr("Get notified when it's time for Iqamah.", lang));
+        .set_subtitle(&tr("Get notified when it's time for Iqamah."));
 
-    ctx.adkar_toggle.set_title(&tr("Adkar", lang));
-    ctx.adkar_toggle.set_subtitle(&tr(
-        "Morning, evening, and night invocation reminders.",
-        lang,
-    ));
+    ctx.adkar_toggle.set_title(&tr("Adkar"));
+    ctx.adkar_toggle
+        .set_subtitle(&tr("Morning, evening, and night invocation reminders."));
 
-    ctx.adhan_only_toggle
-        .set_title(&tr("Adhan Only Mode", lang));
+    ctx.adhan_only_toggle.set_title(&tr("Adhan Only Mode"));
     ctx.adhan_only_toggle.set_subtitle(&tr(
         "Show only the Adhan notification. Disables all other notifications.",
-        lang,
     ));
 
-    ctx.test_notify_btn
-        .set_label(&tr("Test Notification", lang));
+    ctx.test_notify_btn.set_label(&tr("Test Notification"));
 
     let mut preset_labels: Vec<String> = Vec::new();
-    preset_labels.push(tr("Default", lang));
-    preset_labels.push(tr("Custom File...", lang));
+    preset_labels.push(tr("Default"));
+    preset_labels.push(tr("Custom File..."));
     for name in &ctx.preset_files {
-        preset_labels.push(adhan_preset_label(name, lang));
+        preset_labels.push(adhan_preset_label(name));
     }
     let preset_refs: Vec<&str> = preset_labels.iter().map(|s| s.as_str()).collect();
     ctx.sound_model
         .splice(0, ctx.sound_model.n_items(), &preset_refs);
-    ctx.sound_combo.set_title(&tr("Adhan Sound", lang));
+    ctx.sound_combo.set_title(&tr("Adhan Sound"));
 
     let current_path = ctx.config.adhan_sound_path();
     if let Some(path) = &current_path {
@@ -1941,29 +1829,27 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
         }
     } else {
         ctx.sound_combo.set_selected(0);
-        ctx.sound_combo
-            .set_subtitle(&tr("Using builtin default", lang));
+        ctx.sound_combo.set_subtitle(&tr("Using builtin default"));
     }
 
-    ctx.mute_toggle.set_title(&tr("Mute Adhan", lang));
+    ctx.mute_toggle.set_title(&tr("Mute Adhan"));
     ctx.mute_toggle
-        .set_subtitle(&tr("Silence the Adhan sound at prayer time.", lang));
+        .set_subtitle(&tr("Silence the Adhan sound at prayer time."));
 
-    ctx.volume_row.set_title(&tr("Adhan Volume", lang));
-    ctx.volume_row
-        .set_subtitle(&tr("Volume level (0–100%)", lang));
+    ctx.volume_row.set_title(&tr("Adhan Volume"));
+    ctx.volume_row.set_subtitle(&tr("Volume level (0–100%)"));
 
-    ctx.test_audio_btn.set_label(&tr("▶ Preview Adhan", lang));
+    ctx.test_audio_btn.set_label(&tr("▶ Preview Adhan"));
 }
 
-fn adhan_preset_label(file_name: &str, lang: &str) -> String {
+fn adhan_preset_label(file_name: &str) -> String {
     let stem = std::path::Path::new(file_name)
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or(file_name);
     match stem {
-        "Makkah" => tr("Makkah Adhan", lang),
-        "Madinah" => tr("Madinah Adhan", lang),
+        "Makkah" => tr("Makkah Adhan"),
+        "Madinah" => tr("Madinah Adhan"),
         _ => stem.to_string(),
     }
 }
@@ -1974,8 +1860,6 @@ pub fn refresh_prayers(config: &AppConfig, list_box: &ListBox) {
     }
 
     let today = crate::time::effective_today(config);
-    let current_lang_val = config.language();
-
     if let Some(schedule) = crate::time::schedule_for_config(config, today) {
         let prayers = [
             ("Fajr", schedule.fajr),
@@ -1988,7 +1872,7 @@ pub fn refresh_prayers(config: &AppConfig, list_box: &ListBox) {
 
         for (name, time) in prayers {
             let row = adw::ActionRow::builder()
-                .title(tr(name, &current_lang_val))
+                .title(tr(name))
                 .subtitle(time.format("%H:%M").to_string())
                 .name(name)
                 .build();

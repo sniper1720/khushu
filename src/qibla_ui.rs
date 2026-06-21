@@ -13,8 +13,8 @@ struct CardinalData {
     texts: [String; 4],
 }
 
-fn build_cardinal_data(lang: &str) -> CardinalData {
-    let texts = [tr("N", lang), tr("E", lang), tr("S", lang), tr("W", lang)];
+fn build_cardinal_data() -> CardinalData {
+    let texts = [tr("N"), tr("E"), tr("S"), tr("W")];
 
     let mut font_desc = gtk::pango::FontDescription::new();
     font_desc.set_family("Amiri, Amiri-Regular");
@@ -37,15 +37,15 @@ fn compute_bearing(config: &AppConfig, cache: &RefCell<Option<(f64, f64, f64)>>)
     }
 }
 
-fn bearing_label_text(bearing: f64, lang: &str) -> String {
-    format!("{:.1}° {}", bearing, tr(get_cardinal(bearing), lang))
+fn bearing_label_text(bearing: f64) -> String {
+    format!("{:.1}° {}", bearing, tr(get_cardinal(bearing)))
 }
 
-fn status_text(compass_available: bool, lang: &str) -> String {
+fn status_text(compass_available: bool) -> String {
     if compass_available {
-        tr("Sensor Active (Smooth)", lang)
+        tr("Sensor Active (Smooth)")
     } else {
-        tr("Manual Calculation", lang)
+        tr("Manual Calculation")
     }
 }
 
@@ -101,16 +101,16 @@ pub struct QiblaPage {
 }
 
 impl QiblaPage {
-    pub fn rebuild_cardinals(&self, lang: &str) {
-        *self.cardinals.borrow_mut() = build_cardinal_data(lang);
-        self.update_labels_for_lang(lang);
+    pub fn rebuild_cardinals(&self) {
+        *self.cardinals.borrow_mut() = build_cardinal_data();
+        self.update_labels_for_lang();
     }
 
-    pub fn update_labels_for_lang(&self, lang: &str) {
+    pub fn update_labels_for_lang(&self) {
         let q_bearing = compute_bearing(&self.config, &self.cached_bearing);
-        self.b_label.set_label(&bearing_label_text(q_bearing, lang));
+        self.b_label.set_label(&bearing_label_text(q_bearing));
         self.s_label
-            .set_label(&status_text(self.compass.is_available(), lang));
+            .set_label(&status_text(self.compass.is_available()));
         self.drawing_area.queue_draw();
     }
 
@@ -135,10 +135,9 @@ impl QiblaPage {
 
         *self.target_rotation.borrow_mut() = tv;
 
-        let lang = self.config.language();
-        self.b_label.set_label(&bearing_label_text(qb, &lang));
+        self.b_label.set_label(&bearing_label_text(qb));
         self.s_label
-            .set_label(&status_text(self.compass.is_available(), &lang));
+            .set_label(&status_text(self.compass.is_available()));
         self.drawing_area.queue_draw();
         start_rotation_animation(
             self.current_rotation.clone(),
@@ -162,7 +161,6 @@ impl QiblaPage {
 
             *cb.borrow_mut() = None;
             let qb = compute_bearing(cfg, &cb);
-            let lang = cfg.language();
 
             let tv = if compass.is_available() {
                 let h = compass.get_heading();
@@ -174,8 +172,8 @@ impl QiblaPage {
             *tgt.borrow_mut() = tv;
             *cur.borrow_mut() = tv;
 
-            bl.set_label(&bearing_label_text(qb, &lang));
-            sl.set_label(&status_text(compass.is_available(), &lang));
+            bl.set_label(&bearing_label_text(qb));
+            sl.set_label(&status_text(compass.is_available()));
             da_c.queue_draw();
         });
         self.notify_ids.borrow_mut().push(id);
@@ -195,7 +193,6 @@ impl QiblaPage {
 
             *cb.borrow_mut() = None;
             let qb = compute_bearing(cfg, &cb);
-            let lang = cfg.language();
 
             let tv = if compass.is_available() {
                 let h = compass.get_heading();
@@ -207,8 +204,8 @@ impl QiblaPage {
             *tgt.borrow_mut() = tv;
             *cur.borrow_mut() = tv;
 
-            bl.set_label(&bearing_label_text(qb, &lang));
-            sl.set_label(&status_text(compass.is_available(), &lang));
+            bl.set_label(&bearing_label_text(qb));
+            sl.set_label(&status_text(compass.is_available()));
             da_c.queue_draw();
         });
         self.notify_ids.borrow_mut().push(id);
@@ -236,9 +233,8 @@ impl QiblaPage {
                         qb
                     };
                     *tgt.borrow_mut() = tv;
-                    let lang = config.language();
-                    bl.set_label(&bearing_label_text(qb, &lang));
-                    sl.set_label(&status_text(compass.is_available(), &lang));
+                    bl.set_label(&bearing_label_text(qb));
+                    sl.set_label(&status_text(compass.is_available()));
                     da.queue_draw();
                     start_rotation_animation(cur.clone(), tgt.clone(), da.clone(), anim.clone());
                 }
@@ -280,16 +276,15 @@ pub fn create_qibla_page(config: AppConfig, compass_manager: Rc<CompassManager>)
         .valign(gtk::Align::Center)
         .build();
 
-    let lang_val = config.language();
     let initial_bearing = calculate_qibla_bearing(config.latitude(), config.longitude());
 
     let bearing_label = gtk::Label::builder()
-        .label(bearing_label_text(initial_bearing, &lang_val))
+        .label(bearing_label_text(initial_bearing))
         .css_classes(["title-1"])
         .build();
 
     let status_label = gtk::Label::builder()
-        .label(status_text(false, &lang_val))
+        .label(status_text(false))
         .css_classes(["dim-label"])
         .build();
 
@@ -317,7 +312,7 @@ pub fn create_qibla_page(config: AppConfig, compass_manager: Rc<CompassManager>)
     .ok();
 
     let anim_source_id: Rc<RefCell<Option<gtk::glib::SourceId>>> = Rc::new(RefCell::new(None));
-    let cardinals = Rc::new(RefCell::new(build_cardinal_data(&lang_val)));
+    let cardinals = Rc::new(RefCell::new(build_cardinal_data()));
     let cardinals_for_draw = cardinals.clone();
 
     drawing_area.set_draw_func(move |_, cr, width, height| {
@@ -437,9 +432,8 @@ pub fn create_qibla_page(config: AppConfig, compass_manager: Rc<CompassManager>)
             if let Some(id) = anim.borrow_mut().take() {
                 id.remove();
             }
-            let lang = config.language();
-            bl.set_label(&bearing_label_text(b, &lang));
-            sl.set_label(&status_text(compass.is_available(), &lang));
+            bl.set_label(&bearing_label_text(b));
+            sl.set_label(&status_text(compass.is_available()));
             da.queue_draw();
             start_rotation_animation(cur.clone(), tgt.clone(), da.clone(), anim.clone());
         }

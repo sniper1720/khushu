@@ -707,7 +707,7 @@ pub fn create_quran_page(
 
     let search_entry = gtk::SearchEntry::new();
     search_entry.set_widget_name("quran_search");
-    search_entry.set_placeholder_text(Some(&tr("Search surahs", current_lang)));
+    search_entry.set_placeholder_text(Some(&tr("Search surahs")));
     search_entry.set_margin_top(12);
     search_entry.set_margin_bottom(6);
     search_entry.set_margin_start(12);
@@ -761,18 +761,13 @@ pub fn create_quran_page(
         row.set_title(&title_str);
 
         let subtitle = if surah.chapter_type == "meccan" {
-            format!(
-                "{} • {} {}",
-                tr("Meccan", current_lang),
-                surah.total_verses,
-                tr("Verses", current_lang)
-            )
+            format!("{} • {} {}", tr("Meccan"), surah.total_verses, tr("Verses"))
         } else {
             format!(
                 "{} • {} {}",
-                tr("Medinan", current_lang),
+                tr("Medinan"),
                 surah.total_verses,
-                tr("Verses", current_lang)
+                tr("Verses")
             )
         };
         row.set_subtitle(&subtitle);
@@ -808,7 +803,7 @@ pub fn create_quran_page(
 
     let bookmarks_row = adw::ExpanderRow::new();
     bookmarks_row.set_widget_name("bookmarks_expander");
-    bookmarks_row.set_title(&tr("Bookmarks", quran_lang));
+    bookmarks_row.set_title(&tr("Bookmarks"));
     bookmarks_row.set_expanded(false);
     let mut bookmarks = config.quran_bookmarks();
     if bookmarks.is_empty()
@@ -832,7 +827,7 @@ pub fn create_quran_page(
         };
         let row = adw::ActionRow::new();
         row.set_title(&name);
-        row.set_subtitle(&page_label_text(b.page, get_total_pages(), quran_lang));
+        row.set_subtitle(&page_label_text(b.page, get_total_pages()));
         row.set_activatable(true);
         row.set_selectable(false);
         let view_stack_row = view_stack.clone();
@@ -1046,7 +1041,7 @@ fn populate_quran_list(
 ) {
     let bookmarks_row = adw::ExpanderRow::new();
     bookmarks_row.set_widget_name("bookmarks_expander");
-    bookmarks_row.set_title(&tr("Bookmarks", quran_lang));
+    bookmarks_row.set_title(&tr("Bookmarks"));
     bookmarks_row.set_expanded(false);
     let mut bookmarks = config.quran_bookmarks();
     if bookmarks.is_empty()
@@ -1070,7 +1065,7 @@ fn populate_quran_list(
         };
         let row = adw::ActionRow::new();
         row.set_title(&name);
-        row.set_subtitle(&page_label_text(b.page, get_total_pages(), quran_lang));
+        row.set_subtitle(&page_label_text(b.page, get_total_pages()));
         row.set_activatable(true);
         row.set_selectable(false);
         let view_stack_row = view_stack.clone();
@@ -1138,18 +1133,13 @@ fn build_surah_row_for_list(
     row.set_title(&title_str);
 
     let subtitle = if surah.chapter_type == "meccan" {
-        format!(
-            "{} • {} {}",
-            tr("Meccan", current_lang),
-            surah.total_verses,
-            tr("Verses", current_lang)
-        )
+        format!("{} • {} {}", tr("Meccan"), surah.total_verses, tr("Verses"))
     } else {
         format!(
             "{} • {} {}",
-            tr("Medinan", current_lang),
+            tr("Medinan"),
             surah.total_verses,
-            tr("Verses", current_lang)
+            tr("Verses")
         )
     };
     row.set_subtitle(&subtitle);
@@ -1200,7 +1190,7 @@ pub fn refresh_quran_ui(view_stack: &adw::ViewStack, lang: &str, config: AppConf
         if let Some(w) = search_entry
             && let Some(entry) = w.downcast_ref::<gtk::SearchEntry>()
         {
-            entry.set_placeholder_text(Some(&tr("Search surahs", quran_lang)));
+            entry.set_placeholder_text(Some(&tr("Search surahs")));
         }
 
         if let Some(w) = list_box
@@ -1296,15 +1286,15 @@ fn selected_text_for_label(label: &gtk::Label) -> String {
     text
 }
 
-fn attach_readonly_context_menu(label: &gtk::Label, lang: &str) {
+fn attach_readonly_context_menu(label: &gtk::Label) {
     label.set_can_focus(false);
     let popover = gtk::Popover::new();
     popover.set_has_arrow(false);
 
     let box_menu = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    let copy_btn = gtk::Button::with_label(&tr("Copy", lang));
+    let copy_btn = gtk::Button::with_label(&tr("Copy"));
     copy_btn.add_css_class("flat");
-    let select_all_btn = gtk::Button::with_label(&tr("Select All", lang));
+    let select_all_btn = gtk::Button::with_label(&tr("Select All"));
     select_all_btn.add_css_class("flat");
     box_menu.append(&copy_btn);
     box_menu.append(&select_all_btn);
@@ -1426,8 +1416,8 @@ fn surah_meta(surah: u32, lang: &str) -> SurahMeta {
     meta
 }
 
-fn page_label_text(global_page: u32, total_pages: u32, lang: &str) -> String {
-    format!("{} {} / {}", tr("page", lang), global_page, total_pages)
+fn page_label_text(global_page: u32, total_pages: u32) -> String {
+    format!("{} {} / {}", tr("page"), global_page, total_pages)
 }
 
 pub(crate) fn surah_total_verses(surah: u32) -> Option<u32> {
@@ -1509,7 +1499,7 @@ fn update_marker_frame(frame: &gtk::Box, page: u32, lang: &str) {
         } else {
             j.to_string()
         };
-        parts.push(format!("{} {}", tr("Juz", lang), n));
+        parts.push(format!("{} {}", tr("Juz"), n));
     }
     if let Some(h) = markers.hizb {
         let n = if lang == "ar" {
@@ -1517,7 +1507,7 @@ fn update_marker_frame(frame: &gtk::Box, page: u32, lang: &str) {
         } else {
             h.to_string()
         };
-        parts.push(format!("{} {}", tr("Hizb", lang), n));
+        parts.push(format!("{} {}", tr("Hizb"), n));
     }
     if let Some(q) = markers.quarter {
         let n = if lang == "ar" {
@@ -1525,7 +1515,7 @@ fn update_marker_frame(frame: &gtk::Box, page: u32, lang: &str) {
         } else {
             q.to_string()
         };
-        parts.push(format!("{} {}", tr("Quarter", lang), n));
+        parts.push(format!("{} {}", tr("Quarter"), n));
     }
 
     for (idx, text) in parts.iter().enumerate() {
@@ -1691,7 +1681,6 @@ fn build_recitation_toolbar(
     rec_state: Rc<RefCell<RecitationState>>,
     config: &AppConfig,
     play_fn: PlayFn,
-    lang: &str,
     chapter: u32,
 ) -> (gtk::CenterBox, gtk::Button, gtk::Button, gtk::Button) {
     let toolbar = gtk::CenterBox::new();
@@ -1732,7 +1721,6 @@ fn build_recitation_toolbar(
     media_box.append(&play_btn);
     media_box.append(&next_btn);
 
-    let lang_owned = lang.to_string();
     let current_slug = config.reciter_slug();
     let current_pos = crate::reciter_ui::RECITERS
         .iter()
@@ -1741,9 +1729,9 @@ fn build_recitation_toolbar(
     let reciter_label = gtk::Label::new(Some(
         current_pos
             .and_then(|p| crate::reciter_ui::RECITERS.get(p))
-            .map(|r| tr(r.display, &lang_owned))
+            .map(|r| tr(r.display))
             .as_deref()
-            .unwrap_or(&tr("Reciter", &lang_owned)),
+            .unwrap_or(&tr("Reciter")),
     ));
     reciter_label.set_ellipsize(gtk::pango::EllipsizeMode::End);
     reciter_box.append(&reciter_label);
@@ -1751,22 +1739,20 @@ fn build_recitation_toolbar(
     reciter_btn.set_child(Some(&reciter_box));
     let dialog_btn = reciter_btn.clone();
     let dialog_cfg = config.clone();
-    let dialog_lang = lang_owned.clone();
     reciter_btn.connect_clicked(move |_| {
         crate::reciter_ui::open_reciter_dialog(
             &dialog_btn,
             dialog_cfg.clone(),
-            &dialog_lang,
             reciter_label.clone(),
         );
     });
 
     let stop_items = [
-        tr("None", &lang_owned),
-        tr("End of Ayat", &lang_owned),
-        tr("End of Page", &lang_owned),
-        tr("End of Juz", &lang_owned),
-        tr("End of Surah", &lang_owned),
+        tr("None"),
+        tr("End of Ayat"),
+        tr("End of Page"),
+        tr("End of Juz"),
+        tr("End of Surah"),
     ];
     let stop_refs: Vec<&str> = stop_items.iter().map(|s| s.as_str()).collect();
     let stop_model = gtk::StringList::new(&stop_refs);
@@ -1907,12 +1893,12 @@ pub fn create_surah_view(
     let back_btn = gtk::Button::new();
     back_btn.set_icon_name("go-previous-symbolic");
     back_btn.add_css_class("flat");
-    back_btn.set_tooltip_text(Some(&tr("Back", quran_lang)));
+    back_btn.set_tooltip_text(Some(&tr("Back")));
 
     let start_btn = gtk::Button::new();
     start_btn.set_icon_name("go-first-symbolic");
     start_btn.add_css_class("flat");
-    start_btn.set_tooltip_text(Some(&tr("Start of Surah", quran_lang)));
+    start_btn.set_tooltip_text(Some(&tr("Start of Surah")));
 
     let header_start = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     header_start.append(&back_btn);
@@ -1930,9 +1916,9 @@ pub fn create_surah_view(
 
         if !meta.chapter_type.trim().is_empty() {
             let typ = if meta.chapter_type.trim().eq_ignore_ascii_case("meccan") {
-                tr("Meccan", quran_lang)
+                tr("Meccan")
             } else {
-                tr("Medinan", quran_lang)
+                tr("Medinan")
             };
             let type_label = gtk::Label::new(Some(&typ));
             type_label.add_css_class("caption");
@@ -1962,9 +1948,9 @@ pub fn create_surah_view(
         }
         if !meta.chapter_type.trim().is_empty() {
             let typ = if meta.chapter_type.trim().eq_ignore_ascii_case("meccan") {
-                tr("Meccan", quran_lang)
+                tr("Meccan")
             } else {
-                tr("Medinan", quran_lang)
+                tr("Medinan")
             };
             sub_parts.push(typ);
         }
@@ -1984,11 +1970,11 @@ pub fn create_surah_view(
         .icon_name("user-bookmarks-symbolic")
         .has_frame(false)
         .build();
-    bookmark_toggle_btn.set_tooltip_text(Some(&tr("Bookmark", quran_lang)));
+    bookmark_toggle_btn.set_tooltip_text(Some(&tr("Bookmark")));
 
     let bookmarks_btn = gtk::Button::new();
     bookmarks_btn.add_css_class("flat");
-    bookmarks_btn.set_tooltip_text(Some(&tr("Bookmarks", quran_lang)));
+    bookmarks_btn.set_tooltip_text(Some(&tr("Bookmarks")));
     let bookmarks_btn_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     let bookmarks_icon = gtk::Image::from_icon_name("user-bookmarks-symbolic");
     let dropdown_icon = gtk::Image::from_icon_name("pan-down-symbolic");
@@ -1999,7 +1985,7 @@ pub fn create_surah_view(
     let typography_btn = gtk::MenuButton::new();
     typography_btn.set_icon_name("preferences-desktop-font-symbolic");
     typography_btn.add_css_class("flat");
-    typography_btn.set_tooltip_text(Some(&tr("Typography Options", quran_lang)));
+    typography_btn.set_tooltip_text(Some(&tr("Typography Options")));
 
     let typo_popover = gtk::Popover::new();
     let typo_outer = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -2009,7 +1995,7 @@ pub fn create_surah_view(
     typo_outer.set_margin_bottom(12);
 
     let typo_group = adw::PreferencesGroup::builder()
-        .title(tr("Reading Display", quran_lang))
+        .title(tr("Reading Display"))
         .build();
     typo_outer.append(&typo_group);
 
@@ -2018,8 +2004,8 @@ pub fn create_surah_view(
     let arabic_adj =
         gtk::Adjustment::new(cfg_typo.quran_arabic_font_px(), 16.0, 40.0, 1.0, 0.0, 0.0);
     let arabic_spin = adw::SpinRow::builder()
-        .title(tr("Arabic Font Size", quran_lang))
-        .subtitle(tr("Size in pixels (16–40)", quran_lang))
+        .title(tr("Arabic Font Size"))
+        .subtitle(tr("Size in pixels (16–40)"))
         .adjustment(&arabic_adj)
         .digits(0)
         .build();
@@ -2042,8 +2028,8 @@ pub fn create_surah_view(
         0.0,
     );
     let trans_spin = adw::SpinRow::builder()
-        .title(tr("Translation Font Size", quran_lang))
-        .subtitle(tr("Size in pixels (10–28)", quran_lang))
+        .title(tr("Translation Font Size"))
+        .subtitle(tr("Size in pixels (10–28)"))
         .adjustment(&trans_adj)
         .digits(0)
         .build();
@@ -2059,8 +2045,8 @@ pub fn create_surah_view(
 
     let lh_adj = gtk::Adjustment::new(cfg_typo.quran_line_height(), 1.0, 3.0, 0.1, 0.0, 0.0);
     let lh_spin = adw::SpinRow::builder()
-        .title(tr("Line Spacing", quran_lang))
-        .subtitle(tr("Multiplier (1.0–3.0)", quran_lang))
+        .title(tr("Line Spacing"))
+        .subtitle(tr("Multiplier (1.0–3.0)"))
         .adjustment(&lh_adj)
         .digits(1)
         .build();
@@ -2074,7 +2060,7 @@ pub fn create_surah_view(
         crate::apply_font_css(&quran_lang_lh, &config_for_lh);
     });
 
-    let reset_btn = gtk::Button::with_label(&tr("Reset to Default", quran_lang));
+    let reset_btn = gtk::Button::with_label(&tr("Reset to Default"));
     reset_btn.set_margin_top(8);
     reset_btn.set_margin_start(4);
     reset_btn.set_margin_end(4);
@@ -2193,7 +2179,7 @@ pub fn create_surah_view(
                             mushaf_label.set_wrap(true);
                             mushaf_label.set_wrap_mode(gtk::pango::WrapMode::WordChar);
                             mushaf_label.set_selectable(true);
-                            attach_readonly_context_menu(&mushaf_label, quran_lang);
+                            attach_readonly_context_menu(&mushaf_label);
                             if chapter == 1 && chunk_surah == Some(1) {
                                 mushaf_label.set_xalign(0.5);
                                 mushaf_label.set_justify(gtk::Justification::Center);
@@ -2229,9 +2215,9 @@ pub fn create_surah_view(
 
                         if !meta.chapter_type.trim().is_empty() {
                             let typ = if meta.chapter_type.trim().eq_ignore_ascii_case("meccan") {
-                                tr("Meccan", quran_lang)
+                                tr("Meccan")
                             } else {
-                                tr("Medinan", quran_lang)
+                                tr("Medinan")
                             };
                             let typ_label = gtk::Label::new(Some(&typ));
                             typ_label.set_wrap(true);
@@ -2250,7 +2236,7 @@ pub fn create_surah_view(
                             b.set_justify(gtk::Justification::Center);
                             b.add_css_class("quran-arabic");
                             b.set_selectable(true);
-                            attach_readonly_context_menu(&b, quran_lang);
+                            attach_readonly_context_menu(&b);
                             b.set_margin_bottom(6);
                             box_content.append(&b);
                         }
@@ -2268,7 +2254,7 @@ pub fn create_surah_view(
                         b.set_justify(gtk::Justification::Center);
                         b.add_css_class("quran-arabic");
                         b.set_selectable(true);
-                        attach_readonly_context_menu(&b, quran_lang);
+                        attach_readonly_context_menu(&b);
                         b.set_margin_bottom(6);
                         box_content.append(&b);
                         last_surah = Some(pv.surah);
@@ -2303,7 +2289,7 @@ pub fn create_surah_view(
                     mushaf_label.set_wrap(true);
                     mushaf_label.set_wrap_mode(gtk::pango::WrapMode::WordChar);
                     mushaf_label.set_selectable(true);
-                    attach_readonly_context_menu(&mushaf_label, quran_lang);
+                    attach_readonly_context_menu(&mushaf_label);
                     if chapter == 1 && chunk_surah == Some(1) {
                         mushaf_label.set_xalign(0.5);
                         mushaf_label.set_justify(gtk::Justification::Center);
@@ -2337,7 +2323,7 @@ pub fn create_surah_view(
                         arabic_label.set_xalign(0.5);
                         arabic_label.add_css_class("quran-arabic");
                         arabic_label.set_selectable(true);
-                        attach_readonly_context_menu(&arabic_label, quran_lang);
+                        attach_readonly_context_menu(&arabic_label);
                         header_box.append(&arabic_label);
 
                         let mut name_parts = Vec::new();
@@ -2353,15 +2339,15 @@ pub fn create_surah_view(
                             trans_label.set_xalign(0.5);
                             trans_label.add_css_class("quran-translation");
                             trans_label.set_selectable(true);
-                            attach_readonly_context_menu(&trans_label, quran_lang);
+                            attach_readonly_context_menu(&trans_label);
                             header_box.append(&trans_label);
                         }
 
                         if !meta.chapter_type.trim().is_empty() {
                             let typ = if meta.chapter_type.trim().eq_ignore_ascii_case("meccan") {
-                                tr("Meccan", quran_lang)
+                                tr("Meccan")
                             } else {
-                                tr("Medinan", quran_lang)
+                                tr("Medinan")
                             };
                             let typ_label = gtk::Label::new(Some(&typ));
                             typ_label.set_wrap(true);
@@ -2383,7 +2369,7 @@ pub fn create_surah_view(
                             arabic_label.set_justify(gtk::Justification::Center);
                             arabic_label.add_css_class("quran-arabic");
                             arabic_label.set_selectable(true);
-                            attach_readonly_context_menu(&arabic_label, quran_lang);
+                            attach_readonly_context_menu(&arabic_label);
                             bismillah_box.append(&arabic_label);
 
                             if quran_lang != "ar" {
@@ -2404,7 +2390,7 @@ pub fn create_surah_view(
                                     translation_label.set_justify(gtk::Justification::Center);
                                     translation_label.add_css_class("quran-translation");
                                     translation_label.set_selectable(true);
-                                    attach_readonly_context_menu(&translation_label, quran_lang);
+                                    attach_readonly_context_menu(&translation_label);
                                     bismillah_box.append(&translation_label);
                                 }
                             }
@@ -2426,7 +2412,7 @@ pub fn create_surah_view(
                     ));
                     arabic_label.set_wrap(true);
                     arabic_label.set_selectable(true);
-                    attach_readonly_context_menu(&arabic_label, quran_lang);
+                    attach_readonly_context_menu(&arabic_label);
                     arabic_label.set_xalign(1.0);
                     arabic_label.add_css_class("quran-arabic");
                     arabic_label.set_margin_top(8);
@@ -2454,7 +2440,7 @@ pub fn create_surah_view(
                             ));
                             translation_label.set_wrap(true);
                             translation_label.set_selectable(true);
-                            attach_readonly_context_menu(&translation_label, quran_lang);
+                            attach_readonly_context_menu(&translation_label);
                             translation_label.set_xalign(0.0);
                             translation_label.add_css_class("body");
                             translation_label.add_css_class("quran-translation");
@@ -2544,13 +2530,9 @@ pub fn create_surah_view(
     page_entry.set_max_length(4);
     page_entry.set_input_purpose(gtk::InputPurpose::Digits);
     gtk::prelude::EditableExt::set_text(&page_entry, &initial_page.to_string());
-    page_entry.set_tooltip_text(Some(&page_label_text(
-        initial_page,
-        total_pages,
-        quran_lang,
-    )));
+    page_entry.set_tooltip_text(Some(&page_label_text(initial_page, total_pages)));
 
-    let page_prefix = gtk::Label::new(Some(&tr("page", quran_lang)));
+    let page_prefix = gtk::Label::new(Some(&tr("page")));
     page_prefix.add_css_class("dim-label");
 
     let page_total = gtk::Label::new(Some(&format!("/ {}", total_pages)));
@@ -2685,13 +2667,8 @@ pub fn create_surah_view(
         }
     }));
 
-    let (toolbar, rec_play_btn, rec_prev_btn, rec_next_btn) = build_recitation_toolbar(
-        rec_state.clone(),
-        &config_rc,
-        play_fn.clone(),
-        quran_lang,
-        chapter,
-    );
+    let (toolbar, rec_play_btn, rec_prev_btn, rec_next_btn) =
+        build_recitation_toolbar(rec_state.clone(), &config_rc, play_fn.clone(), chapter);
     content_stack.insert_child_after(&toolbar, Some(&scrolled));
 
     attach_verse_click_handlers(
@@ -2849,7 +2826,6 @@ pub fn create_surah_view(
     let bookmarks_btn_for_popover = bookmarks_btn.clone();
     let view_stack_for_bookmarks = view_stack.clone();
     let lang_for_bookmarks = quran_lang_rc.clone();
-    let lang_for_bookmarks_for_toggle = quran_lang_rc.clone();
     let total_pages_for_bookmarks = total_pages;
     let toast_overlay_for_toggle = toast_overlay.clone();
     let config_for_bm_toggle = config_rc.clone();
@@ -2919,9 +2895,9 @@ pub fn create_surah_view(
         set_bookmark_state(btn, p, &config_for_toggle);
         set_bookmark_state(&bookmark_btn_for_toggle_in_toggle, p, &config_for_toggle);
         let msg = if is_bookmarked {
-            tr("Bookmark removed", &lang_for_bookmarks_for_toggle)
+            tr("Bookmark removed")
         } else {
-            tr("Bookmark added", &lang_for_bookmarks_for_toggle)
+            tr("Bookmark added")
         };
         toast_overlay_for_toggle.add_toast(adw::Toast::new(&msg));
     });
@@ -2961,11 +2937,7 @@ pub fn create_surah_view(
             row.set_activatable(true);
             row.set_selectable(false);
             row.set_title(&name);
-            row.set_subtitle(&page_label_text(
-                b.page,
-                total_pages_for_bookmarks,
-                &lang_for_bookmarks,
-            ));
+            row.set_subtitle(&page_label_text(b.page, total_pages_for_bookmarks));
             let view_stack_row = view_stack_for_bookmarks.clone();
             let lang_row = lang_for_bookmarks.clone();
             let popover_row = bookmarks_popover.clone();
@@ -2997,11 +2969,8 @@ pub fn create_surah_view(
 
         if bookmarks.is_empty() {
             let placeholder_row = adw::ActionRow::new();
-            placeholder_row.set_title(&tr("No bookmarks yet", &lang_for_bookmarks));
-            placeholder_row.set_subtitle(&tr(
-                "Bookmark pages by clicking the bookmark icon",
-                &lang_for_bookmarks,
-            ));
+            placeholder_row.set_title(&tr("No bookmarks yet"));
+            placeholder_row.set_subtitle(&tr("Bookmark pages by clicking the bookmark icon"));
             placeholder_row.set_activatable(false);
             placeholder_row.set_selectable(false);
             bookmarks_list.append(&placeholder_row);
@@ -3021,14 +2990,12 @@ pub fn create_surah_view(
         let text = gtk::prelude::EditableExt::text(e).trim().to_string();
         let Ok(page) = text.parse::<u32>() else {
             gtk::prelude::EditableExt::set_text(e, &current_page_for_input.borrow().to_string());
-            toast_overlay_for_input
-                .add_toast(adw::Toast::new(&tr("Invalid page number", &lang_for_input)));
+            toast_overlay_for_input.add_toast(adw::Toast::new(&tr("Invalid page number")));
             return;
         };
         if page < 1 || page > total_pages {
             gtk::prelude::EditableExt::set_text(e, &current_page_for_input.borrow().to_string());
-            toast_overlay_for_input
-                .add_toast(adw::Toast::new(&tr("Invalid page number", &lang_for_input)));
+            toast_overlay_for_input.add_toast(adw::Toast::new(&tr("Invalid page number")));
             return;
         }
 
@@ -3264,7 +3231,7 @@ mod tests {
 
     #[test]
     fn page_indicator_is_global_only() {
-        let s = page_label_text(106, 604, "en");
+        let s = page_label_text(106, 604);
         assert!(!s.contains("•"));
     }
 }

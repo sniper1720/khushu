@@ -136,12 +136,7 @@ fn validate_audio_file(path: &str) -> bool {
         .is_some()
 }
 
-pub fn validate_audio_async(
-    path: String,
-    combo: adw::ComboRow,
-    lang: String,
-    parent: adw::ApplicationWindow,
-) {
+pub fn validate_audio_async(path: String, combo: adw::ComboRow, parent: adw::ApplicationWindow) {
     if validate_audio_file(&path) {
         let c = AppConfig::load();
         c.set_adhan_sound_path(Some(path.clone()));
@@ -153,7 +148,6 @@ pub fn validate_audio_async(
         gtk4::glib::spawn_future_local(async move {
             overlay.add_toast(adw::Toast::new(&crate::i18n::tr(
                 "File not usable or unsupported format",
-                &lang,
             )));
         });
     }

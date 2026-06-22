@@ -11,9 +11,9 @@ repository = "https://github.com/sniper1720/khushu"
 [dependencies]
 chrono = "0.4"
 chrono-tz = "0.10"
-gtk4 = { version = "0.9", features = ["v4_10"] }
+gtk4 = { version = "0.11", features = ["v4_10"] }
 ksni = "0.3"
-libadwaita = { version = "0.7", features = ["v1_5"] }
+libadwaita = { version = "0.9", features = ["v1_5"] }
 rodio = "0.21"
 salah = "0.7"
 serde = { version = "1.0", features = ["derive"] }
@@ -31,7 +31,7 @@ hijri_date = "0.5"
 rand = "0.8"
 log = "0.4"
 env_logger = "0.11"
-pangocairo = "0.20"
+pangocairo = "0.22"
 ashpd = { version = "0.12", features = ["tokio"] }
 futures-util = "0.3"
 

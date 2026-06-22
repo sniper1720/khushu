@@ -1289,10 +1289,7 @@ fn attach_readonly_context_menu(label: &gtk::Label) {
     attach_context_menu_impl(label, None);
 }
 
-fn attach_arabic_context_menu(
-    label: &gtk::Label,
-    rec_state: Rc<RefCell<RecitationState>>,
-) {
+fn attach_arabic_context_menu(label: &gtk::Label, rec_state: Rc<RefCell<RecitationState>>) {
     let copy_fn: Rc<dyn Fn() -> String> = Rc::new(move || {
         rec_state
             .borrow()
@@ -1305,7 +1302,6 @@ fn attach_arabic_context_menu(
 }
 
 fn attach_context_menu_impl(label: &gtk::Label, copy_fn: Option<Rc<dyn Fn() -> String>>) {
-
     label.set_can_focus(false);
     let popover = gtk::Popover::new();
     popover.set_has_arrow(false);
@@ -1735,7 +1731,10 @@ fn attach_verse_click_handlers(
                 let rebuild_fn_c = rebuild_fn.clone();
                 let chapter_c = chapter;
                 click.connect_pressed(move |_, _, _, _| {
-                    rec_state_c.borrow().selected_verse.set(Some((chapter_c, verse)));
+                    rec_state_c
+                        .borrow()
+                        .selected_verse
+                        .set(Some((chapter_c, verse)));
                     if let Some(ref rebuild) = *rebuild_fn_c.borrow() {
                         rebuild();
                     }
@@ -1900,7 +1899,12 @@ fn build_recitation_toolbar(
     let play_btn_return = play_btn.clone();
     play_btn.connect_clicked(move |btn| {
         let was_playing = play_rec_state.borrow().playing.get();
-        let verse = play_rec_state.borrow().selected_verse.get().map(|(_, v)| v).unwrap_or(1);
+        let verse = play_rec_state
+            .borrow()
+            .selected_verse
+            .get()
+            .map(|(_, v)| v)
+            .unwrap_or(1);
         if was_playing {
             play_rec_state.borrow().playing.set(false);
             crate::audio::stop();
@@ -1924,7 +1928,10 @@ fn build_recitation_toolbar(
             .get()
             .filter(|&(_, v)| v > 1);
         if let Some((s, verse)) = v {
-            prev_rec_state.borrow().selected_verse.set(Some((s, verse - 1)));
+            prev_rec_state
+                .borrow()
+                .selected_verse
+                .set(Some((s, verse - 1)));
             if let Some(ref play) = *play_fn_c2.borrow() {
                 play(verse - 1);
             }
@@ -1940,7 +1947,10 @@ fn build_recitation_toolbar(
     next_btn.connect_clicked(move |_| {
         let v = next_rec_state.borrow().selected_verse.get();
         if let Some((s, verse)) = v {
-            next_rec_state.borrow().selected_verse.set(Some((s, verse + 1)));
+            next_rec_state
+                .borrow()
+                .selected_verse
+                .set(Some((s, verse + 1)));
             if let Some(ref play) = *play_fn_c3.borrow() {
                 play(verse + 1);
             }
@@ -2257,6 +2267,7 @@ pub fn create_surah_view(
         Rc::new(RefCell::new(HashMap::new()));
 
     let rebuild_fn: RebuildFn = Rc::new(RefCell::new(None));
+    let rebuild_follow_fn: RebuildFn = Rc::new(RefCell::new(None));
     let play_fn: PlayFn = Rc::new(RefCell::new(None));
 
     fn build_page_content(
@@ -2702,80 +2713,89 @@ pub fn create_surah_view(
     let rebuild_current_page = current_page.clone();
     let rebuild_rec_state = rec_state.clone();
     let rebuild_bounds = verse_boundaries.clone();
-    let rebuild_fn_c = rebuild_fn.clone();
+    let rebuild_follow_fn_c = rebuild_follow_fn.clone();
+    let rebuild_rec_state_for_follow = rebuild_rec_state.clone();
+    let rebuild_current_page_for_follow = rebuild_current_page.clone();
+    let rebuild_fn_for_follow = rebuild_fn.clone();
     *rebuild_fn.borrow_mut() = Some(Box::new(move || {
         let page = *rebuild_current_page.borrow();
         let verse = rebuild_rec_state.borrow().selected_verse.get();
-        let mut new_page = page;
-        if let Some((s, v)) = verse
-            && !is_verse_on_page(s, v, page)
-            && let Some(fp) = get_page_for_verse(s, v)
-        {
-            new_page = fp;
-            *rebuild_current_page.borrow_mut() = fp;
-        }
+        let highlight = verse.filter(|(s, v)| is_verse_on_page(*s, *v, page));
         let new_content = build_page_content(
-            new_page,
+            page,
             rebuild_chapter,
             &rebuild_lang,
             (*rebuild_surah).clone(),
-            verse,
+            highlight,
             rebuild_rec_state.clone(),
         );
         rebuild_scrolled.set_child(Some(&new_content));
         attach_verse_click_handlers(
             &new_content,
-            new_page,
+            page,
             rebuild_chapter,
             &rebuild_lang,
             rebuild_rec_state.clone(),
             rebuild_bounds.clone(),
-            rebuild_fn_c.clone(),
+            rebuild_follow_fn_c.clone(),
         );
-        if new_page != page {
-            let adj = rebuild_scrolled.vadjustment();
-            adj.set_value(0.0);
-            update_marker_frame(&rebuild_marker, new_page, &rebuild_lang);
-            gtk::prelude::EditableExt::set_text(&rebuild_entry, &new_page.to_string());
-            rebuild_prev_btn.set_sensitive(new_page > rebuild_start || rebuild_chapter > 1);
-            rebuild_next_btn.set_sensitive(new_page < rebuild_ending || rebuild_chapter < 114);
-            SURAH_READING_POSITIONS.with(|pos| pos.borrow_mut().insert(rebuild_chapter, new_page));
-            rebuild_config.set_quran_last_surah(Some(rebuild_chapter));
-            rebuild_config.set_quran_last_page(Some(new_page));
-            rebuild_config.save();
+        let adj = rebuild_scrolled.vadjustment();
+        adj.set_value(0.0);
+        update_marker_frame(&rebuild_marker, page, &rebuild_lang);
+        gtk::prelude::EditableExt::set_text(&rebuild_entry, &page.to_string());
+        rebuild_prev_btn.set_sensitive(page > rebuild_start || rebuild_chapter > 1);
+        rebuild_next_btn.set_sensitive(page < rebuild_ending || rebuild_chapter < 114);
+        SURAH_READING_POSITIONS.with(|pos| pos.borrow_mut().insert(rebuild_chapter, page));
+        rebuild_config.set_quran_last_surah(Some(rebuild_chapter));
+        rebuild_config.set_quran_last_page(Some(page));
+        rebuild_config.save();
+    }));
+
+    *rebuild_follow_fn.borrow_mut() = Some(Box::new(move || {
+        let page = *rebuild_current_page_for_follow.borrow();
+        let verse = rebuild_rec_state_for_follow.borrow().selected_verse.get();
+        if let Some((s, v)) = verse
+            && !is_verse_on_page(s, v, page)
+            && let Some(fp) = get_page_for_verse(s, v)
+        {
+            *rebuild_current_page_for_follow.borrow_mut() = fp;
+        }
+        if let Some(ref rebuild) = *rebuild_fn_for_follow.borrow() {
+            rebuild();
         }
     }));
 
     let play_rec_state = rec_state.clone();
     let play_config = config_rc.clone();
-    let play_rebuild = rebuild_fn.clone();
+    let play_rebuild = rebuild_follow_fn.clone();
     let play_chapter = chapter;
     *play_fn.borrow_mut() = Some(Box::new(move |verse| {
         log::info!("Play fn called: surah={}, verse={}", play_chapter, verse);
         play_rec_state.borrow().playing.set(true);
-        play_rec_state.borrow().selected_verse.set(Some((play_chapter, verse)));
+        play_rec_state
+            .borrow()
+            .selected_verse
+            .set(Some((play_chapter, verse)));
         if let Some(ref rebuild) = *play_rebuild.borrow() {
             rebuild();
         }
         let slug = play_config.reciter_slug();
-        let vol = play_config.recitation_volume();
         log::info!(
-            "Playing verse: slug={}, surah={}, verse={}, vol={}",
+            "Playing verse: slug={}, surah={}, verse={}",
             slug,
             play_chapter,
             verse,
-            vol
         );
         match play_config.stop_condition() {
             StopCondition::None | StopCondition::Ayat => {
-                crate::audio::play_verse(&slug, play_chapter, verse, vol);
+                crate::audio::play_verse(&slug, play_chapter, verse);
             }
             _ => {
                 let total = surah_total_verses(play_chapter).unwrap_or(u32::MAX);
                 let end_verse =
                     compute_stop_boundary(play_chapter, verse, play_config.stop_condition())
                         .unwrap_or(total);
-                crate::audio::play_surah(&slug, play_chapter, verse, end_verse.min(total), vol);
+                crate::audio::play_surah(&slug, play_chapter, verse, end_verse.min(total));
             }
         }
     }));
@@ -2796,7 +2816,7 @@ pub fn create_surah_view(
 
     let poll_rec_state = rec_state.clone();
     let poll_chapter = chapter;
-    let poll_rebuild = rebuild_fn.clone();
+    let poll_rebuild = rebuild_follow_fn.clone();
     let poll_play_btn = rec_play_btn.clone();
     let poll_prev_btn = rec_prev_btn.clone();
     let poll_next_btn = rec_next_btn.clone();
@@ -2814,7 +2834,10 @@ pub fn create_surah_view(
                 if currently_playing {
                     let next_verse = verse + 1;
                     if next_verse <= total && crate::audio::is_playing() {
-                        poll_rec_state.borrow().selected_verse.set(Some((poll_chapter, next_verse)));
+                        poll_rec_state
+                            .borrow()
+                            .selected_verse
+                            .set(Some((poll_chapter, next_verse)));
                         if let Some(ref rebuild) = *poll_rebuild.borrow() {
                             rebuild();
                         }

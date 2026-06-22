@@ -25,8 +25,8 @@ pub(crate) static VERSE_FINISHED_PENDING: AtomicBool = AtomicBool::new(false);
 
 enum AudioCommand {
     Play(String, f32),
-    PlayVerse(String, u32, u32, f32),
-    PlaySurah(String, u32, u32, u32, f32),
+    PlayVerse(String, u32, u32),
+    PlaySurah(String, u32, u32, u32),
     Stop,
 }
 
@@ -100,22 +100,20 @@ pub fn is_playing() -> bool {
     IS_PLAYING.load(Ordering::Acquire)
 }
 
-pub fn play_verse(reciter: &str, surah: u32, verse: u32, volume: f32) {
+pub fn play_verse(reciter: &str, surah: u32, verse: u32) {
     let _ = ensure_audio_thread().send(AudioCommand::PlayVerse(
         reciter.to_string(),
         surah,
         verse,
-        volume,
     ));
 }
 
-pub fn play_surah(reciter: &str, surah: u32, start_verse: u32, end_verse: u32, volume: f32) {
+pub fn play_surah(reciter: &str, surah: u32, start_verse: u32, end_verse: u32) {
     let _ = ensure_audio_thread().send(AudioCommand::PlaySurah(
         reciter.to_string(),
         surah,
         start_verse,
         end_verse,
-        volume,
     ));
 }
 
@@ -321,13 +319,12 @@ fn run_audio_loop(rx: Receiver<AudioCommand>) {
                     }
                     current_sink = Some(sink);
                 }
-                AudioCommand::PlayVerse(reciter, surah, verse, volume) => {
+                AudioCommand::PlayVerse(reciter, surah, verse) => {
                     log::info!(
-                        "PlayVerse: reciter={}, surah={}, verse={}, volume={}",
+                        "PlayVerse: reciter={}, surah={}, verse={}",
                         reciter,
                         surah,
                         verse,
-                        volume
                     );
                     verse_queue.clear();
                     is_reciting = true;
@@ -340,7 +337,6 @@ fn run_audio_loop(rx: Receiver<AudioCommand>) {
                     IS_PLAYING.store(true, Ordering::Release);
 
                     let sink = Sink::connect_new(stream.mixer());
-                    sink.set_volume(volume.clamp(0.0, 1.0));
 
                     let _ = dl_tx.send(DlRequest {
                         reciter,
@@ -350,14 +346,13 @@ fn run_audio_loop(rx: Receiver<AudioCommand>) {
 
                     current_sink = Some(sink);
                 }
-                AudioCommand::PlaySurah(reciter, surah, start_verse, end_verse_val, volume) => {
+                AudioCommand::PlaySurah(reciter, surah, start_verse, end_verse_val) => {
                     log::info!(
-                        "PlaySurah: reciter={}, surah={}, start_verse={}, end_verse={}, volume={}",
+                        "PlaySurah: reciter={}, surah={}, start_verse={}, end_verse={}",
                         reciter,
                         surah,
                         start_verse,
                         end_verse_val,
-                        volume
                     );
                     verse_queue.clear();
                     downloaded.clear();
@@ -371,7 +366,6 @@ fn run_audio_loop(rx: Receiver<AudioCommand>) {
                     IS_PLAYING.store(true, Ordering::Release);
 
                     let sink = Sink::connect_new(stream.mixer());
-                    sink.set_volume(volume.clamp(0.0, 1.0));
 
                     let _ = dl_tx.send(DlRequest {
                         reciter: reciter.clone(),

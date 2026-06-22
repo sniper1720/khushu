@@ -179,7 +179,7 @@ async fn main() {
             crate::background::setup_background();
         }
 
-        0
+        0.into()
     });
 
     let config_activate = config.clone();

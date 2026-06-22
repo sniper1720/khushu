@@ -27,7 +27,7 @@ pub struct CompassManager {
     heading: Arc<Mutex<f64>>,
     available: Arc<Mutex<bool>>,
     epoch: Arc<AtomicU64>,
-    subscription: Arc<Mutex<Option<gio::SignalSubscriptionId>>>,
+    subscription: Arc<Mutex<Option<gio::SignalSubscription>>>,
 }
 
 impl CompassManager {
@@ -136,19 +136,19 @@ impl CompassManager {
 
             let heading_cb = heading;
             let epoch_cb = epoch;
-            let sub = conn.signal_subscribe(
+            let sub = conn.subscribe_to_signal(
                 Some("net.hadess.SensorProxy"),
                 Some("org.freedesktop.DBus.Properties"),
                 Some("PropertiesChanged"),
                 Some("/net/hadess/SensorProxy"),
                 None,
                 gio::DBusSignalFlags::NONE,
-                move |_connection, _sender, _path, _interface, _signal, params| {
+                move |signal_ref| {
                     if epoch_cb.load(Ordering::SeqCst) != my_epoch {
                         return;
                     }
                     if let Ok(mut heading) = heading_cb.lock() {
-                        let changed = params.child_value(1);
+                        let changed = signal_ref.parameters.child_value(1);
                         let dict = glib::VariantDict::new(Some(&changed));
                         if let Some(val) = dict.lookup_value("CompassHeading", None)
                             && let Some(h) = val.get::<f64>()

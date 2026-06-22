@@ -77,10 +77,7 @@ fn delete_downloaded_reciter(reciter_slug: &str) {
         glib::user_cache_dir().to_string_lossy(),
         reciter_slug
     );
-    let path = std::path::Path::new(&cache_dir);
-    if path.exists() {
-        let _ = std::fs::remove_dir_all(path);
-    }
+    let _ = std::fs::remove_dir_all(&cache_dir);
 }
 
 pub(crate) fn open_reciter_dialog(

@@ -22,7 +22,7 @@ fn get_snap_autostart_path() -> Option<PathBuf> {
 fn enable_fs() {
     let path = get_autostart_path();
 
-    if let Some(parent) = path.parent().filter(|p| !p.exists()) {
+    if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
 
@@ -58,10 +58,10 @@ fn disable_fs() {
         p
     };
 
-    if path.exists() && fs::remove_file(&path).is_ok() {
+    if fs::remove_file(&path).is_ok() {
         log::info!("Autostart disabled (filesystem): removed {:?}", path);
     }
-    if old_path.exists() && fs::remove_file(&old_path).is_ok() {
+    if fs::remove_file(&old_path).is_ok() {
         log::info!(
             "Legacy autostart disabled (filesystem): removed {:?}",
             old_path
@@ -71,7 +71,7 @@ fn disable_fs() {
 
 fn enable_snap_autostart() {
     if let Some(path) = get_snap_autostart_path() {
-        if let Some(parent) = path.parent().filter(|p| !p.exists()) {
+        if let Some(parent) = path.parent() {
             let _ = fs::create_dir_all(parent);
         }
 
@@ -101,7 +101,6 @@ StartupNotify=true
 
 fn disable_snap_autostart() {
     if let Some(path) = get_snap_autostart_path()
-        && path.exists()
         && fs::remove_file(&path).is_ok()
     {
         log::info!("Autostart disabled (snap native): removed {:?}", path);

@@ -7,7 +7,7 @@ use gtk4::glib;
 use libadwaita as adw;
 use libadwaita::prelude::*;
 use serde::Deserialize;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -480,7 +480,6 @@ pub fn get_verse(chapter: u32, verse: u32, lang: &str) -> Option<Verse> {
         .and_then(|c| c.verses.iter().find(|v| v.id == verse).cloned())
 }
 
-#[allow(dead_code)]
 pub fn get_arabic_text(chapter: u32, verse: u32) -> Option<String> {
     let quran = get_quran("ar");
     quran.iter().find(|c| c.id == chapter).and_then(|c| {
@@ -1287,6 +1286,26 @@ fn selected_text_for_label(label: &gtk::Label) -> String {
 }
 
 fn attach_readonly_context_menu(label: &gtk::Label) {
+    attach_context_menu_impl(label, None);
+}
+
+fn attach_arabic_context_menu(
+    label: &gtk::Label,
+    rec_state: Rc<RefCell<RecitationState>>,
+) {
+    let copy_fn: Rc<dyn Fn() -> String> = Rc::new(move || {
+        rec_state
+            .borrow()
+            .selected_verse
+            .get()
+            .and_then(|(surah, verse)| get_arabic_text(surah, verse))
+            .unwrap_or_default()
+    });
+    attach_context_menu_impl(label, Some(copy_fn));
+}
+
+fn attach_context_menu_impl(label: &gtk::Label, copy_fn: Option<Rc<dyn Fn() -> String>>) {
+
     label.set_can_focus(false);
     let popover = gtk::Popover::new();
     popover.set_has_arrow(false);
@@ -1294,29 +1313,33 @@ fn attach_readonly_context_menu(label: &gtk::Label) {
     let box_menu = gtk::Box::new(gtk::Orientation::Vertical, 0);
     let copy_btn = gtk::Button::with_label(&tr("Copy"));
     copy_btn.add_css_class("flat");
-    let select_all_btn = gtk::Button::with_label(&tr("Select All"));
-    select_all_btn.add_css_class("flat");
     box_menu.append(&copy_btn);
-    box_menu.append(&select_all_btn);
     popover.set_child(Some(&box_menu));
 
-    let label_for_copy = label.clone();
-    let popover_for_copy = popover.clone();
-    copy_btn.connect_clicked(move |_| {
-        if let Some(display) = gtk::gdk::Display::default() {
-            display
-                .clipboard()
-                .set_text(&selected_text_for_label(&label_for_copy));
-        }
-        popover_for_copy.popdown();
-    });
-
-    let label_for_sel = label.clone();
-    let popover_for_sel = popover.clone();
-    select_all_btn.connect_clicked(move |_| {
-        label_for_sel.select_region(0, -1);
-        popover_for_sel.popdown();
-    });
+    if let Some(copy_fn) = copy_fn {
+        let copy_fn_c = copy_fn.clone();
+        let popover_for_copy = popover.clone();
+        copy_btn.connect_clicked(move |_| {
+            let text = copy_fn_c();
+            if !text.is_empty()
+                && let Some(display) = gtk::gdk::Display::default()
+            {
+                display.clipboard().set_text(&text);
+            }
+            popover_for_copy.popdown();
+        });
+    } else {
+        let label_for_copy = label.clone();
+        let popover_for_copy = popover.clone();
+        copy_btn.connect_clicked(move |_| {
+            if let Some(display) = gtk::gdk::Display::default() {
+                display
+                    .clipboard()
+                    .set_text(&selected_text_for_label(&label_for_copy));
+            }
+            popover_for_copy.popdown();
+        });
+    }
 
     let popover_for_click = popover.clone();
     let label_for_click = label.clone();
@@ -1357,6 +1380,77 @@ fn find_widget_by_name(root: &gtk::Widget, name: &str) -> Option<gtk::Widget> {
         child = w.next_sibling();
     }
     None
+}
+
+fn attach_unified_verse_menu(
+    verse_box: &gtk::Box,
+    rec_state: Rc<RefCell<RecitationState>>,
+    lang: &str,
+) {
+    let popover = gtk::Popover::new();
+    popover.set_has_arrow(false);
+
+    let box_menu = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    let copy_btn = gtk::Button::with_label(&tr("Copy"));
+    copy_btn.add_css_class("flat");
+    box_menu.append(&copy_btn);
+    popover.set_child(Some(&box_menu));
+
+    let lang_c = lang.to_string();
+    let rec_state_c = rec_state.clone();
+    let popover_c = popover.clone();
+    copy_btn.connect_clicked(move |_| {
+        let text = rec_state_c
+            .borrow()
+            .selected_verse
+            .get()
+            .map(|(surah, verse)| {
+                let arabic = get_arabic_text(surah, verse).unwrap_or_default();
+                let translation = get_verse(surah, verse, &lang_c)
+                    .map(|v| v.translation)
+                    .unwrap_or_default();
+                if translation.is_empty() {
+                    arabic
+                } else {
+                    format!("{}\n\n{}", arabic, translation)
+                }
+            })
+            .unwrap_or_default();
+        if !text.is_empty()
+            && let Some(display) = gtk::gdk::Display::default()
+        {
+            display.clipboard().set_text(&text);
+        }
+        popover_c.popdown();
+    });
+
+    let popover_for_click = popover.clone();
+    let widget_for_click = verse_box.clone().upcast::<gtk::Widget>();
+    let gesture = gtk::GestureClick::builder()
+        .button(3)
+        .propagation_phase(gtk::PropagationPhase::Capture)
+        .build();
+    gesture.connect_pressed(move |g, _, x, y| {
+        let parent = widget_for_click
+            .root()
+            .and_then(|r| r.downcast::<gtk::Window>().ok())
+            .map(|w| w.upcast::<gtk::Widget>())
+            .unwrap_or_else(|| widget_for_click.clone());
+
+        if popover_for_click.parent().is_none() {
+            popover_for_click.set_parent(&parent);
+        }
+
+        let (px, py) = widget_for_click
+            .translate_coordinates(&parent, x, y)
+            .unwrap_or((x, y));
+
+        popover_for_click
+            .set_pointing_to(Some(&gtk::gdk::Rectangle::new(px as i32, py as i32, 1, 1)));
+        popover_for_click.popup();
+        g.set_state(gtk::EventSequenceState::Claimed);
+    });
+    verse_box.add_controller(gesture);
 }
 
 fn to_arabic_indic(num: u32) -> String {
@@ -1538,12 +1632,13 @@ fn update_marker_frame(frame: &gtk::Box, page: u32, lang: &str) {
 
 #[derive(Clone)]
 struct RecitationState {
-    selected_verse: Option<u32>,
-    playing: bool,
+    selected_verse: Cell<Option<(u32, u32)>>,
+    playing: Cell<bool>,
 }
 
 #[derive(Clone, Debug)]
 struct VerseBoundary {
+    surah: u32,
     verse: u32,
     byte_start: usize,
     byte_end: usize,
@@ -1560,20 +1655,21 @@ fn compute_verse_boundaries(page: u32, _chapter: u32) -> Vec<VerseBoundary> {
         for pv in verses_data.iter() {
             let len = get_verse_display_len(&pv.content, pv.verse);
             bounds.push(VerseBoundary {
+                surah: pv.surah,
                 verse: pv.verse,
                 byte_start: offset,
                 byte_end: offset + len,
             });
-            offset += len + 1; // +1 for trailing space
+            offset += len + 1;
         }
     }
     bounds
 }
 
-fn find_verse_at_offset(offset: usize, boundaries: &[VerseBoundary]) -> Option<u32> {
+fn find_verse_at_offset(offset: usize, boundaries: &[VerseBoundary]) -> Option<(u32, u32)> {
     for b in boundaries {
         if offset >= b.byte_start && offset < b.byte_end {
-            return Some(b.verse);
+            return Some((b.surah, b.verse));
         }
     }
     None
@@ -1613,7 +1709,7 @@ fn attach_verse_click_handlers(
                         && let Some(ref bounds) = boundaries
                         && let Some(verse) = find_verse_at_offset(byte_offset as usize, bounds)
                     {
-                        rec_state_c.borrow_mut().selected_verse = Some(verse);
+                        rec_state_c.borrow().selected_verse.set(Some(verse));
                         if let Some(ref rebuild) = *rebuild_fn_c.borrow() {
                             rebuild();
                         }
@@ -1631,12 +1727,15 @@ fn attach_verse_click_handlers(
                 && let Some(parts) = wname.rsplit_once('_')
                 && let Ok(verse) = parts.1.parse::<u32>()
             {
-                let click = gtk::GestureClick::builder().button(1).build();
+                let click = gtk::GestureClick::builder()
+                    .button(1)
+                    .propagation_phase(gtk::PropagationPhase::Capture)
+                    .build();
                 let rec_state_c = rec_state.clone();
                 let rebuild_fn_c = rebuild_fn.clone();
+                let chapter_c = chapter;
                 click.connect_pressed(move |_, _, _, _| {
-                    let mut state = rec_state_c.borrow_mut();
-                    state.selected_verse = Some(verse);
+                    rec_state_c.borrow().selected_verse.set(Some((chapter_c, verse)));
                     if let Some(ref rebuild) = *rebuild_fn_c.borrow() {
                         rebuild();
                     }
@@ -1708,8 +1807,16 @@ fn build_recitation_toolbar(
         let next_btn = next_btn.clone();
         move || {
             let total = surah_total_verses(chapter).unwrap_or(u32::MAX);
-            let prev_enabled = rec_state.borrow().selected_verse.is_some_and(|v| v > 1);
-            let next_enabled = rec_state.borrow().selected_verse.is_some_and(|v| v < total);
+            let prev_enabled = rec_state
+                .borrow()
+                .selected_verse
+                .get()
+                .is_some_and(|(_, v)| v > 1);
+            let next_enabled = rec_state
+                .borrow()
+                .selected_verse
+                .get()
+                .is_some_and(|(_, v)| v < total);
             prev_btn.set_sensitive(prev_enabled);
             next_btn.set_sensitive(next_enabled);
         }
@@ -1792,10 +1899,10 @@ fn build_recitation_toolbar(
     let play_fn_c = play_fn.clone();
     let play_btn_return = play_btn.clone();
     play_btn.connect_clicked(move |btn| {
-        let was_playing = play_rec_state.borrow().playing;
-        let verse = play_rec_state.borrow().selected_verse.unwrap_or(1);
+        let was_playing = play_rec_state.borrow().playing.get();
+        let verse = play_rec_state.borrow().selected_verse.get().map(|(_, v)| v).unwrap_or(1);
         if was_playing {
-            play_rec_state.borrow_mut().playing = false;
+            play_rec_state.borrow().playing.set(false);
             crate::audio::stop();
             btn.set_icon_name("media-playback-start-symbolic");
         } else {
@@ -1811,9 +1918,13 @@ fn build_recitation_toolbar(
     let play_fn_c2 = play_fn.clone();
     let prev_play_btn = play_btn.clone();
     prev_btn.connect_clicked(move |_| {
-        let v = prev_rec_state.borrow().selected_verse.filter(|&v| v > 1);
-        if let Some(verse) = v {
-            prev_rec_state.borrow_mut().selected_verse = Some(verse - 1);
+        let v = prev_rec_state
+            .borrow()
+            .selected_verse
+            .get()
+            .filter(|&(_, v)| v > 1);
+        if let Some((s, verse)) = v {
+            prev_rec_state.borrow().selected_verse.set(Some((s, verse - 1)));
             if let Some(ref play) = *play_fn_c2.borrow() {
                 play(verse - 1);
             }
@@ -1827,9 +1938,9 @@ fn build_recitation_toolbar(
     let play_fn_c3 = play_fn;
     let next_play_btn = play_btn.clone();
     next_btn.connect_clicked(move |_| {
-        let v = next_rec_state.borrow().selected_verse;
-        if let Some(verse) = v {
-            next_rec_state.borrow_mut().selected_verse = Some(verse + 1);
+        let v = next_rec_state.borrow().selected_verse.get();
+        if let Some((s, verse)) = v {
+            next_rec_state.borrow().selected_verse.set(Some((s, verse + 1)));
             if let Some(ref play) = *play_fn_c3.borrow() {
                 play(verse + 1);
             }
@@ -2139,8 +2250,8 @@ pub fn create_surah_view(
     let config_rc = config.clone();
 
     let rec_state = Rc::new(RefCell::new(RecitationState {
-        selected_verse: None,
-        playing: false,
+        selected_verse: Cell::new(None),
+        playing: Cell::new(false),
     }));
     let verse_boundaries: Rc<RefCell<HashMap<u32, Vec<VerseBoundary>>>> =
         Rc::new(RefCell::new(HashMap::new()));
@@ -2153,7 +2264,8 @@ pub fn create_surah_view(
         chapter: u32,
         quran_lang: &str,
         surah_chapter: Option<TranslationChapter>,
-        highlight_verse: Option<u32>,
+        highlight_verse: Option<(u32, u32)>,
+        rec_state: Rc<RefCell<RecitationState>>,
     ) -> gtk::Box {
         let box_content = gtk::Box::new(gtk::Orientation::Vertical, 8);
         box_content.set_margin_top(12);
@@ -2179,7 +2291,7 @@ pub fn create_surah_view(
                             mushaf_label.set_wrap(true);
                             mushaf_label.set_wrap_mode(gtk::pango::WrapMode::WordChar);
                             mushaf_label.set_selectable(true);
-                            attach_readonly_context_menu(&mushaf_label);
+                            attach_arabic_context_menu(&mushaf_label, rec_state.clone());
                             if chapter == 1 && chunk_surah == Some(1) {
                                 mushaf_label.set_xalign(0.5);
                                 mushaf_label.set_justify(gtk::Justification::Center);
@@ -2236,7 +2348,7 @@ pub fn create_surah_view(
                             b.set_justify(gtk::Justification::Center);
                             b.add_css_class("quran-arabic");
                             b.set_selectable(true);
-                            attach_readonly_context_menu(&b);
+                            attach_arabic_context_menu(&b, rec_state.clone());
                             b.set_margin_bottom(6);
                             box_content.append(&b);
                         }
@@ -2254,7 +2366,7 @@ pub fn create_surah_view(
                         b.set_justify(gtk::Justification::Center);
                         b.add_css_class("quran-arabic");
                         b.set_selectable(true);
-                        attach_readonly_context_menu(&b);
+                        attach_arabic_context_menu(&b, rec_state.clone());
                         b.set_margin_bottom(6);
                         box_content.append(&b);
                         last_surah = Some(pv.surah);
@@ -2269,7 +2381,7 @@ pub fn create_surah_view(
                         chunk_text.push(' ');
                     }
                     let escaped = gtk::glib::markup_escape_text(&pv.content);
-                    if highlight_verse == Some(pv.verse) && pv.surah == chapter {
+                    if highlight_verse == Some((pv.surah, pv.verse)) {
                         chunk_text.push_str(&format!(
                             "<span underline='single' underline_color='#3584e4'>{}</span>",
                             escaped
@@ -2289,7 +2401,7 @@ pub fn create_surah_view(
                     mushaf_label.set_wrap(true);
                     mushaf_label.set_wrap_mode(gtk::pango::WrapMode::WordChar);
                     mushaf_label.set_selectable(true);
-                    attach_readonly_context_menu(&mushaf_label);
+                    attach_arabic_context_menu(&mushaf_label, rec_state.clone());
                     if chapter == 1 && chunk_surah == Some(1) {
                         mushaf_label.set_xalign(0.5);
                         mushaf_label.set_justify(gtk::Justification::Center);
@@ -2323,7 +2435,7 @@ pub fn create_surah_view(
                         arabic_label.set_xalign(0.5);
                         arabic_label.add_css_class("quran-arabic");
                         arabic_label.set_selectable(true);
-                        attach_readonly_context_menu(&arabic_label);
+                        attach_arabic_context_menu(&arabic_label, rec_state.clone());
                         header_box.append(&arabic_label);
 
                         let mut name_parts = Vec::new();
@@ -2369,7 +2481,7 @@ pub fn create_surah_view(
                             arabic_label.set_justify(gtk::Justification::Center);
                             arabic_label.add_css_class("quran-arabic");
                             arabic_label.set_selectable(true);
-                            attach_readonly_context_menu(&arabic_label);
+                            attach_arabic_context_menu(&arabic_label, rec_state.clone());
                             bismillah_box.append(&arabic_label);
 
                             if quran_lang != "ar" {
@@ -2412,7 +2524,6 @@ pub fn create_surah_view(
                     ));
                     arabic_label.set_wrap(true);
                     arabic_label.set_selectable(true);
-                    attach_readonly_context_menu(&arabic_label);
                     arabic_label.set_xalign(1.0);
                     arabic_label.add_css_class("quran-arabic");
                     arabic_label.set_margin_top(8);
@@ -2421,7 +2532,7 @@ pub fn create_surah_view(
                     arabic_label.set_margin_bottom(4);
                     verse_box.append(&arabic_label);
 
-                    if highlight_verse == Some(pv.verse) && pv.surah == chapter {
+                    if highlight_verse == Some((pv.surah, pv.verse)) {
                         verse_box.add_css_class("quran-highlight");
                     }
 
@@ -2440,7 +2551,6 @@ pub fn create_surah_view(
                             ));
                             translation_label.set_wrap(true);
                             translation_label.set_selectable(true);
-                            attach_readonly_context_menu(&translation_label);
                             translation_label.set_xalign(0.0);
                             translation_label.add_css_class("body");
                             translation_label.add_css_class("quran-translation");
@@ -2472,6 +2582,7 @@ pub fn create_surah_view(
                         verse_box.append(&translation_label);
                     }
 
+                    attach_unified_verse_menu(&verse_box, rec_state.clone(), quran_lang);
                     box_content.append(&verse_box);
                     last_surah = Some(pv.surah);
                 }
@@ -2490,7 +2601,8 @@ pub fn create_surah_view(
         chapter,
         quran_lang,
         (*surah_chapter_rc).clone(),
-        highlight_verse,
+        highlight_verse.map(|v| (chapter, v)),
+        rec_state.clone(),
     );
     scrolled.set_child(Some(&initial_content));
     content_stack.append(&scrolled);
@@ -2593,11 +2705,11 @@ pub fn create_surah_view(
     let rebuild_fn_c = rebuild_fn.clone();
     *rebuild_fn.borrow_mut() = Some(Box::new(move || {
         let page = *rebuild_current_page.borrow();
-        let verse = rebuild_rec_state.borrow().selected_verse;
+        let verse = rebuild_rec_state.borrow().selected_verse.get();
         let mut new_page = page;
-        if let Some(v) = verse
-            && !is_verse_on_page(rebuild_chapter, v, page)
-            && let Some(fp) = get_page_for_verse(rebuild_chapter, v)
+        if let Some((s, v)) = verse
+            && !is_verse_on_page(s, v, page)
+            && let Some(fp) = get_page_for_verse(s, v)
         {
             new_page = fp;
             *rebuild_current_page.borrow_mut() = fp;
@@ -2608,6 +2720,7 @@ pub fn create_surah_view(
             &rebuild_lang,
             (*rebuild_surah).clone(),
             verse,
+            rebuild_rec_state.clone(),
         );
         rebuild_scrolled.set_child(Some(&new_content));
         attach_verse_click_handlers(
@@ -2639,8 +2752,8 @@ pub fn create_surah_view(
     let play_chapter = chapter;
     *play_fn.borrow_mut() = Some(Box::new(move |verse| {
         log::info!("Play fn called: surah={}, verse={}", play_chapter, verse);
-        play_rec_state.borrow_mut().playing = true;
-        play_rec_state.borrow_mut().selected_verse = Some(verse);
+        play_rec_state.borrow().playing.set(true);
+        play_rec_state.borrow().selected_verse.set(Some((play_chapter, verse)));
         if let Some(ref rebuild) = *play_rebuild.borrow() {
             rebuild();
         }
@@ -2691,30 +2804,30 @@ pub fn create_surah_view(
         let total = surah_total_verses(poll_chapter).unwrap_or(u32::MAX);
         {
             let state = poll_rec_state.borrow();
-            poll_prev_btn.set_sensitive(state.selected_verse.is_some_and(|v| v > 1));
-            poll_next_btn.set_sensitive(state.selected_verse.is_some_and(|v| v < total));
+            poll_prev_btn.set_sensitive(state.selected_verse.get().is_some_and(|(_, v)| v > 1));
+            poll_next_btn.set_sensitive(state.selected_verse.get().is_some_and(|(_, v)| v < total));
         }
 
         if let Some((surah, verse)) = crate::audio::poll_verse_finished() {
             if surah == poll_chapter {
-                let currently_playing = poll_rec_state.borrow().playing;
+                let currently_playing = poll_rec_state.borrow().playing.get();
                 if currently_playing {
                     let next_verse = verse + 1;
                     if next_verse <= total && crate::audio::is_playing() {
-                        poll_rec_state.borrow_mut().selected_verse = Some(next_verse);
+                        poll_rec_state.borrow().selected_verse.set(Some((poll_chapter, next_verse)));
                         if let Some(ref rebuild) = *poll_rebuild.borrow() {
                             rebuild();
                         }
                     } else {
-                        poll_rec_state.borrow_mut().playing = false;
+                        poll_rec_state.borrow().playing.set(false);
                         poll_play_btn.set_icon_name("media-playback-start-symbolic");
                     }
                 }
             }
         } else {
-            let currently_playing = poll_rec_state.borrow().playing;
+            let currently_playing = poll_rec_state.borrow().playing.get();
             if !crate::audio::is_playing() && currently_playing {
-                poll_rec_state.borrow_mut().playing = false;
+                poll_rec_state.borrow().playing.set(false);
                 poll_play_btn.set_icon_name("media-playback-start-symbolic");
             }
         }
@@ -3167,7 +3280,6 @@ mod tests {
     fn shared_page_surah_starts_have_header_and_bismillah() {
         let shared = shared_page_surah_starts();
         assert!(!shared.is_empty());
-
         for (page, _prev_surah, new_surah) in shared {
             let markers = page_markers(page);
 

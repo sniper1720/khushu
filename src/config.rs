@@ -721,8 +721,7 @@ impl AppConfig {
 
     fn load_data() -> AppConfigData {
         let path = Self::config_path();
-        if path.exists()
-            && let Ok(content) = fs::read_to_string(&path)
+        if let Ok(content) = fs::read_to_string(&path)
             && let Ok(config) = serde_json::from_str::<AppConfigData>(&content)
         {
             log::info!("Configuration loaded from {:?}", path);

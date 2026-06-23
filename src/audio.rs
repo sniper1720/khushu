@@ -101,11 +101,7 @@ pub fn is_playing() -> bool {
 }
 
 pub fn play_verse(reciter: &str, surah: u32, verse: u32) {
-    let _ = ensure_audio_thread().send(AudioCommand::PlayVerse(
-        reciter.to_string(),
-        surah,
-        verse,
-    ));
+    let _ = ensure_audio_thread().send(AudioCommand::PlayVerse(reciter.to_string(), surah, verse));
 }
 
 pub fn play_surah(reciter: &str, surah: u32, start_verse: u32, end_verse: u32) {

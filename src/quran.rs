@@ -1976,60 +1976,21 @@ fn get_page_for_verse(surah: u32, verse: u32) -> Option<u32> {
     (1..=get_total_pages()).find(|&p| is_verse_on_page(surah, verse, p))
 }
 
-fn scroll_to_verse_translation(
-    scrolled: &gtk::ScrolledWindow,
-    content: &gtk::Box,
-    surah: u32,
-    verse: u32,
-) {
-    let target_name = format!("verse_{}_{}", surah, verse);
-    let w: gtk::Widget = content.clone().upcast();
-    if let Some(target) = find_widget_by_name(&w, &target_name)
-        && let Some((_, y)) = target.translate_coordinates(&w, 0.0, 0.0)
-    {
-        let adj = scrolled.vadjustment();
-        let max = (adj.upper() - adj.page_size()).max(0.0);
-        let value = (y - 24.0).clamp(0.0, max);
-        adj.set_value(value);
-    }
-}
-
-fn scroll_to_verse_arabic(
-    scrolled: &gtk::ScrolledWindow,
-    content: &gtk::Box,
-    boundaries: &[VerseBoundary],
-    target_idx: usize,
-    label_ranges: &[(usize, usize)],
-) {
-    if let Some(label_idx) = label_ranges
-        .iter()
-        .position(|&(start, end)| target_idx >= start && target_idx < end)
-    {
-        let (label_start_boundary, _) = label_ranges[label_idx];
-        let target_start = boundaries[target_idx].byte_start;
-        let first_start = boundaries[label_start_boundary].byte_start;
-        let offset = target_start - first_start;
-        let mut child = content.first_child();
-        let mut found_idx = 0;
-        while let Some(widget) = child {
-            if let Some(label) = widget.downcast_ref::<gtk::Label>()
-                && label.has_css_class("quran-arabic")
-            {
-                if found_idx == label_idx {
-                    let layout = label.layout();
-                    let rect = layout.index_to_pos(offset as i32);
-                    let y_pixels = rect.y() as f64 / f64::from(gtk::pango::SCALE);
-                    let adj = scrolled.vadjustment();
-                    let max = (adj.upper() - adj.page_size()).max(0.0);
-                    let value = (y_pixels - 24.0).clamp(0.0, max);
-                    adj.set_value(value);
-                    break;
-                }
-                found_idx += 1;
+fn find_arabic_label(content: &gtk::Box, label_idx: usize) -> Option<gtk::Label> {
+    let mut child = content.first_child();
+    let mut found_idx = 0;
+    while let Some(widget) = child {
+        if let Some(label) = widget.downcast_ref::<gtk::Label>()
+            && label.has_css_class("quran-arabic")
+        {
+            if found_idx == label_idx {
+                return Some(label.clone());
             }
-            child = widget.next_sibling();
+            found_idx += 1;
         }
+        child = widget.next_sibling();
     }
+    None
 }
 
 #[allow(dead_code)]
@@ -2687,23 +2648,86 @@ pub fn create_surah_view(
     scrolled.set_child(Some(&initial_content));
     content_stack.append(&scrolled);
 
-    if quran_lang != "ar"
-        && let Some(verse) = scroll_to_verse
-    {
-        let scrolled_for_scroll = scrolled.clone();
-        let content_for_scroll: gtk::Widget = initial_content.clone().upcast();
-        let target_name = format!("verse_{}_{}", chapter, verse);
-        gtk::glib::timeout_add_local(std::time::Duration::from_millis(80), move || {
-            if let Some(target) = find_widget_by_name(&content_for_scroll, &target_name)
-                && let Some((_, y)) = target.translate_coordinates(&content_for_scroll, 0.0, 0.0)
-            {
-                let adj = scrolled_for_scroll.vadjustment();
-                let max = (adj.upper() - adj.page_size()).max(0.0);
-                let value = (y - 24.0).clamp(0.0, max);
-                adj.set_value(value);
+    if let Some(verse) = scroll_to_verse {
+        if quran_lang == "ar" && !verse_boundaries.borrow().contains_key(&initial_page) {
+            let b = compute_verse_boundaries(initial_page, chapter);
+            verse_boundaries.borrow_mut().insert(initial_page, b);
+        }
+        if quran_lang != "ar" {
+            let target_name = format!("verse_{}_{}", chapter, verse);
+            if let Some(target) = find_widget_by_name(initial_content.upcast_ref(), &target_name) {
+                let content_for_scroll: gtk::Widget = initial_content.clone().upcast();
+                let tick_scrolled = scrolled.clone();
+                scrolled.add_tick_callback(move |_, _| {
+                    if target.allocated_width() > 0 {
+                        if let Some((_, y)) = target.translate_coordinates(&content_for_scroll, 0.0, 0.0) {
+                            let adj = tick_scrolled.vadjustment();
+                            let max = (adj.upper() - adj.page_size()).max(0.0);
+                            adj.set_value((y - 24.0).clamp(0.0, max));
+                        }
+                        glib::ControlFlow::Break
+                    } else {
+                        let t = target.clone();
+                        let c = content_for_scroll.clone();
+                        let s = tick_scrolled.clone();
+                        glib::idle_add_local(move || {
+                            if let Some((_, y)) = t.translate_coordinates(&c, 0.0, 0.0) {
+                                let adj = s.vadjustment();
+                                let max = (adj.upper() - adj.page_size()).max(0.0);
+                                adj.set_value((y - 24.0).clamp(0.0, max));
+                            }
+                            glib::ControlFlow::Break
+                        });
+                        glib::ControlFlow::Break
+                    }
+                });
             }
-            gtk::glib::ControlFlow::Break
-        });
+        } else {
+            if let Some(boundaries) = verse_boundaries.borrow().get(&initial_page)
+                && let Some(target_idx) =
+                    boundaries.iter().position(|b| b.surah == chapter && b.verse == verse)
+            {
+                let label_ranges = page_label_ranges.borrow();
+                if let Some(label_idx) = label_ranges
+                    .iter()
+                    .position(|&(start, end)| target_idx >= start && target_idx < end)
+                {
+                    let (label_start_boundary, _) = label_ranges[label_idx];
+                    let target_start = boundaries[target_idx].byte_start;
+                    let first_start = boundaries[label_start_boundary].byte_start;
+                    let offset = target_start - first_start;
+                    if let Some(label) = find_arabic_label(&initial_content, label_idx) {
+                        let tick_scrolled = scrolled.clone();
+                        scrolled.add_tick_callback(move |_, _| {
+                            if label.allocated_width() > 0 {
+                                let layout = label.layout();
+                                let rect = layout.index_to_pos(offset as i32);
+                                let y_pixels =
+                                    rect.y() as f64 / f64::from(gtk::pango::SCALE);
+                                let adj = tick_scrolled.vadjustment();
+                                let max = (adj.upper() - adj.page_size()).max(0.0);
+                                adj.set_value((y_pixels - 24.0).clamp(0.0, max));
+                                glib::ControlFlow::Break
+                            } else {
+                                let l = label.clone();
+                                let s = tick_scrolled.clone();
+                                glib::idle_add_local(move || {
+                                    let layout = l.layout();
+                                    let rect = layout.index_to_pos(offset as i32);
+                                    let y_pixels =
+                                        rect.y() as f64 / f64::from(gtk::pango::SCALE);
+                                    let adj = s.vadjustment();
+                                    let max = (adj.upper() - adj.page_size()).max(0.0);
+                                    adj.set_value((y_pixels - 24.0).clamp(0.0, max));
+                                    glib::ControlFlow::Break
+                                });
+                                glib::ControlFlow::Break
+                            }
+                        });
+                    }
+                }
+            }
+        }
     }
 
     if highlight_verse.is_some() {
@@ -2839,27 +2863,83 @@ pub fn create_surah_view(
             let new_page = *rebuild_current_page_for_follow.borrow();
             if let Some(content) = page_content_box_for_follow.borrow().clone() {
                 let cb_scrolled = rebuild_scrolled_for_follow.clone();
-                let cb_lang = rebuild_lang_for_follow.clone();
                 let cb_bounds = rebuild_bounds_for_follow.clone();
                 let cb_label_ranges = page_label_ranges_for_follow.clone();
-                gtk::glib::timeout_add_local(std::time::Duration::from_millis(80), move || {
-                    if *cb_lang != "ar" {
-                        scroll_to_verse_translation(&cb_scrolled, &content, s, v);
-                    } else if let Some(boundaries) = cb_bounds.borrow().get(&new_page)
-                        && let Some(target_idx) =
-                            boundaries.iter().position(|b| b.surah == s && b.verse == v)
+                if *rebuild_lang_for_follow != "ar" {
+                    let target_name = format!("verse_{}_{}", s, v);
+                    if let Some(target) =
+                        find_widget_by_name(&content.clone().upcast(), &target_name)
                     {
-                        let label_ranges = cb_label_ranges.borrow();
-                        scroll_to_verse_arabic(
-                            &cb_scrolled,
-                            &content,
-                            boundaries,
-                            target_idx,
-                            &label_ranges,
-                        );
+                        let content_for_scroll: gtk::Widget = content.clone().upcast();
+                        let tick_scrolled = cb_scrolled.clone();
+                        cb_scrolled.add_tick_callback(move |_, _| {
+                            if target.allocated_width() > 0 {
+                                if let Some((_, y)) = target.translate_coordinates(&content_for_scroll, 0.0, 0.0) {
+                                    let adj = tick_scrolled.vadjustment();
+                                    let max = (adj.upper() - adj.page_size()).max(0.0);
+                                    adj.set_value((y - 24.0).clamp(0.0, max));
+                                }
+                                glib::ControlFlow::Break
+                            } else {
+                                let t = target.clone();
+                                let c = content_for_scroll.clone();
+                                let s = tick_scrolled.clone();
+                                glib::idle_add_local(move || {
+                                    if let Some((_, y)) = t.translate_coordinates(&c, 0.0, 0.0) {
+                                        let adj = s.vadjustment();
+                                        let max = (adj.upper() - adj.page_size()).max(0.0);
+                                        adj.set_value((y - 24.0).clamp(0.0, max));
+                                    }
+                                    glib::ControlFlow::Break
+                                });
+                                glib::ControlFlow::Break
+                            }
+                        });
                     }
-                    gtk::glib::ControlFlow::Break
-                });
+                } else if let Some(boundaries) = cb_bounds.borrow().get(&new_page)
+                    && let Some(target_idx) =
+                        boundaries.iter().position(|b| b.surah == s && b.verse == v)
+                {
+                    let label_ranges = cb_label_ranges.borrow();
+                    if let Some(label_idx) = label_ranges
+                        .iter()
+                        .position(|&(start, end)| target_idx >= start && target_idx < end)
+                    {
+                        let (label_start_boundary, _) = label_ranges[label_idx];
+                        let target_start = boundaries[target_idx].byte_start;
+                        let first_start = boundaries[label_start_boundary].byte_start;
+                        let offset = target_start - first_start;
+                        if let Some(label) = find_arabic_label(&content, label_idx) {
+                            let tick_scrolled = cb_scrolled.clone();
+                            cb_scrolled.add_tick_callback(move |_, _| {
+                                if label.allocated_width() > 0 {
+                                    let layout = label.layout();
+                                    let rect = layout.index_to_pos(offset as i32);
+                                    let y_pixels =
+                                        rect.y() as f64 / f64::from(gtk::pango::SCALE);
+                                    let adj = tick_scrolled.vadjustment();
+                                    let max = (adj.upper() - adj.page_size()).max(0.0);
+                                    adj.set_value((y_pixels - 24.0).clamp(0.0, max));
+                                    glib::ControlFlow::Break
+                                } else {
+                                    let l = label.clone();
+                                    let s = tick_scrolled.clone();
+                                    glib::idle_add_local(move || {
+                                        let layout = l.layout();
+                                        let rect = layout.index_to_pos(offset as i32);
+                                        let y_pixels =
+                                            rect.y() as f64 / f64::from(gtk::pango::SCALE);
+                                        let adj = s.vadjustment();
+                                        let max = (adj.upper() - adj.page_size()).max(0.0);
+                                        adj.set_value((y_pixels - 24.0).clamp(0.0, max));
+                                        glib::ControlFlow::Break
+                                    });
+                                    glib::ControlFlow::Break
+                                }
+                            });
+                        }
+                    }
+                }
             }
         }
     }));

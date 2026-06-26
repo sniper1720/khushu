@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.0] — 2026-06-25
+
+### Added
+- **Noble Quran Recitation** — ayah-by-ayah audio playback with
+  real-time ayah highlighting. Audio served by VerseByVerse Quran
+  with selectable reciters. (Closes [#8](https://github.com/sniper1720/khushu/issues/8))
+
+### Changed
+- **Locale switching rewritten** — unified i18n architecture:
+  language change now propagates through a single centralized
+  handler, eliminating per-page translation drift across 21 modules.
+
+### Fixed
+- **Tray icon invisible on KDE dark panel** — symbolic SVGs
+  refactored to KDE gold standard; icon now renders correctly on
+  both light and dark panels across GNOME and KDE. (Closes [#10](https://github.com/sniper1720/khushu/issues/10))
+- **Arabic mushaf search scroll** — search results navigate (scroll) to the correct ayah instead of landing at the top of the page.
+- **Pagination boundary alignment** — ajza' breaks and surah start
+  offsets corrected for accurate mushaf-style navigation.
+
 ## [1.1.4] — 2026-05-28
 
 ### Added

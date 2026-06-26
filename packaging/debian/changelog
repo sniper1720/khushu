@@ -1,3 +1,13 @@
+khushu (1.2.0) unstable; urgency=medium
+
+  * Added Noble Quran Recitation with ayah-by-ayah audio playback and reciter selection
+  * Rewrote locale switching for consistent i18n
+  * Fixed KDE dark panel tray icon visibility
+  * Fixed Arabic mushaf search scroll navigation
+  * Fixed pagination boundary alignment
+
+ -- Djalel Oukid <sniper1720@linuxtechmore.com>  Thu, 25 Jun 2026 12:00:00 +0100
+
 khushu (1.1.4) unstable; urgency=medium
 
   * Added Indonesian (id) translation by WiqbalRar

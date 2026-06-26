@@ -443,10 +443,10 @@ fn show_about_window(parent: &impl IsA<gtk::Widget>) {
             Some(&tr("Coordinates stay on this device and are not sent to any external servers. No analytics, no telemetry, no accounts.")),
         );
     about.add_legal_section(
-        &tr("Quran Text & Translations"),
+        &tr("Quran Text, Translations & Recitations"),
         None,
         gtk::License::Custom,
-        Some(&tr("Arabic text from Tanzil.net. English, French, Spanish, and Turkish translations from Tanzil.net. Indonesian translation from QuranEnc.com (Encyclopedia of the Noble Quran).")),
+        Some(&tr("Arabic text from Tanzil.net. English, French, Spanish, and Turkish translations from Tanzil.net. Indonesian translation from QuranEnc.com (Encyclopedia of the Noble Quran). Recitation audio provided by VerseByVerse Quran.")),
     );
     about.add_legal_section(
         &tr("Quran Translations Disclaimer"),

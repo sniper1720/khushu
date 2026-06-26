@@ -212,13 +212,18 @@ for sec in sorted(section_data.keys()):
         rs_refs = [r for r in refs if r.split(":")[0].endswith(".rs")]
         has_rs = bool(rs_refs)
 
-        if has_rs and mid not in auto_msgids:
-            # Stale .rs entry — msgid no longer extracted by xgettext.
-            # Convert to manual entry (remove #: refs) instead of deleting,
-            # because the string may still be in the app via arrays/structs
-            # that xgettext cannot extract.
-            blk = replace_refs(blk, [])
-            kept.append(blk)
+        if mid not in auto_msgids:
+            if has_rs:
+                # Stale .rs entry — msgid no longer extracted by xgettext.
+                # Convert to manual entry (remove #: refs) instead of deleting,
+                # because the string may still be in the app via arrays/structs
+                # that xgettext cannot extract.
+                blk = replace_refs(blk, [])
+                kept.append(blk)
+            else:
+                # Stale entry from .xml.in / other sources — no longer exists
+                # in the source. Delete it entirely.
+                pass  # skip appending
             removed += 1
             continue
 
@@ -271,7 +276,7 @@ if not header_blocks:
 
 full_header = "\n\n".join(header_blocks)
 if "Project-Id-Version" not in full_header:
-    full_header += '\nmsgid ""\nmsgstr ""\n"Project-Id-Version: Khushu 1.1.4\\\\n"\n"Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\\\\n"'
+    full_header += '\nmsgid ""\nmsgstr ""\n"Project-Id-Version: Khushu 1.2.0\\\\n"\n"Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\\\\n"'
     header_blocks = [full_header]
 
 output_parts = ["\n\n".join(header_blocks)]

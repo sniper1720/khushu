@@ -6,7 +6,7 @@
   [![Rust](https://img.shields.io/badge/Language-Rust-fa4f28?style=flat-square&logo=rust)](https://www.rust-lang.org/)
   [![GTK4](https://img.shields.io/badge/GUI-GTK4-4a86cf?style=flat-square&logo=gnome)](https://gtk.org/)
   [![Libadwaita](https://img.shields.io/badge/Style-Libadwaita-62a0ea?style=flat-square&logo=gnome)](https://gnome.pages.gitlab.gnome.org/libadwaita/)
-  [![Version](https://img.shields.io/badge/Version-1.1.4-success?style=flat-square)](#)
+  [![Version](https://img.shields.io/badge/Version-1.2.0-success?style=flat-square)](#)
   [![License](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
   [![Translations](https://img.shields.io/badge/Languages-6_Supported-9cf?style=flat-square)](#)
 
@@ -14,7 +14,7 @@
 
 **Khushu is your all-in-one Muslim app for Linux desktop, tablets, and smartphones.**
 
-Named after the state of heart-presence and humility in prayer (Salah), the app is designed to help you disconnect from digital noise and reconnect with your Creator. It brings together accurate prayer times and native Adkar notifications in a clean, modern interface—built with zero telemetry and total respect for your data.
+Named after the state of heart-presence and humility in prayer (Salah), the app is designed to help you disconnect from digital noise and reconnect with your Creator. It brings together accurate prayer times, native Adkar notifications, and a dedicated Noble Quran reader with ayah-by-ayah recitation in a clean, modern interface—built with zero telemetry and total respect for your data.
 
 ## Screenshots
 
@@ -34,7 +34,7 @@ Named after the state of heart-presence and humility in prayer (Salah), the app 
   </tr>
   <tr>
     <td align="center"><img src="screenshots/settings.png" width="380" alt="Settings"/><br/><sub>Settings</sub></td>
-    <td></td>
+    <td align="center"><img src="screenshots/dynamic_theming.png" width="380" alt="Dynamic Theming"/><br/><sub>Dynamic Theming</sub></td>
   </tr>
 </table>
 </div>
@@ -51,7 +51,7 @@ Named after the state of heart-presence and humility in prayer (Salah), the app 
     - **Audio Presets**: Select from bundled sounds or use your own custom MP3.
     - **Pre-Prayer Alerts**: Get notified before the prayer starts.
     - **System Integration**: Native desktop notifications.
-- **Noble Quran**: Read the Quran with adjustable Arabic and translation typography, line spacing, and a clean reading layout.
+- **Noble Quran**: Read the Quran and listen to ayah-by-ayah recitation with selectable reciters, adjustable Arabic and translation typography, line spacing, and a clean reading layout.
 - **Adkar**: Built-in Morning and Evening Adkar module.
 - **Hijri Calendar**: Current Hijri date displayed on dashboard.
 - **Secure Configuration**: Your sensitive settings (like latitude/longitude) are stored locally with restricted file permissions.
@@ -61,8 +61,12 @@ Named after the state of heart-presence and humility in prayer (Salah), the app 
 
 Khushu is under active development. Our goal is to build the premier all-in-one Islamic ecosystem for Linux.
 
-- **Islamic Essentials (v1.2.0)**: We are working on a few more tools, including a **Global Typography** customizer (Arabic & UI fonts), a simple Zakat calculator, a way to reflect on the 99 Names of Allah, and a collection of the Forty Hadith of Nawawi.
-- **Beyond the Desktop (v2.0.0)**: We want Khushu to be wherever you are. This means perfecting the experience for Linux mobile (Phosh/Plasma) and exploring an Android version by leveraging the same core logic we already built.
+- [x] **v1.0.0 — Prayer Times & Daily Worship**: Accurate prayer times with multiple calculation methods, Adhan audio notifications, staggered Adkar (morning/evening/night), interactive Qibla compass, Hijri calendar, and full multi-language support (Arabic, English, French, Spanish, Turkish).
+- [x] **v1.1.0 — Noble Quran Reader**: Fully offline Quran with Uthmanic Arabic script (Amiri Quran font), parallel translations in five languages, mushaf-style page navigation, diacritic-aware full-text search, bookmarks, reading-position memory, and adjustable typography.
+- [x] **v1.2.0 — Noble Quran Recitation**: Ayah-by-ayah audio playback with selectable reciters, real-time verse highlighting, and auto-scroll.
+- [ ] **Tafsir (v1.3.0)**: We are working on an in-depth Quran commentary experience with classical and modern exegeses including Al-Muyassar, Ibn Kathir, Tabari, Qurtubi, and Al-Saddi, fetched per-surah with offline caching.
+- [ ] **Islamic Essentials (v1.4.0)**: We are working on a few more tools, including a **Global Typography** customizer (Arabic & UI fonts), a simple Zakat calculator, a way to reflect on the 99 Names of Allah, and a collection of the Forty Hadith of Nawawi.
+- [ ] **Beyond the Desktop (v2.0.0)**: We want Khushu to be wherever you are. This means perfecting the experience for Linux mobile (Phosh/Plasma) and exploring an Android version by leveraging the same core logic we already built.
 
 ## Installation
 
@@ -169,6 +173,7 @@ The Noble Quran module in Khushu uses the following sources for its Arabic text 
 - **French Translation**: Authored by Muhammad Hamidullah, sourced from [Tanzil.net](https://tanzil.net).
 - **Indonesian Translation**: Authored by the Indonesian Islamic Affairs Ministry, sourced from [The Noble Qur'an Encyclopedia](https://quranenc.com).
 - **Turkish Translation**: Authored by the Turkish Directorate of Religious Affairs, sourced from [Tanzil.net](https://tanzil.net).
+- **Quran Recitation Audio**: Sourced from [VerseByVerse Quran](https://www.versebyversequran.com/).
 
 > [!NOTE]
 > No translation of Quran can be a hundred percent accurate, nor it can be used as a replacement of the Quran text. We got Quran translations from [Tanzil.net](https://tanzil.net) and [QuranEnc.com](https://quranenc.com) websites, we cannot guarantee their authenticity and/or accuracy. Please use them at your own discretion.

@@ -1,5 +1,5 @@
 Name:           khushu
-Version:        1.1.4
+Version:        1.2.0
 Release:        1%{?dist}
 Summary:        An all-in-one Muslim app for Linux
 
@@ -55,6 +55,12 @@ adaptive UI built with GTK4 and Libadwaita.
 %{_datadir}/fonts/truetype/%{name}/
 
 %changelog
+* Thu Jun 25 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.2.0-1
+- Added Noble Quran Recitation with ayah-by-ayah audio playback and reciter selection
+- Rewrote locale switching for consistent i18n
+- Fixed KDE dark panel tray icon visibility
+- Fixed Arabic mushaf search scroll navigation
+- Fixed pagination boundary alignment
 * Thu May 28 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.1.4-1
 - Added Indonesian (id) translation
 - Fixed custom audio save crash on non-main thread

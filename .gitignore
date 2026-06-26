@@ -32,7 +32,13 @@ builddir/
 *.snap
 *.deb
 *.rpm
+*.pkg.tar.zst
 repo/
+
+# Arch packaging
+packaging/arch/pkg/
+packaging/arch/src/
+packaging/arch/*.tar.gz
 
 # Compiled translations
 *.mo

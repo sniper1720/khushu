@@ -9,14 +9,13 @@
     <p>
       Khushu is your all-in-one Muslim app for Linux desktop, tablets, and smartphones.
       It centralizes your daily worship by providing accurate prayer times, native staggered
-      Adkar notifications, and a dedicated Noble Quran reader—all
-      with uncompromising privacy and zero telemetry.
+      Adkar notifications, and a dedicated Noble Quran reader with ayah-by-ayah recitation.
     </p>
     <ul>
       <li>Accurate prayer calculation methods (Offline)</li>
       <li>Morning, Evening, and Night Adkar with built-in counters</li>
       <li>Customizable Adhan system notifications (Makkah/Madinah audio)</li>
-      <li>Dedicated Noble Quran reader with adjustable Arabic and translation typography</li>
+      <li>Dedicated Noble Quran reader with authentic Uthmanic text, multi-language translations, ayah-by-ayah recitation, selectable reciters, and adjustable typography</li>
       <li>Interactive Qibla compass</li>
       <li>Hijri calendar mapping</li>
       <li>Privacy-first local encryption for your location data</li>
@@ -43,7 +42,7 @@
       <image>https://raw.githubusercontent.com/sniper1720/khushu/main/screenshots/qibla.png</image>
     </screenshot>
     <screenshot>
-      <caption>Noble Quran: Read Arabic ayat and translations with adjustable typography</caption>
+      <caption>Noble Quran: Read Arabic ayat and translations with adjustable typography and listen to recitations with selectable reciters</caption>
       <image>https://raw.githubusercontent.com/sniper1720/khushu/main/screenshots/noble_quran.png</image>
     </screenshot>
     <screenshot>
@@ -72,6 +71,7 @@
     <keyword>adhan</keyword>
     <keyword>adkar</keyword>
     <keyword>quran</keyword>
+    <keyword>recitation</keyword>
     <keyword>qibla</keyword>
     <keyword>muslim</keyword>
     <keyword>islam</keyword>
@@ -82,6 +82,17 @@
   </branding>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.2.0" date="2026-06-25">
+      <description>
+        <ul>
+          <li>Added Noble Quran Recitation with ayah-by-ayah audio playback and reciter selection.</li>
+          <li>Rewrote locale switching for consistent i18n across all modules.</li>
+          <li>Fixed tray icon invisible on KDE dark panel.</li>
+          <li>Fixed Arabic mushaf search scroll navigation.</li>
+          <li>Fixed pagination boundary alignment for accurate mushaf-style navigation.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1.4" date="2026-05-28">
       <description>
         <ul>

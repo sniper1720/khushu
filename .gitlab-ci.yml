@@ -30,7 +30,7 @@ check:
         mkdir -p "target/locale/$lang/LC_MESSAGES";
         msgfmt "$f" -o "target/locale/$lang/LC_MESSAGES/khushu.mo";
       done
-    - LANG=en_US.UTF-8 cargo test
+    - LC_ALL=en_US.UTF-8 cargo test
 
 # ---------------------------------------------------------------------------
 # Base Templates for Package Builds

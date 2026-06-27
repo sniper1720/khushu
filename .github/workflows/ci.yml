@@ -39,5 +39,13 @@ jobs:
       - name: Run Clippy
         run: cargo clippy -- -D warnings
 
+      - name: Build translations
+        run: |
+          for f in po/*.po; do
+            lang=$(basename "$f" .po)
+            mkdir -p "target/locale/$lang/LC_MESSAGES"
+            msgfmt "$f" -o "target/locale/$lang/LC_MESSAGES/khushu.mo"
+          done
+
       - name: Run tests
         run: cargo test

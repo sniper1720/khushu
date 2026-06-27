@@ -25,6 +25,11 @@ check:
     - export PATH="$HOME/.cargo/bin:$PATH"
     - cargo fmt --check
     - cargo clippy -- -D warnings
+    - for f in po/*.po; do
+        lang=$(basename "$f" .po);
+        mkdir -p "target/locale/$lang/LC_MESSAGES";
+        msgfmt "$f" -o "target/locale/$lang/LC_MESSAGES/khushu.mo";
+      done
     - cargo test
 
 # ---------------------------------------------------------------------------

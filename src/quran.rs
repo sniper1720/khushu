@@ -2660,7 +2660,9 @@ pub fn create_surah_view(
                 let tick_scrolled = scrolled.clone();
                 scrolled.add_tick_callback(move |_, _| {
                     if target.allocated_width() > 0 {
-                        if let Some((_, y)) = target.translate_coordinates(&content_for_scroll, 0.0, 0.0) {
+                        if let Some((_, y)) =
+                            target.translate_coordinates(&content_for_scroll, 0.0, 0.0)
+                        {
                             let adj = tick_scrolled.vadjustment();
                             let max = (adj.upper() - adj.page_size()).max(0.0);
                             adj.set_value((y - 24.0).clamp(0.0, max));
@@ -2684,8 +2686,9 @@ pub fn create_surah_view(
             }
         } else {
             if let Some(boundaries) = verse_boundaries.borrow().get(&initial_page)
-                && let Some(target_idx) =
-                    boundaries.iter().position(|b| b.surah == chapter && b.verse == verse)
+                && let Some(target_idx) = boundaries
+                    .iter()
+                    .position(|b| b.surah == chapter && b.verse == verse)
             {
                 let label_ranges = page_label_ranges.borrow();
                 if let Some(label_idx) = label_ranges
@@ -2702,8 +2705,7 @@ pub fn create_surah_view(
                             if label.allocated_width() > 0 {
                                 let layout = label.layout();
                                 let rect = layout.index_to_pos(offset as i32);
-                                let y_pixels =
-                                    rect.y() as f64 / f64::from(gtk::pango::SCALE);
+                                let y_pixels = rect.y() as f64 / f64::from(gtk::pango::SCALE);
                                 let adj = tick_scrolled.vadjustment();
                                 let max = (adj.upper() - adj.page_size()).max(0.0);
                                 adj.set_value((y_pixels - 24.0).clamp(0.0, max));
@@ -2714,8 +2716,7 @@ pub fn create_surah_view(
                                 glib::idle_add_local(move || {
                                     let layout = l.layout();
                                     let rect = layout.index_to_pos(offset as i32);
-                                    let y_pixels =
-                                        rect.y() as f64 / f64::from(gtk::pango::SCALE);
+                                    let y_pixels = rect.y() as f64 / f64::from(gtk::pango::SCALE);
                                     let adj = s.vadjustment();
                                     let max = (adj.upper() - adj.page_size()).max(0.0);
                                     adj.set_value((y_pixels - 24.0).clamp(0.0, max));
@@ -2874,7 +2875,9 @@ pub fn create_surah_view(
                         let tick_scrolled = cb_scrolled.clone();
                         cb_scrolled.add_tick_callback(move |_, _| {
                             if target.allocated_width() > 0 {
-                                if let Some((_, y)) = target.translate_coordinates(&content_for_scroll, 0.0, 0.0) {
+                                if let Some((_, y)) =
+                                    target.translate_coordinates(&content_for_scroll, 0.0, 0.0)
+                                {
                                     let adj = tick_scrolled.vadjustment();
                                     let max = (adj.upper() - adj.page_size()).max(0.0);
                                     adj.set_value((y - 24.0).clamp(0.0, max));
@@ -2915,8 +2918,7 @@ pub fn create_surah_view(
                                 if label.allocated_width() > 0 {
                                     let layout = label.layout();
                                     let rect = layout.index_to_pos(offset as i32);
-                                    let y_pixels =
-                                        rect.y() as f64 / f64::from(gtk::pango::SCALE);
+                                    let y_pixels = rect.y() as f64 / f64::from(gtk::pango::SCALE);
                                     let adj = tick_scrolled.vadjustment();
                                     let max = (adj.upper() - adj.page_size()).max(0.0);
                                     adj.set_value((y_pixels - 24.0).clamp(0.0, max));

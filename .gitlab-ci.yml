@@ -18,7 +18,8 @@ check:
   before_script:
     - apt-get update
     - apt-get install -y curl build-essential pkg-config gettext libssl-dev
-        libgtk-4-dev libadwaita-1-dev libasound2-dev
+        libgtk-4-dev libadwaita-1-dev libasound2-dev locales
+    - locale-gen en_US.UTF-8
     - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable -c clippy -c rustfmt
     - export PATH="$HOME/.cargo/bin:$PATH"
   script:
@@ -30,7 +31,7 @@ check:
         mkdir -p "target/locale/$lang/LC_MESSAGES";
         msgfmt "$f" -o "target/locale/$lang/LC_MESSAGES/khushu.mo";
       done
-    - LC_ALL=en_US.UTF-8 cargo test
+    - LANG=en_US.UTF-8 cargo test
 
 # ---------------------------------------------------------------------------
 # Base Templates for Package Builds

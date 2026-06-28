@@ -82,7 +82,7 @@ Khushu is under active development. Our goal is to build the premier all-in-one 
 | :--- | :--- |
 | **Flatpak (Flathub)** | `flatpak install flathub io.github.sniper1720.khushu` |
 | **Snap (Snap Store)** | `sudo snap install khushu` |
-| **Arch Linux (AUR)** | `yay -S khushu` |
+| **Arch Linux (AUR)** | `yay -S khushu` *(compiles from source)* or `yay -S khushu-bin` *(prebuilt, no compilation needed)* |
 
 #### Testing Flatpak Builds Locally
 

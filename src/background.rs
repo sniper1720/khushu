@@ -1,8 +1,7 @@
 use crate::i18n::tr;
-use crate::platform::{get_flatpak_tray_icon_path, is_flatpak, is_sandboxed, is_snap};
-use adw::prelude::*;
+use crate::platform::is_sandboxed;
+use gtk4::prelude::ApplicationExt;
 use ksni::{MenuItem, Tray};
-use libadwaita as adw;
 use std::sync::{Arc, OnceLock, RwLock};
 
 struct KhushuTrayData {
@@ -28,13 +27,6 @@ fn get_tray_data() -> Arc<RwLock<KhushuTrayData>> {
         .clone()
 }
 
-fn get_flatpak_tray_icon() -> Option<std::path::PathBuf> {
-    if !is_flatpak() {
-        return None;
-    }
-    get_flatpak_tray_icon_path()
-}
-
 impl Tray for KhushuTray {
     fn icon_name(&self) -> String {
         if let Ok(snap) = std::env::var("SNAP") {
@@ -43,26 +35,15 @@ impl Tray for KhushuTray {
                 return svg_path;
             }
         }
-        if let Some(path) = get_flatpak_tray_icon() {
-            return path.to_string_lossy().to_string();
-        }
-        "io.github.sniper1720.khushu".into()
+        "io.github.sniper1720.khushu-symbolic".into()
     }
 
     fn icon_theme_path(&self) -> String {
-        if is_snap() {
-            return format!(
-                "{}/usr/share/icons",
-                std::env::var("SNAP").expect("SNAP env set by snap runtime")
-            );
+        if let Ok(snap) = std::env::var("SNAP") {
+            format!("{snap}/usr/share/icons")
+        } else {
+            String::new()
         }
-        if is_flatpak() {
-            return "/app/share/icons".to_string();
-        }
-        if std::path::Path::new("/usr/share/icons").exists() {
-            return "/usr/share/icons".to_string();
-        }
-        String::new()
     }
 
     fn id(&self) -> String {
@@ -80,7 +61,10 @@ impl Tray for KhushuTray {
 
     fn menu(&self) -> Vec<MenuItem<Self>> {
         use ksni::menu::*;
-        let data = self.data.read().expect("KhushuTray data lock poisoned");
+        let data = self.data.read().unwrap_or_else(|e| {
+            log::warn!("KhushuTray data lock poisoned");
+            e.into_inner()
+        });
         vec![
             StandardItem {
                 label: data.open_label.clone(),
@@ -100,7 +84,6 @@ impl Tray for KhushuTray {
                 activate: Box::new(|_this: &mut Self| {
                     gtk4::glib::idle_add(move || {
                         if let Some(app) = gtk4::gio::Application::default() {
-                            use gtk4::prelude::*;
                             app.quit();
                         }
                         gtk4::glib::ControlFlow::Break
@@ -118,9 +101,6 @@ async fn setup_tray_icon() {
     use std::sync::atomic::{AtomicBool, Ordering};
 
     static TRAY_SPAWNED: AtomicBool = AtomicBool::new(false);
-    if TRAY_HANDLE.get().is_some() {
-        return;
-    }
     if TRAY_SPAWNED
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
@@ -130,7 +110,10 @@ async fn setup_tray_icon() {
 
     let data = get_tray_data();
     {
-        let mut d = data.write().expect("KhushuTray data lock poisoned");
+        let mut d = data.write().unwrap_or_else(|e| {
+            log::warn!("KhushuTray data lock poisoned");
+            e.into_inner()
+        });
         d.open_label = tr("Open Khushu");
         d.quit_label = tr("Quit");
     }
@@ -163,7 +146,10 @@ async fn setup_tray_icon() {
 pub fn update_tray_labels() {
     let data = get_tray_data();
     {
-        let mut d = data.write().expect("KhushuTray data lock poisoned");
+        let mut d = data.write().unwrap_or_else(|e| {
+            log::warn!("KhushuTray data lock poisoned");
+            e.into_inner()
+        });
         d.open_label = tr("Open Khushu");
         d.quit_label = tr("Quit");
     }

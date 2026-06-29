@@ -14,7 +14,6 @@ finish-args:
   - --socket=pulseaudio
   - --device=dri
   - --talk-name=org.kde.StatusNotifierWatcher
-  - --filesystem=xdg-run/tray-icon:create
   - --env=LOCPATH=/app/usr/lib/locale
 modules:
   - name: khushu

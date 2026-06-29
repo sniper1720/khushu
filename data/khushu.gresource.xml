@@ -5,7 +5,6 @@
     <file compressed="false">audio/Madinah.mp3</file>
     <file compressed="false">audio/Makkah.mp3</file>
     <file compressed="true">icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg</file>
-    <file compressed="true">icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg</file>
     <file compressed="true">icons/hicolor/scalable/actions/qibla-symbolic.svg</file>
     <file compressed="true">icons/hicolor/scalable/actions/noble-quran-symbolic.svg</file>
     <file compressed="true">quran/chapters.json</file>

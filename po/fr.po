@@ -2,9 +2,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.0\n"
+"Project-Id-Version: Khushu 1.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-06-26 11:43+0000\n"
+"POT-Creation-Date: 2026-06-29 21:25+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: French\n"
@@ -31,7 +31,6 @@ msgstr "Une application musulmane tout-en-un pour Linux"
 msgid "Prayer;Islam;Salah;"
 msgstr "Prière;Islam;Salah;Adhan;Coran;"
 
-#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Accurate prayer calculation methods (Offline)"
 msgstr "Méthodes de calcul de prière précises (hors ligne)"
@@ -365,9 +364,9 @@ msgid ""
 "Noble Quran: Read Arabic ayat and translations with adjustable typography "
 "and listen to recitations with selectable reciters"
 msgstr ""
-"Noble Coran : Lisez les versets en arabe avec leurs traductions, personnalis"
-"ez les paramètres de typographie et écoutez la récitation avec le récitateur"
-" de votre choix."
+"Noble Coran : Lisez les versets en arabe avec leurs traductions, "
+"personnalisez les paramètres de typographie et écoutez la récitation avec le "
+"récitateur de votre choix."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
@@ -375,9 +374,9 @@ msgid ""
 "translations, ayah-by-ayah recitation, selectable reciters, and adjustable "
 "typography"
 msgstr ""
-"Lecteur dédié du Noble Coran avec texte authentique en écriture othmanienne,"
-" traductions multilingues, récitation verset par verset, choix du récitateur"
-" et typographie personnalisable."
+"Lecteur dédié du Noble Coran avec texte authentique en écriture othmanienne, "
+"traductions multilingues, récitation verset par verset, choix du récitateur "
+"et typographie personnalisable."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
@@ -386,11 +385,25 @@ msgid ""
 "times, native staggered Adkar notifications, and a dedicated Noble Quran "
 "reader with ayah-by-ayah recitation."
 msgstr ""
-"Khushu est votre application musulmane tout-en-un pour Linux sur ordinateur,"
-" tablette et smartphone. Elle réunit tout le nécessaire pour votre pratique "
-"quotidienne : horaires de prière précis, notifications natives et progressiv"
-"es d'adhkar, ainsi qu'un lecteur dédié du Noble Coran avec récitation verset"
-" par verset."
+"Khushu est votre application musulmane tout-en-un pour Linux sur ordinateur, "
+"tablette et smartphone. Elle réunit tout le nécessaire pour votre pratique "
+"quotidienne : horaires de prière précis, notifications natives et "
+"progressives d'adhkar, ainsi qu'un lecteur dédié du Noble Coran avec "
+"récitation verset par verset."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed tray icon always showing dark on GNOME/XFCE in Flatpak"
+msgstr "Correction du problème où l’icône de la zone de notification apparaissait toujours sombre sous GNOME et XFCE avec Flatpak."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed lock-poison panics in tray FFI/D-Bus code"
+msgstr "Correction des panic provoqués par le lock poisoning dans le code FFI et D-Bus de l’icône de la zone de notification."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Removed tray icon file-copy workaround and its associated Flatpak filesystem "
+"permission"
+msgstr "Suppression du contournement pour la copie des fichiers de l’icône de la zone de notification ainsi que de l’autorisation d’accès au système de fichiers de Flatpak qui lui était associée."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS
@@ -1656,4 +1669,3 @@ msgstr ""
 "Amélioration de l'activation depuis la zone de notification : « Open "
 "Khushu » affiche désormais directement la fenêtre de l'application au "
 "premier plan"
-

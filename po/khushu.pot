@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: khushu\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-06-26 11:47+0000\n"
+"POT-Creation-Date: 2026-06-29 21:25+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -311,6 +311,20 @@ msgid ""
 "smartphones. It centralizes your daily worship by providing accurate prayer "
 "times, native staggered Adkar notifications, and a dedicated Noble Quran "
 "reader with ayah-by-ayah recitation."
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed tray icon always showing dark on GNOME/XFCE in Flatpak"
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed lock-poison panics in tray FFI/D-Bus code"
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Removed tray icon file-copy workaround and its associated Flatpak filesystem "
+"permission"
 msgstr ""
 
 # =============================================================================

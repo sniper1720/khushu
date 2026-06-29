@@ -1,5 +1,5 @@
 Name:           khushu
-Version:        1.2.0
+Version:        1.2.1
 Release:        1%{?dist}
 Summary:        An all-in-one Muslim app for Linux
 
@@ -55,6 +55,10 @@ adaptive UI built with GTK4 and Libadwaita.
 %{_datadir}/fonts/truetype/%{name}/
 
 %changelog
+* Mon Jun 29 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.2.1-1
+- Fixed tray icon always showing dark on GNOME/XFCE in Flatpak
+- Fixed lock-poison panics in tray FFI/D-Bus code
+- Removed tray icon file-copy workaround and its associated Flatpak filesystem permission
 * Thu Jun 25 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.2.0-1
 - Added Noble Quran Recitation with ayah-by-ayah audio playback and reciter selection
 - Rewrote locale switching for consistent i18n

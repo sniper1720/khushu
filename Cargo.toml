@@ -1,6 +1,6 @@
 [package]
 name = "khushu"
-version = "1.2.0"
+version = "1.2.1"
 authors = ["Djalel Oukid <sniper1720@linuxtechmore.com>"]
 edition = "2024"
 license = "GPL-3.0-or-later"

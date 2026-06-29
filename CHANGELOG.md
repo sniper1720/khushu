@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.1] — 2026-06-29
+
+### Fixed
+- **Tray icon always showing dark on GNOME/XFCE in Flatpak** — replaced
+  file-path workaround with standard symbolic themed icon name; so the
+  symbolic icon is used correctly on all DEs (KDE, GNOME, XFCE). (Closes #13)
+- **Panics across FFI/D-Bus in tray code** — replaced 3 `.expect()` lock-poison
+  panics with safe `unwrap_or_else` recovery + log warning.
+
+### Changed
+- **Tray icon architecture** — removed `get_flatpak_tray_icon_path()` and its
+  `$XDG_RUNTIME_DIR/tray-icon/` file-copy logic; `icon_name()` now returns the
+  themed name `io.github.sniper1720.khushu-symbolic`, dropping the need for the
+  `--filesystem=xdg-run/tray-icon` permission.
+
 ## [1.2.0] — 2026-06-25
 
 ### Added

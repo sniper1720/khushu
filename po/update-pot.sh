@@ -276,7 +276,7 @@ if not header_blocks:
 
 full_header = "\n\n".join(header_blocks)
 if "Project-Id-Version" not in full_header:
-    full_header += '\nmsgid ""\nmsgstr ""\n"Project-Id-Version: Khushu 1.2.0\\\\n"\n"Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\\\\n"'
+    full_header += '\nmsgid ""\nmsgstr ""\n"Project-Id-Version: Khushu 1.2.1\\\\n"\n"Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\\\\n"'
     header_blocks = [full_header]
 
 output_parts = ["\n\n".join(header_blocks)]

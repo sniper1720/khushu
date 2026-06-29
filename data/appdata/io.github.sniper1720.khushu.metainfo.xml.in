@@ -82,6 +82,15 @@
   </branding>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.2.1" date="2026-06-29">
+      <description>
+        <ul>
+          <li>Fixed tray icon always showing dark on GNOME/XFCE in Flatpak</li>
+          <li>Fixed lock-poison panics in tray FFI/D-Bus code</li>
+          <li>Removed tray icon file-copy workaround and its associated Flatpak filesystem permission</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.0" date="2026-06-25">
       <description>
         <ul>

@@ -2,9 +2,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.0\n"
+"Project-Id-Version: Khushu 1.2.1\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-06-26 11:43+0000\n"
+"POT-Creation-Date: 2026-06-29 21:25+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Spanish\n"
@@ -31,7 +31,6 @@ msgstr "Una aplicación musulmana todo en uno para Linux"
 msgid "Prayer;Islam;Salah;"
 msgstr "Oración;Islam;Salah;Corán;Adhan;"
 
-#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Accurate prayer calculation methods (Offline)"
 msgstr "Métodos de cálculo de oración precisos (sin conexión)"
@@ -370,8 +369,8 @@ msgid ""
 "typography"
 msgstr ""
 "Lector dedicado del Noble Corán con texto auténtico en escritura uthmánica, "
-"traducciones en varios idiomas, recitación versículo por versículo, selecció"
-"n de recitadores y tipografía personalizable."
+"traducciones en varios idiomas, recitación versículo por versículo, "
+"selección de recitadores y tipografía personalizable."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
@@ -380,11 +379,25 @@ msgid ""
 "times, native staggered Adkar notifications, and a dedicated Noble Quran "
 "reader with ayah-by-ayah recitation."
 msgstr ""
-"Khushu es tu aplicación integral para musulmanes en Linux, disponible para e"
-"quipos de escritorio, tabletas y teléfonos inteligentes. Reúne todo lo neces"
-"ario para tu práctica diaria: horarios de oración precisos, notificaciones n"
-"ativas y escalonadas de adhkar y un lector dedicado del Noble Corán con reci"
-"tación versículo por versículo."
+"Khushu es tu aplicación integral para musulmanes en Linux, disponible para "
+"equipos de escritorio, tabletas y teléfonos inteligentes. Reúne todo lo "
+"necesario para tu práctica diaria: horarios de oración precisos, "
+"notificaciones nativas y escalonadas de adhkar y un lector dedicado del "
+"Noble Corán con recitación versículo por versículo."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed tray icon always showing dark on GNOME/XFCE in Flatpak"
+msgstr "Se corrigió el problema por el que el icono de la bandeja del sistema siempre aparecía oscuro en GNOME y XFCE con Flatpak."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed lock-poison panics in tray FFI/D-Bus code"
+msgstr "Se corrigieron los panic provocados por lock poisoning en el código FFI y D-Bus del icono de la bandeja del sistema."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Removed tray icon file-copy workaround and its associated Flatpak filesystem "
+"permission"
+msgstr "Se eliminó la solución temporal para copiar los archivos del icono de la bandeja del sistema, junto con el permiso de acceso al sistema de archivos de Flatpak asociado."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS
@@ -1647,4 +1660,3 @@ msgid ""
 msgstr ""
 "Se mejoró la activación desde la bandeja del sistema: al hacer clic en «Open "
 "Khushu», la ventana de la aplicación se muestra directamente en primer plano"
-

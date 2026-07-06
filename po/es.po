@@ -902,7 +902,7 @@ msgid "None"
 msgstr "Ninguno"
 
 #: src/quran.rs
-msgid "End of Ayat"
+msgid "End of Ayah"
 msgstr "Fin de la aleya"
 
 #: src/quran.rs

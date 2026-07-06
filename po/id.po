@@ -887,7 +887,7 @@ msgid "None"
 msgstr "Tidak ada"
 
 #: src/quran.rs
-msgid "End of Ayat"
+msgid "End of Ayah"
 msgstr "Akhir ayat"
 
 #: src/quran.rs

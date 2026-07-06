@@ -850,7 +850,7 @@ msgid "None"
 msgstr "لا شيء"
 
 #: src/quran.rs
-msgid "End of Ayat"
+msgid "End of Ayah"
 msgstr "نهاية الآية"
 
 #: src/quran.rs

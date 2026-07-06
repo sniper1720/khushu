@@ -88,9 +88,9 @@ fn default_autostart() -> bool {
 pub enum StopCondition {
     #[serde(rename = "none")]
     None,
-    #[serde(rename = "ayat")]
+    #[serde(rename = "ayah")]
     #[default]
-    Ayat,
+    Ayah,
     #[serde(rename = "page")]
     Page,
     #[serde(rename = "juz")]

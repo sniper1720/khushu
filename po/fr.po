@@ -908,7 +908,7 @@ msgid "None"
 msgstr "Aucun"
 
 #: src/quran.rs
-msgid "End of Ayat"
+msgid "End of Ayah"
 msgstr "Fin du verset"
 
 #: src/quran.rs

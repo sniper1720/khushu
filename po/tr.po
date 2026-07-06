@@ -879,7 +879,7 @@ msgid "None"
 msgstr "Yok"
 
 #: src/quran.rs
-msgid "End of Ayat"
+msgid "End of Ayah"
 msgstr "Ayet sonunda"
 
 #: src/quran.rs

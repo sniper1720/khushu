@@ -1553,6 +1553,8 @@ fn update_marker_frame(frame: &gtk::Box, page: u32, lang: &str) {
 struct RecitationState {
     selected_verse: Cell<Option<(u32, u32)>>,
     playing: Cell<bool>,
+    stop_boundary: Cell<Option<(u32, u32)>>,
+    current_playing_surah: Cell<u32>,
 }
 
 #[derive(Clone, Debug)]
@@ -1692,33 +1694,45 @@ fn attach_translation_verse_clicks(
     }
 }
 
-fn compute_stop_boundary(surah: u32, verse: u32, stop: StopCondition) -> Option<u32> {
+fn compute_stop_boundary(surah: u32, verse: u32, stop: StopCondition) -> Option<(u32, u32)> {
     match stop {
-        StopCondition::None | StopCondition::Ayat => Some(verse),
+        StopCondition::None => None,
+        StopCondition::Ayah => Some((surah, verse)),
         StopCondition::Page => {
             let page = get_verse_page(surah, verse)?;
             let verses = get_page_verses(page)?;
-            verses
-                .iter()
-                .filter(|v| v.surah == surah)
-                .map(|v| v.verse)
-                .max()
+            verses.last().map(|v| (v.surah, v.verse))
         }
         StopCondition::Juz => {
             let juz_index = get_juz_index();
             let current_juz = juz_index.get(&(surah, verse)).copied()?;
-            let total = surah_total_verses(surah).unwrap_or(u32::MAX);
-            let mut last = verse;
-            for v in (verse + 1)..=total {
-                match juz_index.get(&(surah, v)) {
-                    Some(&j) if j == current_juz => last = v,
-                    _ => break,
+            let mut last = (surah, verse);
+            for s in surah..=114 {
+                let total = surah_total_verses(s).unwrap_or(u32::MAX);
+                let start = if s == surah { verse + 1 } else { 1 };
+                for v in start..=total {
+                    match juz_index.get(&(s, v)) {
+                        Some(&j) if j == current_juz => last = (s, v),
+                        _ => return Some(last),
+                    }
                 }
             }
             Some(last)
         }
-        StopCondition::Surah => surah_total_verses(surah),
+        StopCondition::Surah => Some((surah, surah_total_verses(surah)?)),
     }
+}
+
+fn next_verse_on_page_or_next(surah: u32, verse: u32) -> Option<(u32, u32)> {
+    let page = get_verse_page(surah, verse)?;
+    let verses = get_page_verses(page)?;
+    let pos = verses.iter().position(|v| v.surah == surah && v.verse == verse)?;
+    if let Some(next) = verses.get(pos + 1) {
+        return Some((next.surah, next.verse));
+    }
+    let next_page = page + 1;
+    let next_verses = get_page_verses(next_page)?;
+    next_verses.first().map(|v| (v.surah, v.verse))
 }
 
 fn build_recitation_toolbar(
@@ -1801,7 +1815,7 @@ fn build_recitation_toolbar(
 
     let stop_items = [
         tr("None"),
-        tr("End of Ayat"),
+        tr("End of Ayah"),
         tr("End of Page"),
         tr("End of Juz"),
         tr("End of Surah"),
@@ -1812,7 +1826,7 @@ fn build_recitation_toolbar(
     stop_dropdown.add_css_class("flat");
     stop_dropdown.set_selected(match config.stop_condition() {
         StopCondition::None => 0,
-        StopCondition::Ayat => 1,
+        StopCondition::Ayah => 1,
         StopCondition::Page => 2,
         StopCondition::Juz => 3,
         StopCondition::Surah => 4,
@@ -1821,7 +1835,7 @@ fn build_recitation_toolbar(
     stop_dropdown.connect_selected_notify(move |dd| {
         let cond = match dd.selected() {
             0 => StopCondition::None,
-            1 => StopCondition::Ayat,
+            1 => StopCondition::Ayah,
             2 => StopCondition::Page,
             3 => StopCondition::Juz,
             _ => StopCondition::Surah,
@@ -2229,6 +2243,8 @@ pub fn create_surah_view(
     let rec_state = Rc::new(RefCell::new(RecitationState {
         selected_verse: Cell::new(None),
         playing: Cell::new(false),
+        stop_boundary: Cell::new(None),
+        current_playing_surah: Cell::new(0),
     }));
     let verse_boundaries: Rc<RefCell<HashMap<u32, Vec<VerseBoundary>>>> =
         Rc::new(RefCell::new(HashMap::new()));
@@ -2898,6 +2914,7 @@ pub fn create_surah_view(
             .borrow()
             .selected_verse
             .set(Some((surah, verse)));
+        play_rec_state.borrow().current_playing_surah.set(surah);
         if let Some(ref rebuild) = *play_rebuild.borrow() {
             rebuild();
         }
@@ -2908,15 +2925,29 @@ pub fn create_surah_view(
             surah,
             verse,
         );
-        match play_config.stop_condition() {
-            StopCondition::None | StopCondition::Ayat => {
+        let stop = play_config.stop_condition();
+        let boundary = compute_stop_boundary(surah, verse, stop);
+        play_rec_state.borrow().stop_boundary.set(boundary);
+        match stop {
+            StopCondition::Ayah => {
                 crate::audio::play_verse(&slug, surah, verse);
             }
-            _ => {
+            StopCondition::None => {
                 let total = surah_total_verses(surah).unwrap_or(u32::MAX);
-                let end_verse = compute_stop_boundary(surah, verse, play_config.stop_condition())
-                    .unwrap_or(total);
-                crate::audio::play_surah(&slug, surah, verse, end_verse.min(total));
+                crate::audio::play_surah(&slug, surah, verse, total);
+            }
+            _ => {
+                if let Some((end_surah, end_verse)) = boundary {
+                    let end = if end_surah == surah {
+                        end_verse
+                    } else {
+                        surah_total_verses(surah).unwrap_or(u32::MAX)
+                    };
+                    crate::audio::play_surah(&slug, surah, verse, end);
+                } else {
+                    let total = surah_total_verses(surah).unwrap_or(u32::MAX);
+                    crate::audio::play_surah(&slug, surah, verse, total);
+                }
             }
         }
     }));
@@ -2940,43 +2971,87 @@ pub fn create_surah_view(
     }
 
     let poll_rec_state = rec_state.clone();
-    let poll_chapter = chapter;
     let poll_rebuild = rebuild_follow_fn.clone();
     let poll_play_btn = rec_play_btn.clone();
     let poll_prev_btn = rec_prev_btn.clone();
     let poll_next_btn = rec_next_btn.clone();
+    let poll_play_fn = play_fn.clone();
     glib::timeout_add_local(Duration::from_millis(200), move || {
-        let total = surah_total_verses(poll_chapter).unwrap_or(u32::MAX);
+        poll_play_btn.set_icon_name(if crate::audio::is_playing() {
+            "media-playback-pause-symbolic"
+        } else {
+            "media-playback-start-symbolic"
+        });
+
         {
             let state = poll_rec_state.borrow();
-            poll_prev_btn.set_sensitive(state.selected_verse.get().is_some_and(|(_, v)| v > 1));
-            poll_next_btn.set_sensitive(state.selected_verse.get().is_some_and(|(_, v)| v < total));
+            let total = state
+                .selected_verse
+                .get()
+                .map(|(s, _)| surah_total_verses(s).unwrap_or(u32::MAX))
+                .unwrap_or(u32::MAX);
+            poll_prev_btn.set_sensitive(
+                state
+                    .selected_verse
+                    .get()
+                    .is_some_and(|(_, v)| v > 1),
+            );
+            poll_next_btn.set_sensitive(
+                state
+                    .selected_verse
+                    .get()
+                    .is_some_and(|(_, v)| v < total),
+            );
         }
 
         if let Some((surah, verse)) = crate::audio::poll_verse_finished() {
-            if surah == poll_chapter {
+            let playing_surah = poll_rec_state.borrow().current_playing_surah.get();
+            if surah == playing_surah {
                 let currently_playing = poll_rec_state.borrow().playing.get();
                 if currently_playing {
-                    let next_verse = verse + 1;
-                    if next_verse <= total && crate::audio::is_playing() {
+                    if crate::audio::is_playing() {
+                        let next_verse = verse + 1;
                         poll_rec_state
                             .borrow()
                             .selected_verse
-                            .set(Some((poll_chapter, next_verse)));
+                            .set(Some((surah, next_verse)));
                         if let Some(ref rebuild) = *poll_rebuild.borrow() {
                             rebuild();
                         }
                     } else {
-                        poll_rec_state.borrow().playing.set(false);
-                        poll_play_btn.set_icon_name("media-playback-start-symbolic");
+                        let current = (surah, verse);
+                        let boundary = poll_rec_state.borrow().stop_boundary.get();
+                        if boundary.is_some_and(|b| current >= b) {
+                            poll_rec_state.borrow().playing.set(false);
+                        } else if let Some((ns, nv)) =
+                            next_verse_on_page_or_next(surah, verse)
+                        {
+                            if let Some(ref play_fn) = *poll_play_fn.borrow() {
+                                play_fn(ns, nv);
+                            }
+                        } else {
+                            poll_rec_state.borrow().playing.set(false);
+                        }
                     }
                 }
             }
         } else {
             let currently_playing = poll_rec_state.borrow().playing.get();
             if !crate::audio::is_playing() && currently_playing {
+                let selected = poll_rec_state.borrow().selected_verse.get();
+                if let Some((surah, verse)) = selected {
+                    let boundary = poll_rec_state.borrow().stop_boundary.get();
+                    if boundary.is_none_or(|b| (surah, verse) < b)
+                        && let Some((ns, nv)) =
+                            next_verse_on_page_or_next(surah, verse)
+                        {
+                            if let Some(ref play_fn) = *poll_play_fn.borrow() {
+                                play_fn(ns, nv);
+                            }
+                            return glib::ControlFlow::Continue;
+                        }
+                }
                 poll_rec_state.borrow().playing.set(false);
-                poll_play_btn.set_icon_name("media-playback-start-symbolic");
             }
         }
         glib::ControlFlow::Continue

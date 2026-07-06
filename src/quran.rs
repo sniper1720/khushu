@@ -3035,24 +3035,6 @@ pub fn create_surah_view(
                     }
                 }
             }
-        } else {
-            let currently_playing = poll_rec_state.borrow().playing.get();
-            if !crate::audio::is_playing() && currently_playing {
-                let selected = poll_rec_state.borrow().selected_verse.get();
-                if let Some((surah, verse)) = selected {
-                    let boundary = poll_rec_state.borrow().stop_boundary.get();
-                    if boundary.is_none_or(|b| (surah, verse) < b)
-                        && let Some((ns, nv)) =
-                            next_verse_on_page_or_next(surah, verse)
-                        {
-                            if let Some(ref play_fn) = *poll_play_fn.borrow() {
-                                play_fn(ns, nv);
-                            }
-                            return glib::ControlFlow::Continue;
-                        }
-                }
-                poll_rec_state.borrow().playing.set(false);
-            }
         }
         glib::ControlFlow::Continue
     });

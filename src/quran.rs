@@ -178,7 +178,7 @@ type NormalizedIndex = HashMap<(u32, u32), String>;
 type MarkerIndexU32 = HashMap<(u32, u32), u32>;
 
 thread_local! {
-    static QURAN_CACHE: std::cell::RefCell<Option<HashMap<String, Vec<TranslationChapter>>>> = const { std::cell::RefCell::new(None) };
+    static QURAN_CACHE: std::cell::RefCell<Option<HashMap<String, Rc<Vec<TranslationChapter>>>>> = const { std::cell::RefCell::new(None) };
     static SURAH_READING_POSITIONS: std::cell::RefCell<HashMap<u32, u32>> = std::cell::RefCell::new(HashMap::new());
     static PAGE_INDEX: std::cell::RefCell<Option<PageIndex>> = const { std::cell::RefCell::new(None) };
     static NORMALIZED_CACHE: std::cell::RefCell<Option<Rc<NormalizedIndex>>> = const { std::cell::RefCell::new(None) };
@@ -196,7 +196,7 @@ fn get_normalized_index() -> Rc<NormalizedIndex> {
         }
         let arabic_quran = get_quran("ar");
         let mut index = HashMap::new();
-        for chapter in &arabic_quran {
+        for chapter in arabic_quran.iter() {
             for verse in &chapter.verses {
                 index.insert((chapter.id, verse.id), normalize_arabic(&verse.text));
             }
@@ -445,7 +445,7 @@ fn load_quran(lang: &str) -> Vec<TranslationChapter> {
     vec![]
 }
 
-fn get_quran(lang: &str) -> Vec<TranslationChapter> {
+fn get_quran(lang: &str) -> Rc<Vec<TranslationChapter>> {
     QURAN_CACHE.with(|cache| {
         let mut cache_ref = cache.borrow_mut();
         if cache_ref.is_none() {
@@ -453,13 +453,13 @@ fn get_quran(lang: &str) -> Vec<TranslationChapter> {
         }
         if let Some(ref mut map) = cache_ref.as_mut() {
             if let Some(data) = map.get(lang) {
-                return data.clone();
+                return Rc::clone(data);
             }
-            let data = load_quran(lang);
-            map.insert(lang.to_string(), data.clone());
+            let data = Rc::new(load_quran(lang));
+            map.insert(lang.to_string(), Rc::clone(&data));
             data
         } else {
-            load_quran(lang)
+            Rc::new(load_quran(lang))
         }
     })
 }
@@ -578,6 +578,19 @@ fn is_arabic_ignorable(c: char) -> bool {
     )
 }
 
+fn is_arabic_query(query: &str) -> bool {
+    query.chars().all(|c| {
+        let code = c as u32;
+        c.is_whitespace()
+            || is_arabic_ignorable(c)
+            || (0x0600..=0x06FF).contains(&code)
+            || (0x0750..=0x077F).contains(&code)
+            || (0x08A0..=0x08FF).contains(&code)
+            || (0xFB50..=0xFDFF).contains(&code)
+            || (0xFE70..=0xFEFF).contains(&code)
+    })
+}
+
 /// Normalize an Arabic letter to its canonical base form for search.
 fn normalize_arabic_char(c: char) -> char {
     match c {
@@ -623,16 +636,7 @@ pub fn search_quran(query: &str, lang: &str) -> Vec<VerseMatch> {
     let arabic_quran = get_quran("ar");
     let mut matches = Vec::new();
 
-    let is_arabic_query = query.chars().all(|c| {
-        let code = c as u32;
-        c.is_whitespace()
-            || is_arabic_ignorable(c)
-            || (0x0600..=0x06FF).contains(&code)
-            || (0x0750..=0x077F).contains(&code)
-            || (0x08A0..=0x08FF).contains(&code)
-            || (0xFB50..=0xFDFF).contains(&code)
-            || (0xFE70..=0xFEFF).contains(&code)
-    });
+    let is_arabic_query = is_arabic_query(query);
 
     let search_query = if is_arabic_query {
         normalize_arabic(query)
@@ -873,16 +877,7 @@ pub fn create_quran_page(
                 };
             let verse_matches = search_quran(&query, quran_lang);
 
-            let is_arabic_query = query.chars().all(|c| {
-                let code = c as u32;
-                c.is_whitespace()
-                    || is_arabic_ignorable(c)
-                    || (0x0600..=0x06FF).contains(&code)
-                    || (0x0750..=0x077F).contains(&code)
-                    || (0x08A0..=0x08FF).contains(&code)
-                    || (0xFB50..=0xFDFF).contains(&code)
-                    || (0xFE70..=0xFEFF).contains(&code)
-            });
+            let is_arabic_query = is_arabic_query(&query);
 
             let query_lower = if is_arabic_query {
                 normalize_arabic(&query)
@@ -1566,10 +1561,10 @@ struct VerseBoundary {
 }
 
 fn get_verse_display_len(content: &str, verse: u32) -> usize {
-    content.len() + 7 + (to_arabic_indic(verse).chars().count() * 2)
+    content.len() + 7 + (verse.checked_ilog10().unwrap_or(0) as usize + 1) * 2
 }
 
-fn compute_verse_boundaries(page: u32, _chapter: u32) -> Vec<VerseBoundary> {
+fn compute_verse_boundaries(page: u32) -> Vec<VerseBoundary> {
     let mut bounds = Vec::new();
     let mut offset: usize = 0;
     if let Some(verses_data) = get_page_verses(page) {
@@ -1599,14 +1594,13 @@ fn find_verse_at_offset(offset: usize, boundaries: &[VerseBoundary]) -> Option<(
 fn attach_arabic_verse_clicks(
     content: &gtk::Box,
     page: u32,
-    chapter: u32,
     rec_state: Rc<RefCell<RecitationState>>,
     boundaries_cache: Rc<RefCell<HashMap<u32, Vec<VerseBoundary>>>>,
     rebuild_fn: RebuildFn,
     label_ranges: Rc<RefCell<Vec<(usize, usize)>>>,
 ) {
     if !boundaries_cache.borrow().contains_key(&page) {
-        let b = compute_verse_boundaries(page, chapter);
+        let b = compute_verse_boundaries(page);
         boundaries_cache.borrow_mut().insert(page, b);
     }
 
@@ -1726,7 +1720,9 @@ fn compute_stop_boundary(surah: u32, verse: u32, stop: StopCondition) -> Option<
 fn next_verse_on_page_or_next(surah: u32, verse: u32) -> Option<(u32, u32)> {
     let page = get_verse_page(surah, verse)?;
     let verses = get_page_verses(page)?;
-    let pos = verses.iter().position(|v| v.surah == surah && v.verse == verse)?;
+    let pos = verses
+        .iter()
+        .position(|v| v.surah == surah && v.verse == verse)?;
     if let Some(next) = verses.get(pos + 1) {
         return Some((next.surah, next.verse));
     }
@@ -2361,7 +2357,10 @@ pub fn create_surah_view(
                         label_ranges.push((i, i + 1));
                         let b = gtk::Label::new(None);
                         let content = if highlight_verse == Some((1, 1)) {
-                            format!("<span underline='single' underline_color='#3584e4'>{}</span>", BISMILLAH)
+                            format!(
+                                "<span underline='single' underline_color='#3584e4'>{}</span>",
+                                BISMILLAH
+                            )
                         } else {
                             BISMILLAH.to_string()
                         };
@@ -2727,7 +2726,7 @@ pub fn create_surah_view(
 
     if let Some(verse) = scroll_to_verse {
         if quran_lang == "ar" && !verse_boundaries.borrow().contains_key(&initial_page) {
-            let b = compute_verse_boundaries(initial_page, chapter);
+            let b = compute_verse_boundaries(initial_page);
             verse_boundaries.borrow_mut().insert(initial_page, b);
         }
         if quran_lang != "ar" {
@@ -2846,7 +2845,6 @@ pub fn create_surah_view(
             attach_arabic_verse_clicks(
                 &new_content,
                 page,
-                rebuild_chapter,
                 rebuild_rec_state.clone(),
                 rebuild_bounds.clone(),
                 rebuild_follow_fn_c.clone(),
@@ -2960,7 +2958,6 @@ pub fn create_surah_view(
         attach_arabic_verse_clicks(
             &initial_content,
             initial_page,
-            chapter,
             rec_state.clone(),
             verse_boundaries.clone(),
             rebuild_fn.clone(),
@@ -2990,18 +2987,8 @@ pub fn create_surah_view(
                 .get()
                 .map(|(s, _)| surah_total_verses(s).unwrap_or(u32::MAX))
                 .unwrap_or(u32::MAX);
-            poll_prev_btn.set_sensitive(
-                state
-                    .selected_verse
-                    .get()
-                    .is_some_and(|(_, v)| v > 1),
-            );
-            poll_next_btn.set_sensitive(
-                state
-                    .selected_verse
-                    .get()
-                    .is_some_and(|(_, v)| v < total),
-            );
+            poll_prev_btn.set_sensitive(state.selected_verse.get().is_some_and(|(_, v)| v > 1));
+            poll_next_btn.set_sensitive(state.selected_verse.get().is_some_and(|(_, v)| v < total));
         }
 
         if let Some((surah, verse)) = crate::audio::poll_verse_finished() {
@@ -3023,9 +3010,7 @@ pub fn create_surah_view(
                         let boundary = poll_rec_state.borrow().stop_boundary.get();
                         if boundary.is_some_and(|b| current >= b) {
                             poll_rec_state.borrow().playing.set(false);
-                        } else if let Some((ns, nv)) =
-                            next_verse_on_page_or_next(surah, verse)
-                        {
+                        } else if let Some((ns, nv)) = next_verse_on_page_or_next(surah, verse) {
                             if let Some(ref play_fn) = *poll_play_fn.borrow() {
                                 play_fn(ns, nv);
                             }
@@ -3593,15 +3578,20 @@ mod tests {
     fn shared_page_531_verse_integrity() {
         ensure_resources();
         let verses = get_page_verses(531).expect("page 531 should exist");
-        assert!(verses.iter().any(|v| v.surah == 55 && v.verse == 1),
-            "page 531 should contain 55:1");
-        assert!(is_verse_on_page(55, 1, 531),
-            "55:1 should be on page 531");
-        assert_eq!(get_page_for_verse(55, 1), Some(531),
-            "get_page_for_verse(55,1) should return 531");
+        assert!(
+            verses.iter().any(|v| v.surah == 55 && v.verse == 1),
+            "page 531 should contain 55:1"
+        );
+        assert!(is_verse_on_page(55, 1, 531), "55:1 should be on page 531");
+        assert_eq!(
+            get_page_for_verse(55, 1),
+            Some(531),
+            "get_page_for_verse(55,1) should return 531"
+        );
 
-        let bounds = compute_verse_boundaries(531, 54);
-        let offset_55v1 = bounds.iter()
+        let bounds = compute_verse_boundaries(531);
+        let offset_55v1 = bounds
+            .iter()
             .find(|b| b.surah == 55 && b.verse == 1)
             .map(|b| b.byte_start)
             .expect("55:1 must have a byte_start");
@@ -3612,8 +3602,13 @@ mod tests {
     fn all_shared_pages_have_correct_get_page_for_verse() {
         ensure_resources();
         for (page, _prev, new_surah) in shared_page_surah_starts() {
-            assert_eq!(get_page_for_verse(new_surah, 1), Some(page),
-                "get_page_for_verse({},1) should be page {}", new_surah, page);
+            assert_eq!(
+                get_page_for_verse(new_surah, 1),
+                Some(page),
+                "get_page_for_verse({},1) should be page {}",
+                new_surah,
+                page
+            );
         }
     }
 }

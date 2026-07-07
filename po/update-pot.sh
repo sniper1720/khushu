@@ -274,11 +274,6 @@ if not header_blocks:
             block = re.sub(r'^# FIRST AUTHOR.*', '# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.', block, flags=re.M)
             header_blocks.append(block)
 
-full_header = "\n\n".join(header_blocks)
-if "Project-Id-Version" not in full_header:
-    full_header += '\nmsgid ""\nmsgstr ""\n"Project-Id-Version: Khushu 1.2.1\\\\n"\n"Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\\\\n"'
-    header_blocks = [full_header]
-
 output_parts = ["\n\n".join(header_blocks)]
 
 for sec in sorted(section_data.keys()):

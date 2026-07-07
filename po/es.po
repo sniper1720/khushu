@@ -2,9 +2,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.1\n"
+"Project-Id-Version: Khushu 1.2.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-06-29 21:25+0000\n"
+"POT-Creation-Date: 2026-07-07 20:53+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Spanish\n"
@@ -387,17 +387,45 @@ msgstr ""
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed tray icon always showing dark on GNOME/XFCE in Flatpak"
-msgstr "Se corrigió el problema por el que el icono de la bandeja del sistema siempre aparecía oscuro en GNOME y XFCE con Flatpak."
+msgstr ""
+"Se corrigió el problema por el que el icono de la bandeja del sistema "
+"siempre aparecía oscuro en GNOME y XFCE con Flatpak."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed lock-poison panics in tray FFI/D-Bus code"
-msgstr "Se corrigieron los panic provocados por lock poisoning en el código FFI y D-Bus del icono de la bandeja del sistema."
+msgstr ""
+"Se corrigieron los panic provocados por lock poisoning en el código FFI y D-"
+"Bus del icono de la bandeja del sistema."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Removed tray icon file-copy workaround and its associated Flatpak filesystem "
 "permission"
-msgstr "Se eliminó la solución temporal para copiar los archivos del icono de la bandeja del sistema, junto con el permiso de acceso al sistema de archivos de Flatpak asociado."
+msgstr ""
+"Se eliminó la solución temporal para copiar los archivos del icono de la "
+"bandeja del sistema, junto con el permiso de acceso al sistema de archivos "
+"de Flatpak asociado."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Fixed verse highlighting, navigation, and recitation on multi-Surah pages"
+msgstr "Se corrigieron el resaltado de versículos, la navegación y la recitación en las páginas que contienen varias suras."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Surah header now updates when clicking a verse from a different Surah on "
+"multi-Surah pages"
+msgstr "El encabezado de la sura ahora se actualiza automáticamente al hacer clic en un versículo de otra sura en las páginas que contienen varias suras."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows"
+msgstr "Las etiquetas con los nombres traducidos de las suras ahora se truncan con puntos suspensivos (…) para evitar que el texto se desborde en ventanas estrechas."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Reduced memory usage by sharing Quran data between callers instead of "
+"cloning it"
+msgstr "Se redujo el uso de memoria al compartir los datos del Corán entre los llamadores en lugar de duplicarlos."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS
@@ -1660,3 +1688,5 @@ msgid ""
 msgstr ""
 "Se mejoró la activación desde la bandeja del sistema: al hacer clic en «Open "
 "Khushu», la ventana de la aplicación se muestra directamente en primer plano"
+
+

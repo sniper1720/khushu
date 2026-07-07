@@ -7,9 +7,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: khushu\n"
+"Project-Id-Version: Khushu\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-06-29 21:25+0000\n"
+"POT-Creation-Date: 2026-07-07 22:59+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -325,6 +325,27 @@ msgstr ""
 msgid ""
 "Removed tray icon file-copy workaround and its associated Flatpak filesystem "
 "permission"
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Fixed verse highlighting, navigation, and recitation on multi-Surah pages"
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Surah header now updates when clicking a verse from a different Surah on "
+"multi-Surah pages"
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows"
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Reduced memory usage by sharing Quran data between callers instead of "
+"cloning it"
 msgstr ""
 
 # =============================================================================
@@ -834,7 +855,7 @@ msgid "None"
 msgstr ""
 
 #: src/quran.rs
-msgid "End of Ayat"
+msgid "End of Ayah"
 msgstr ""
 
 #: src/quran.rs

@@ -2,9 +2,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.1\n"
+"Project-Id-Version: Khushu 1.2.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-06-29 21:25+0000\n"
+"POT-Creation-Date: 2026-07-07 20:53+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Arabic\n"
@@ -339,17 +339,44 @@ msgstr ""
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed tray icon always showing dark on GNOME/XFCE in Flatpak"
-msgstr "إصلاح مشكلة ظهور أيقونة شريط النظام باللون الداكن دائمًا على GNOME وXFCE في إصدار Flatpak."
+msgstr ""
+"إصلاح مشكلة ظهور أيقونة شريط النظام باللون الداكن دائمًا على GNOME وXFCE في "
+"إصدار Flatpak."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed lock-poison panics in tray FFI/D-Bus code"
-msgstr "إصلاح حالات الانهيار الناتجة عن lock poisoning في شيفرة FFI وD-Bus الخاصة بأيقونة شريط النظام."
+msgstr ""
+"إصلاح حالات الانهيار الناتجة عن lock poisoning في شيفرة FFI وD-Bus الخاصة "
+"بأيقونة شريط النظام."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Removed tray icon file-copy workaround and its associated Flatpak filesystem "
 "permission"
-msgstr "إزالة الحل المؤقت لنسخ ملفات أيقونة شريط النظام، وصلاحية الوصول إلى نظام الملفات الخاصة بـ Flatpak المرتبطة به."
+msgstr ""
+"إزالة الحل المؤقت لنسخ ملفات أيقونة شريط النظام، وصلاحية الوصول إلى نظام "
+"الملفات الخاصة بـ Flatpak المرتبطة به."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Fixed verse highlighting, navigation, and recitation on multi-Surah pages"
+msgstr "إصلاح تمييز الآيات، والتنقل، والتلاوة في الصفحات التي تضم عدة سور."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Surah header now updates when clicking a verse from a different Surah on "
+"multi-Surah pages"
+msgstr "أصبح عنوان السورة يُحدَّث تلقائيًا عند النقر على آية من سورة أخرى في الصفحات التي تضم عدة سور."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows"
+msgstr "أصبحت أسماء السور المترجمة تُختصر بعلامة الحذف (…) لمنع تجاوز حدود الواجهة في النوافذ الضيقة."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Reduced memory usage by sharing Quran data between callers instead of "
+"cloning it"
+msgstr "تقليل استهلاك الذاكرة عبر مشاركة بيانات القرآن الكريم بين المستدعين بدلًا من نسخها."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS

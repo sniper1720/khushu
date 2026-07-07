@@ -2,9 +2,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.1\n"
+"Project-Id-Version: Khushu 1.2.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-06-29 21:25+0000\n"
+"POT-Creation-Date: 2026-07-07 20:53+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: French\n"
@@ -393,17 +393,45 @@ msgstr ""
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed tray icon always showing dark on GNOME/XFCE in Flatpak"
-msgstr "Correction du problème où l’icône de la zone de notification apparaissait toujours sombre sous GNOME et XFCE avec Flatpak."
+msgstr ""
+"Correction du problème où l’icône de la zone de notification apparaissait "
+"toujours sombre sous GNOME et XFCE avec Flatpak."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed lock-poison panics in tray FFI/D-Bus code"
-msgstr "Correction des panic provoqués par le lock poisoning dans le code FFI et D-Bus de l’icône de la zone de notification."
+msgstr ""
+"Correction des panic provoqués par le lock poisoning dans le code FFI et D-"
+"Bus de l’icône de la zone de notification."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Removed tray icon file-copy workaround and its associated Flatpak filesystem "
 "permission"
-msgstr "Suppression du contournement pour la copie des fichiers de l’icône de la zone de notification ainsi que de l’autorisation d’accès au système de fichiers de Flatpak qui lui était associée."
+msgstr ""
+"Suppression du contournement pour la copie des fichiers de l’icône de la "
+"zone de notification ainsi que de l’autorisation d’accès au système de "
+"fichiers de Flatpak qui lui était associée."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Fixed verse highlighting, navigation, and recitation on multi-Surah pages"
+msgstr "Correction de la mise en surbrillance des versets, de la navigation et de la récitation sur les pages contenant plusieurs sourates."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Surah header now updates when clicking a verse from a different Surah on "
+"multi-Surah pages"
+msgstr "Le titre de la sourate est désormais mis à jour automatiquement lors d'un clic sur un verset d'une autre sourate dans les pages contenant plusieurs sourates."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows"
+msgstr "Les libellés des noms de sourates traduits sont désormais tronqués avec des points de suspension (…) afin d'éviter tout débordement dans les fenêtres étroites."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Reduced memory usage by sharing Quran data between callers instead of "
+"cloning it"
+msgstr "Réduction de l'utilisation de la mémoire grâce au partage des données du Coran entre les appelants plutôt qu'à leur duplication."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS
@@ -1669,3 +1697,5 @@ msgstr ""
 "Amélioration de l'activation depuis la zone de notification : « Open "
 "Khushu » affiche désormais directement la fenêtre de l'application au "
 "premier plan"
+
+

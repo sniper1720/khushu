@@ -82,6 +82,16 @@
   </branding>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.2.2" date="2026-07-07">
+      <description>
+        <ul>
+          <li>Fixed verse highlighting, navigation, and recitation on multi-Surah pages</li>
+          <li>Surah header now updates when clicking a verse from a different Surah on multi-Surah pages</li>
+          <li>Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows</li>
+          <li>Reduced memory usage by sharing Quran data between callers instead of cloning it</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.1" date="2026-06-29">
       <description>
         <ul>

@@ -1,5 +1,5 @@
 Name:           khushu
-Version:        1.2.1
+Version:        1.2.2
 Release:        1%{?dist}
 Summary:        An all-in-one Muslim app for Linux
 
@@ -55,6 +55,11 @@ adaptive UI built with GTK4 and Libadwaita.
 %{_datadir}/fonts/truetype/%{name}/
 
 %changelog
+* Tue Jul 07 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.2.2-1
+- Fixed verse highlighting, navigation, and recitation on multi-Surah pages
+- Surah header now updates when clicking a verse from a different Surah on multi-Surah pages
+- Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows
+- Reduced memory usage by sharing Quran data between callers instead of cloning it
 * Mon Jun 29 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.2.1-1
 - Fixed tray icon always showing dark on GNOME/XFCE in Flatpak
 - Fixed lock-poison panics in tray FFI/D-Bus code

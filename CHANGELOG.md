@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.2.2] — 2026-07-07
+
+### Added
+- **Surah header updates on shared-page clicks** — header title, type,
+  and subtitle now reflect the clicked surah.
+
+### Fixed
+- **Verse highlighting on pages with multiple surahs** — clicking a verse
+  from any surah on a shared page now correctly highlights it. (Closes #15)
+- **Prev/next buttons jumping 2 pages on shared surah pages** — page advance uses absolute page
+  number instead of surah-relative range. (Closes #14)
+- **Recitation play on shared pages** — play function now receives both
+  surah and verse explicitly.
+- **Recitation stop conditions on shared pages** — page/juz boundaries
+  correctly computed across surah boundaries.
+- **Poll handler race condition** — removed fallback that raced with audio
+  thread, blocking verse chaining.
+- **Scroll-to-verse on shared surah-start pages** — now lands at the
+  correct verse instead of scrolling to the wrong position.
+- **Verse click detection on Arabic mushaf** — now correctly detects
+  which verse was clicked on pages with multiple surahs.
+- **Fatiha verse 1 highlight** — bismillah now underlines when selected.
+- **Translated surah name labels truncating on narrow windows** — labels
+  now use ellipsis truncation instead of overflowing the header.
+
+### Changed
+- **Quran data cached as shared reference** — now shared
+  between all callers instead of being cloned
+- **Verse display length allocation removed** — removes a temporary
+  string allocation on every page build.
+- **Arabic query detection deduplicated** — extracted to helper.
+
 ## [1.2.1] — 2026-06-29
 
 ### Fixed

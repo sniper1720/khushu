@@ -2,9 +2,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.1\n"
+"Project-Id-Version: Khushu 1.2.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-06-29 21:25+0000\n"
+"POT-Creation-Date: 2026-07-07 20:53+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Turkish\n"
@@ -368,17 +368,44 @@ msgstr ""
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed tray icon always showing dark on GNOME/XFCE in Flatpak"
-msgstr "Flatpak sürümünde GNOME ve XFCE'de sistem tepsisi simgesinin her zaman koyu görünmesi sorunu giderildi."
+msgstr ""
+"Flatpak sürümünde GNOME ve XFCE'de sistem tepsisi simgesinin her zaman koyu "
+"görünmesi sorunu giderildi."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed lock-poison panics in tray FFI/D-Bus code"
-msgstr "Sistem tepsisi FFI ve D-Bus kodundaki lock poisoning kaynaklı panic hataları giderildi."
+msgstr ""
+"Sistem tepsisi FFI ve D-Bus kodundaki lock poisoning kaynaklı panic hataları "
+"giderildi."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Removed tray icon file-copy workaround and its associated Flatpak filesystem "
 "permission"
-msgstr "Sistem tepsisi simgesi için dosya kopyalama geçici çözümü ve buna bağlı Flatpak dosya sistemi izni kaldırıldı."
+msgstr ""
+"Sistem tepsisi simgesi için dosya kopyalama geçici çözümü ve buna bağlı "
+"Flatpak dosya sistemi izni kaldırıldı."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Fixed verse highlighting, navigation, and recitation on multi-Surah pages"
+msgstr "Birden fazla sure içeren sayfalarda ayet vurgulama, gezinme ve tilavet düzeltildi."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Surah header now updates when clicking a verse from a different Surah on "
+"multi-Surah pages"
+msgstr "Çoklu sure içeren sayfalarda, farklı bir sureden bir ayete tıklandığında sure başlığı artık otomatik olarak güncelleniyor."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows"
+msgstr "Çevrilmiş sure adlarının etiketleri, dar pencerelerde taşmayı önlemek için artık üç nokta (…) ile kısaltılıyor."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Reduced memory usage by sharing Quran data between callers instead of "
+"cloning it"
+msgstr "Kur'an verileri kopyalanmak yerine çağıranlar arasında paylaşılarak bellek kullanımı azaltıldı."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS
@@ -1629,3 +1656,5 @@ msgid ""
 msgstr ""
 "Sistem tepsisindeki \"Open Khushu\" seçeneği artık uygulama penceresini "
 "doğrudan açıyor"
+
+

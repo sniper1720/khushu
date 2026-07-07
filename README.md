@@ -6,7 +6,7 @@
   [![Rust](https://img.shields.io/badge/Language-Rust-fa4f28?style=flat-square&logo=rust)](https://www.rust-lang.org/)
   [![GTK4](https://img.shields.io/badge/GUI-GTK4-4a86cf?style=flat-square&logo=gnome)](https://gtk.org/)
   [![Libadwaita](https://img.shields.io/badge/Style-Libadwaita-62a0ea?style=flat-square&logo=gnome)](https://gnome.pages.gitlab.gnome.org/libadwaita/)
-  [![Version](https://img.shields.io/badge/Version-1.2.1-success?style=flat-square)](#)
+  [![Version](https://img.shields.io/badge/Version-1.2.2-success?style=flat-square)](#)
   [![License](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
   [![Translations](https://img.shields.io/badge/Languages-6_Supported-9cf?style=flat-square)](#)
 

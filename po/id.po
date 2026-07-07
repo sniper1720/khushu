@@ -4,9 +4,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.1\n"
+"Project-Id-Version: Khushu 1.2.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-06-29 21:25+0000\n"
+"POT-Creation-Date: 2026-07-07 20:53+0000\n"
 "PO-Revision-Date: 2026-05-28 11:50+0700\n"
 "Last-Translator: WiqbalRar\n"
 "Language-Team: Indonesian\n"
@@ -376,17 +376,44 @@ msgstr ""
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed tray icon always showing dark on GNOME/XFCE in Flatpak"
-msgstr "Memperbaiki masalah ikon tray yang selalu tampil gelap di GNOME dan XFCE pada Flatpak."
+msgstr ""
+"Memperbaiki masalah ikon tray yang selalu tampil gelap di GNOME dan XFCE "
+"pada Flatpak."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed lock-poison panics in tray FFI/D-Bus code"
-msgstr "Memperbaiki panic akibat lock poisoning pada kode FFI dan D-Bus untuk ikon tray."
+msgstr ""
+"Memperbaiki panic akibat lock poisoning pada kode FFI dan D-Bus untuk ikon "
+"tray."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Removed tray icon file-copy workaround and its associated Flatpak filesystem "
 "permission"
-msgstr "Menghapus solusi sementara penyalinan berkas ikon tray beserta izin akses sistem berkas Flatpak yang terkait."
+msgstr ""
+"Menghapus solusi sementara penyalinan berkas ikon tray beserta izin akses "
+"sistem berkas Flatpak yang terkait."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Fixed verse highlighting, navigation, and recitation on multi-Surah pages"
+msgstr "Memperbaiki penyorotan ayat, navigasi, dan murattal pada halaman yang memuat beberapa surah."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Surah header now updates when clicking a verse from a different Surah on "
+"multi-Surah pages"
+msgstr "Judul surah kini diperbarui secara otomatis saat mengeklik ayat dari surah lain pada halaman yang memuat beberapa surah."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows"
+msgstr "Label nama surah terjemahan kini dipersingkat dengan elipsis (…) agar tidak melampaui batas pada jendela yang sempit."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Reduced memory usage by sharing Quran data between callers instead of "
+"cloning it"
+msgstr "Mengurangi penggunaan memori dengan membagikan data Al-Qur'an antar pemanggil, alih-alih menggandakannya."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS
@@ -1644,3 +1671,5 @@ msgid ""
 msgstr ""
 "Peningkatan fungsi baki sistem: mengklik “Buka Khushu” dari baki sistem kini "
 "langsung menampilkan jendela aplikasi."
+
+

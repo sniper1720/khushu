@@ -1,3 +1,12 @@
+khushu (1.2.2) unstable; urgency=medium
+
+  * Fixed verse highlighting, navigation, and recitation on multi-Surah pages
+  * Surah header now updates when clicking a verse from a different Surah on multi-Surah pages
+  * Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows
+  * Reduced memory usage by sharing Quran data between callers instead of cloning it
+
+ -- Djalel Oukid <sniper1720@linuxtechmore.com>  Tue, 07 Jul 2026 12:00:00 +0100
+
 khushu (1.2.1) unstable; urgency=medium
 
   * Fixed tray icon always showing dark on GNOME/XFCE in Flatpak

@@ -2002,10 +2002,13 @@ pub fn create_surah_view(
 
     let title_box = gtk::Box::new(gtk::Orientation::Vertical, 2);
     title_box.set_halign(gtk::Align::Center);
+    let header_title: gtk::Label;
+    let mut header_extra: Option<gtk::Label> = None;
     if quran_lang == "ar" {
         let surah_title = gtk::Label::new(Some(&surah_arabic_name));
         surah_title.add_css_class("title-2");
         surah_title.add_css_class("quran-arabic");
+        header_title = surah_title.clone();
 
         title_box.append(&surah_title);
 
@@ -2021,6 +2024,7 @@ pub fn create_surah_view(
             type_label.set_margin_bottom(6);
 
             title_box.append(&type_label);
+            header_extra = Some(type_label.clone());
         }
     } else {
         let primary_name = if !meta.translated.trim().is_empty() {
@@ -2034,6 +2038,9 @@ pub fn create_surah_view(
         let surah_title = gtk::Label::new(Some(&primary_name));
         surah_title.add_css_class("title-2");
         surah_title.add_css_class("quran-translation");
+        surah_title.set_ellipsize(gtk::pango::EllipsizeMode::End);
+        surah_title.set_max_width_chars(30);
+        header_title = surah_title.clone();
 
         title_box.append(&surah_title);
 
@@ -2057,6 +2064,7 @@ pub fn create_surah_view(
             subtitle.set_margin_bottom(6);
 
             title_box.append(&subtitle);
+            header_extra = Some(subtitle.clone());
         }
     }
     header_center.set_center_widget(Some(&title_box));
@@ -2826,6 +2834,8 @@ pub fn create_surah_view(
     let rebuild_lang_for_follow = rebuild_lang.clone();
     let rebuild_bounds_for_follow = rebuild_bounds.clone();
     let rebuild_label_ranges = page_label_ranges.clone();
+    let rebuild_header_title = header_title.clone();
+    let rebuild_header_extra = header_extra.clone();
     *rebuild_fn.borrow_mut() = Some(Box::new(move || {
         let page = *rebuild_current_page.borrow();
         let verse = rebuild_rec_state.borrow().selected_verse.get();
@@ -2865,6 +2875,50 @@ pub fn create_surah_view(
         rebuild_config.set_quran_last_surah(Some(rebuild_chapter));
         rebuild_config.set_quran_last_page(Some(page));
         rebuild_config.save();
+
+        if let Some((vs, _)) = verse.filter(|(s, _)| *s != rebuild_chapter) {
+            let meta = surah_meta(vs, &rebuild_lang);
+            if *rebuild_lang == "ar" {
+                let name = if meta.arabic.is_empty() {
+                    format!("Surah {}", vs)
+                } else {
+                    meta.arabic.clone()
+                };
+                rebuild_header_title.set_text(&name);
+                if let Some(ref extra) = rebuild_header_extra {
+                    let typ = if meta.chapter_type.trim().eq_ignore_ascii_case("meccan") {
+                        tr("Meccan")
+                    } else {
+                        tr("Medinan")
+                    };
+                    extra.set_text(&typ);
+                }
+            } else {
+                let name = if !meta.translated.trim().is_empty() {
+                    meta.translated.trim().to_string()
+                } else if !meta.transliteration.trim().is_empty() {
+                    meta.transliteration.trim().to_string()
+                } else {
+                    meta.arabic.clone()
+                };
+                rebuild_header_title.set_text(&name);
+                if let Some(ref extra) = rebuild_header_extra {
+                    let mut sub_parts = Vec::new();
+                    if !meta.transliteration.trim().is_empty() {
+                        sub_parts.push(meta.transliteration.trim().to_string());
+                    }
+                    if !meta.chapter_type.trim().is_empty() {
+                        let typ = if meta.chapter_type.trim().eq_ignore_ascii_case("meccan") {
+                            tr("Meccan")
+                        } else {
+                            tr("Medinan")
+                        };
+                        sub_parts.push(typ);
+                    }
+                    extra.set_text(&sub_parts.join(" • "));
+                }
+            }
+        }
     }));
 
     *rebuild_follow_fn.borrow_mut() = Some(Box::new(move || {

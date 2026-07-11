@@ -46,6 +46,12 @@ impl Tray for KhushuTray {
         }
     }
 
+    fn title(&self) -> String {
+        gtk4::glib::application_name()
+            .unwrap_or_default()
+            .to_string()
+    }
+
     fn id(&self) -> String {
         "io.github.sniper1720.khushu".into()
     }

@@ -78,7 +78,7 @@ parts:
       ln -sf "$RUSTC_PATH" /usr/local/bin/rustc
       # glib-compile-resources wrapper: restores LD_LIBRARY_PATH so
       # cargo's build.rs (glib-build-tools) can find GNOME SDK's GLib
-      printf '#!/bin/sh\nexport LD_LIBRARY_PATH="/snap/gnome-46-2404-sdk/current/lib/x86_64-linux-gnu:/snap/gnome-46-2404-sdk/current/usr/lib/x86_64-linux-gnu:/snap/gnome-46-2404-sdk/current/usr/lib"\nexec /snap/gnome-46-2404-sdk/current/usr/bin/glib-compile-resources "$@"\n' > /usr/local/bin/glib-compile-resources
+      printf '#!/bin/sh\nexport LD_LIBRARY_PATH="/snap/gnome-46-2404-sdk/current/lib/%s:/snap/gnome-46-2404-sdk/current/usr/lib/%s:/snap/gnome-46-2404-sdk/current/usr/lib"\nexec /snap/gnome-46-2404-sdk/current/usr/bin/glib-compile-resources "$@"\n' "$CRAFT_ARCH_TRIPLET_BUILD_FOR" "$CRAFT_ARCH_TRIPLET_BUILD_FOR" > /usr/local/bin/glib-compile-resources
       chmod +x /usr/local/bin/glib-compile-resources
       # Force meson reconfigure to pick up our cargo wrapper
       rm -rf "$CRAFT_PART_BUILD"

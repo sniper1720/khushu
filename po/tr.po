@@ -2,9 +2,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.2\n"
+"Project-Id-Version: Khushu 1.3.0\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-07-07 20:53+0000\n"
+"POT-Creation-Date: 2026-07-12 01:31+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Turkish\n"
@@ -389,23 +389,54 @@ msgstr ""
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Fixed verse highlighting, navigation, and recitation on multi-Surah pages"
-msgstr "Birden fazla sure içeren sayfalarda ayet vurgulama, gezinme ve tilavet düzeltildi."
+msgstr ""
+"Birden fazla sure içeren sayfalarda ayet vurgulama, gezinme ve tilavet "
+"düzeltildi."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Surah header now updates when clicking a verse from a different Surah on "
 "multi-Surah pages"
-msgstr "Çoklu sure içeren sayfalarda, farklı bir sureden bir ayete tıklandığında sure başlığı artık otomatik olarak güncelleniyor."
+msgstr ""
+"Çoklu sure içeren sayfalarda, farklı bir sureden bir ayete tıklandığında "
+"sure başlığı artık otomatik olarak güncelleniyor."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
-msgid "Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows"
-msgstr "Çevrilmiş sure adlarının etiketleri, dar pencerelerde taşmayı önlemek için artık üç nokta (…) ile kısaltılıyor."
+msgid ""
+"Translated Surah name labels now truncate with ellipsis to prevent overflow "
+"on narrow windows"
+msgstr ""
+"Çevrilmiş sure adlarının etiketleri, dar pencerelerde taşmayı önlemek için "
+"artık üç nokta (…) ile kısaltılıyor."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Reduced memory usage by sharing Quran data between callers instead of "
 "cloning it"
-msgstr "Kur'an verileri kopyalanmak yerine çağıranlar arasında paylaşılarak bellek kullanımı azaltıldı."
+msgstr ""
+"Kur'an verileri kopyalanmak yerine çağıranlar arasında paylaşılarak bellek "
+"kullanımı azaltıldı."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Added high-latitude prayer time estimation (LocalRelativeEstimation for "
+"48.6°–66.5° and NearestLatitude polar fallback for >66.5°)"
+msgstr ""
+"Yüksek enlemler için namaz vakti tahmini eklendi (48.6°–66.5° enlemleri için "
+"LocalRelativeEstimation ve 66.5° üzerindeki kutup bölgeleri için "
+"NearestLatitude yedek yöntemi)."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Migrated prayer time library from salah to mawaqit for high-latitude and "
+"polar zone support"
+msgstr ""
+"Yüksek enlem ve kutup bölgesi desteği için namaz vakti kütüphanesi "
+"`salah`'tan `mawaqit`'e taşındı."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed blank label in KDE tray settings"
+msgstr "KDE sistem tepsisi simgesi ayarlarındaki boş etiket düzeltildi."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS
@@ -1656,5 +1687,3 @@ msgid ""
 msgstr ""
 "Sistem tepsisindeki \"Open Khushu\" seçeneği artık uygulama penceresini "
 "doğrudan açıyor"
-
-

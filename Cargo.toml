@@ -1,6 +1,6 @@
 [package]
 name = "khushu"
-version = "1.2.2"
+version = "1.3.0"
 authors = ["Djalel Oukid <sniper1720@linuxtechmore.com>"]
 edition = "2024"
 license = "GPL-3.0-or-later"
@@ -15,7 +15,7 @@ gtk4 = { version = "0.11", features = ["v4_10"] }
 ksni = "0.3"
 libadwaita = { version = "0.9", features = ["v1_5"] }
 rodio = "0.21"
-salah = "0.7"
+mawaqit = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["rt", "macros", "rt-multi-thread"] }
@@ -28,7 +28,7 @@ icu_locale = "2.2.0"
 notify-rust = "4.12"
 base64 = "0.22"
 hijri_date = "0.5"
-rand = "0.8"
+rand = "0.9"
 log = "0.4"
 env_logger = "0.11"
 pangocairo = "0.22"

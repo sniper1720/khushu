@@ -2,9 +2,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.2\n"
+"Project-Id-Version: Khushu 1.3.0\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-07-07 20:53+0000\n"
+"POT-Creation-Date: 2026-07-12 01:31+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Arabic\n"
@@ -366,17 +366,46 @@ msgstr "إصلاح تمييز الآيات، والتنقل، والتلاوة �
 msgid ""
 "Surah header now updates when clicking a verse from a different Surah on "
 "multi-Surah pages"
-msgstr "أصبح عنوان السورة يُحدَّث تلقائيًا عند النقر على آية من سورة أخرى في الصفحات التي تضم عدة سور."
+msgstr ""
+"أصبح عنوان السورة يُحدَّث تلقائيًا عند النقر على آية من سورة أخرى في الصفحات "
+"التي تضم عدة سور."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
-msgid "Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows"
-msgstr "أصبحت أسماء السور المترجمة تُختصر بعلامة الحذف (…) لمنع تجاوز حدود الواجهة في النوافذ الضيقة."
+msgid ""
+"Translated Surah name labels now truncate with ellipsis to prevent overflow "
+"on narrow windows"
+msgstr ""
+"أصبحت أسماء السور المترجمة تُختصر بعلامة الحذف (…) لمنع تجاوز حدود الواجهة في "
+"النوافذ الضيقة."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Reduced memory usage by sharing Quran data between callers instead of "
 "cloning it"
-msgstr "تقليل استهلاك الذاكرة عبر مشاركة بيانات القرآن الكريم بين المستدعين بدلًا من نسخها."
+msgstr ""
+"تقليل استهلاك الذاكرة عبر مشاركة بيانات القرآن الكريم بين المستدعين بدلًا من "
+"نسخها."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Added high-latitude prayer time estimation (LocalRelativeEstimation for "
+"48.6°–66.5° and NearestLatitude polar fallback for >66.5°)"
+msgstr ""
+"إضافة تقدير مواقيت الصلاة للمناطق ذات خطوط العرض المرتفعة "
+"(التقدير النسبي المحلي لخطوط العرض من ‎48.6° إلى ‎66.5°، وأقرب البلاد كطريقة "
+"احتياطية للمناطق القطبية فوق ‎66.5°)."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Migrated prayer time library from salah to mawaqit for high-latitude and "
+"polar zone support"
+msgstr ""
+"ترحيل مكتبة مواقيت الصلاة من `salah` إلى `mawaqit` لدعم المناطق ذات خطوط "
+"العرض المرتفعة والمناطق القطبية."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed blank label in KDE tray settings"
+msgstr "إصلاح تسمية فارغة في إعدادات شريط النظام على KDE."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS

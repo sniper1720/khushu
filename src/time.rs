@@ -1,6 +1,6 @@
 use chrono::{DateTime, Datelike, Local, NaiveDate, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
-use salah::{Configuration, Coordinates, Madhab, Method, Parameters, Prayer, PrayerTimes};
+use mawaqit::{Configuration, Coordinates, Madhab, Method, Parameters, Prayer, PrayerTimes};
 
 use crate::config::{AppConfig, CalculationMethod, MadhabChoice, PrayerTimesSource, TimezoneMode};
 
@@ -43,7 +43,7 @@ impl PrayerEngine {
     ) -> Self {
         let location = Coordinates::new(latitude, longitude);
 
-        let salah_method = match method {
+        let mawaqit_method = match method {
             CalculationMethod::MWL => Method::MuslimWorldLeague,
             CalculationMethod::ISNA => Method::NorthAmerica,
             CalculationMethod::Egypt => Method::Egyptian,
@@ -56,39 +56,30 @@ impl PrayerEngine {
             CalculationMethod::Singapore => Method::Singapore,
             CalculationMethod::Turkey => Method::Turkey,
             CalculationMethod::Kemenag => Method::Singapore,
-            CalculationMethod::France => Method::Other,
-            CalculationMethod::Algeria => Method::Other,
+            CalculationMethod::France => Method::France,
+            CalculationMethod::Algeria => Method::Algeria,
         };
 
-        let salah_madhab = match madhab {
+        let mawaqit_madhab = match madhab {
             MadhabChoice::Hanafi => Madhab::Hanafi,
             MadhabChoice::Shafi => Madhab::Shafi,
         };
 
-        let mut params = Configuration::with(salah_method, salah_madhab);
+        let mut params = Configuration::with(mawaqit_method, mawaqit_madhab);
 
-        match method {
-            CalculationMethod::Kemenag => {
-                params.fajr_angle = 20.0;
-                params.isha_angle = 18.0;
-            }
-            CalculationMethod::France => {
-                params.fajr_angle = 12.0;
-                params.isha_angle = 12.0;
-            }
-            CalculationMethod::Algeria => {
-                params.fajr_angle = 18.0;
-                params.isha_angle = 17.0;
-                params.method_adjustments.maghrib = 3;
-            }
-            _ => {}
+        if method == &CalculationMethod::Kemenag {
+            params.fajr_angle = 20.0;
+            params.isha_angle = 18.0;
         }
 
+        params.polar_fallback = mawaqit::PolarFallback::recommended(location);
+        params.high_latitude_rule = mawaqit::HighLatitudeRule::Recommended;
         Self { params, location }
     }
 
     pub fn get_prayer_times(&self, date: NaiveDate) -> Option<PrayerSchedule> {
-        let times = PrayerTimes::new(date, self.location, self.params);
+        let times = PrayerTimes::try_new(date, self.location, self.params)
+            .expect("prayer times calculation failed");
 
         Some(PrayerSchedule {
             fajr: self.convert_to_local(times.time(Prayer::Fajr)),

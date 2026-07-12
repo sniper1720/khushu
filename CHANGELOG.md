@@ -1,10 +1,22 @@
 # Changelog
 
+## [1.3.0] — 2026-07-12
+
+### Added
+- High-latitude `LocalRelativeEstimation` rule (48.6°–66.5°) to estimate Isha/Fajr prayer times when their astronomical angles are unreachable
+- `NearestLatitude` polar fallback (>66.5°) to find the closest latitude with a valid sunrise/sunset, ensuring all prayers remain calculable
+
+### Fixed
+- Blank label in KDE tray settings (Closes #16)
+
+### Changed
+- Migrated prayer time library from `salah` to `mawaqit` to support high-latitude and polar zones
+
 ## [1.2.2] — 2026-07-07
 
 ### Added
 - **Surah header updates on shared-page clicks** — header title, type,
-  and subtitle now reflect the clicked surah.
+  and subtitle now reflect the clicked surah
 
 ### Fixed
 - **Verse highlighting on pages with multiple surahs** — clicking a verse
@@ -12,25 +24,25 @@
 - **Prev/next buttons jumping 2 pages on shared surah pages** — page advance uses absolute page
   number instead of surah-relative range. (Closes #14)
 - **Recitation play on shared pages** — play function now receives both
-  surah and verse explicitly.
+  surah and verse explicitly
 - **Recitation stop conditions on shared pages** — page/juz boundaries
-  correctly computed across surah boundaries.
+  correctly computed across surah boundaries
 - **Poll handler race condition** — removed fallback that raced with audio
-  thread, blocking verse chaining.
+  thread, blocking verse chaining
 - **Scroll-to-verse on shared surah-start pages** — now lands at the
-  correct verse instead of scrolling to the wrong position.
+  correct verse instead of scrolling to the wrong position
 - **Verse click detection on Arabic mushaf** — now correctly detects
-  which verse was clicked on pages with multiple surahs.
-- **Fatiha verse 1 highlight** — bismillah now underlines when selected.
+  which verse was clicked on pages with multiple surahs
+- **Fatiha verse 1 highlight** — bismillah now underlines when selected
 - **Translated surah name labels truncating on narrow windows** — labels
-  now use ellipsis truncation instead of overflowing the header.
+  now use ellipsis truncation instead of overflowing the header
 
 ### Changed
 - **Quran data cached as shared reference** — now shared
   between all callers instead of being cloned
 - **Verse display length allocation removed** — removes a temporary
-  string allocation on every page build.
-- **Arabic query detection deduplicated** — extracted to helper.
+  string allocation on every page build
+- **Arabic query detection deduplicated** — extracted to helper
 
 ## [1.2.1] — 2026-06-29
 
@@ -39,53 +51,53 @@
   file-path workaround with standard symbolic themed icon name; so the
   symbolic icon is used correctly on all DEs (KDE, GNOME, XFCE). (Closes #13)
 - **Panics across FFI/D-Bus in tray code** — replaced 3 `.expect()` lock-poison
-  panics with safe `unwrap_or_else` recovery + log warning.
+  panics with safe `unwrap_or_else` recovery + log warning
 
 ### Changed
 - **Tray icon architecture** — removed `get_flatpak_tray_icon_path()` and its
   `$XDG_RUNTIME_DIR/tray-icon/` file-copy logic; `icon_name()` now returns the
   themed name `io.github.sniper1720.khushu-symbolic`, dropping the need for the
-  `--filesystem=xdg-run/tray-icon` permission.
+  `--filesystem=xdg-run/tray-icon` permission
 
 ## [1.2.0] — 2026-06-25
 
 ### Added
 - **Noble Quran Recitation** — ayah-by-ayah audio playback with
   real-time ayah highlighting. Audio served by VerseByVerse Quran
-  with selectable reciters. (Closes [#8](https://github.com/sniper1720/khushu/issues/8))
-
-### Changed
-- **Locale switching rewritten** — unified i18n architecture:
-  language change now propagates through a single centralized
-  handler, eliminating per-page translation drift across 21 modules.
+  with selectable reciters. (Closes #8)
 
 ### Fixed
 - **Tray icon invisible on KDE dark panel** — symbolic SVGs
   refactored to KDE gold standard; icon now renders correctly on
-  both light and dark panels across GNOME and KDE. (Closes [#10](https://github.com/sniper1720/khushu/issues/10))
-- **Arabic mushaf search scroll** — search results navigate (scroll) to the correct ayah instead of landing at the top of the page.
+  both light and dark panels across GNOME and KDE. (Closes #10)
+- **Arabic mushaf search scroll** — search results navigate (scroll) to the correct ayah instead of landing at the top of the page
 - **Pagination boundary alignment** — ajza' breaks and surah start
-  offsets corrected for accurate mushaf-style navigation.
+  offsets corrected for accurate mushaf-style navigation
+
+### Changed
+- **Locale switching rewritten** — unified i18n architecture:
+  language change now propagates through a single centralized
+  handler, eliminating per-page translation drift across 21 modules
 
 ## [1.1.4] — 2026-05-28
 
 ### Added
-- **Indonesian (id) translation** — full Indonesian translation contributed by WiqbalRar, including UI strings, GTK4/libadwaita context menus, and Quran translation data.
+- **Indonesian (id) translation** — full Indonesian translation contributed by WiqbalRar, including UI strings, GTK4/libadwaita context menus, and Quran translation data
 
 ### Fixed
-- **Custom audio save crash** — removed `ensure_validation_thread` which spawned a background worker that called `spawn_future_local` from a non-main thread, causing a panic. Config save now runs directly in `validate_audio_async` on the main thread.
-- **Language not persisting after restart** — added `cfg.save()` after `cfg.set_language()` so the selected language is written to disk immediately.
+- **Custom audio save crash** — removed `ensure_validation_thread` which spawned a background worker that called `spawn_future_local` from a non-main thread, causing a panic. Config save now runs directly in `validate_audio_async` on the main thread
+- **Language not persisting after restart** — added `cfg.save()` after `cfg.set_language()` so the selected language is written to disk immediately
 
 ## [1.1.3] — 2026-05-26
 
 ### Fixed
-- **Config data loss on exit** — replaced daemon save-thread race with synchronous atomic write (temp file + rename). Settings changed just before closing the app are now always persisted.
-- **Autostart portal command** — passed `["khushu", "--background"]` instead of the full `["flatpak", "run", APP_ID, "--background"]`. The portal wraps with `--command=` internally, so the flatpak wrapper was double-wrapped and failed silently.
-- **Notification toggles reverting on restart** — `sync_ui()` during initialization called `set_active()` on notification toggles, overriding the saved config values. Changed to `set_sensitive()` only during init; `set_active()` enforcement now runs only when Adhan Only Mode is interactively toggled.
-- **Audio preset reverting on restart** — builtin presets use `"assets/audio/"` paths as GResource lookup keys, but the startup validator checked them as filesystem paths and reset them. Added `!path.starts_with("assets/")` guard.
+- **Config data loss on exit** — replaced daemon save-thread race with synchronous atomic write (temp file + rename). Settings changed just before closing the app are now always persisted
+- **Autostart portal command** — passed `["khushu", "--background"]` instead of the full `["flatpak", "run", APP_ID, "--background"]`. The portal wraps with `--command=` internally, so the flatpak wrapper was double-wrapped and failed silently
+- **Notification toggles reverting on restart** — `sync_ui()` during initialization called `set_active()` on notification toggles, overriding the saved config values. Changed to `set_sensitive()` only during init; `set_active()` enforcement now runs only when Adhan Only Mode is interactively toggled
+- **Audio preset reverting on restart** — builtin presets use `"assets/audio/"` paths as GResource lookup keys, but the startup validator checked them as filesystem paths and reset them. Added `!path.starts_with("assets/")` guard
 
 ### Changed
-- **Config architecture** — removed background save thread and channel. `save()` now writes synchronously. ~1KB JSON write is microseconds — the thread was unnecessary complexity that introduced a data-loss bug.
+- **Config architecture** — removed background save thread and channel. `save()` now writes synchronously. ~1KB JSON write is microseconds — the thread was unnecessary complexity that introduced a data-loss bug
 
 ## [1.1.2] — 2026-05-13
 
@@ -139,7 +151,7 @@
 - Improved UI update logic for both manual and automatic language changes with better system locale detection
 
 ### Fixed
-- Fixed Snap tray icon visibility via an [upstream patch to ksni](https://github.com/iovxw/ksni/pull/37) (resolves AppArmor D-Bus blocking).
+- Fixed Snap tray icon visibility via an [upstream patch to ksni](https://github.com/iovxw/ksni/pull/37) (resolves AppArmor D-Bus blocking)
 
 ## [1.0.3] — 2026-03-30
 
@@ -150,13 +162,13 @@
 ## [1.0.2] — 2026-03-24
 
 ### Fixed
-- Fixed critical autostart bug where GNOME Background Portal would dynamically delete autostart entries.
-- Fixed Flatpak autostart command to launch silently in the background instead of popping open the main UI.
-- Fixed translation extraction pipeline for proper nouns (e.g., Muslim, At-Tirmidhi) to prevent unintended fuzzy matching across languages.
+- Fixed critical autostart bug where GNOME Background Portal would dynamically delete autostart entries
+- Fixed Flatpak autostart command to launch silently in the background instead of popping open the main UI
+- Fixed translation extraction pipeline for proper nouns (e.g., Muslim, At-Tirmidhi) to prevent unintended fuzzy matching across languages
 
 ### Added
-- Expanded AppStream metadata coverage with 3 additional screenshots.
-- Added comprehensive translations for all AppStream screenshot captions across all supported languages.
+- Expanded AppStream metadata coverage with 3 additional screenshots
+- Added comprehensive translations for all AppStream screenshot captions across all supported languages
 
 ## [1.0.1] — 2026-03-18
 

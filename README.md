@@ -6,7 +6,7 @@
   [![Rust](https://img.shields.io/badge/Language-Rust-fa4f28?style=flat-square&logo=rust)](https://www.rust-lang.org/)
   [![GTK4](https://img.shields.io/badge/GUI-GTK4-4a86cf?style=flat-square&logo=gnome)](https://gtk.org/)
   [![Libadwaita](https://img.shields.io/badge/Style-Libadwaita-62a0ea?style=flat-square&logo=gnome)](https://gnome.pages.gitlab.gnome.org/libadwaita/)
-  [![Version](https://img.shields.io/badge/Version-1.2.2-success?style=flat-square)](#)
+  [![Version](https://img.shields.io/badge/Version-1.3.0-success?style=flat-square)](#)
   [![License](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
   [![Translations](https://img.shields.io/badge/Languages-6_Supported-9cf?style=flat-square)](#)
 
@@ -64,9 +64,9 @@ Khushu is under active development. Our goal is to build the premier all-in-one 
 - [x] **v1.0.0 — Prayer Times & Daily Worship**: Accurate prayer times with multiple calculation methods, Adhan audio notifications, staggered Adkar (morning/evening/night), interactive Qibla compass, Hijri calendar, and full multi-language support (Arabic, English, French, Spanish, Turkish).
 - [x] **v1.1.0 — Noble Quran Reader**: Fully offline Quran with Uthmanic Arabic script (Amiri Quran font), parallel translations in five languages, mushaf-style page navigation, diacritic-aware full-text search, bookmarks, reading-position memory, and adjustable typography.
 - [x] **v1.2.0 — Noble Quran Recitation**: Ayah-by-ayah audio playback with selectable reciters, real-time verse highlighting, and auto-scroll.
-- [x] **v1.2.1 — Tray Icon & Stability**: Fixed tray icon dark-on-dark in Flatpak, replaced lock-poison panics with safe recovery, simplified tray architecture.
-- [ ] **Tafsir (v1.3.0)**: We are working on an in-depth Quran commentary experience with classical and modern exegeses including Al-Muyassar, Ibn Kathir, Tabari, Qurtubi, and Al-Saddi, fetched per-surah with offline caching.
-- [ ] **Islamic Essentials (v1.4.0)**: We are working on a few more tools, including a **Global Typography** customizer (Arabic & UI fonts), a simple Zakat calculator, a way to reflect on the 99 Names of Allah, and a collection of the Forty Hadith of Nawawi.
+- [x] **v1.3.0 — High-Latitude Support**: Migrated prayer time library from salah to mawaqit, added `LocalRelativeEstimation` rule for high-latitude zones (48.6°–66.5°) and `NearestLatitude` polar fallback (>66.5°), ensuring accurate prayer times at extreme latitudes.
+- [ ] **Tafsir (v1.4.0)**: We are working on an in-depth Quran commentary experience with classical and modern exegeses including Al-Muyassar, Ibn Kathir, Tabari, Qurtubi, and Al-Saddi, fetched per-surah with offline caching.
+- [ ] **Islamic Essentials (v1.5.0)**: We are working on a few more tools, including a **Global Typography** customizer (Arabic & UI fonts), a simple Zakat calculator, a way to reflect on the 99 Names of Allah, and a collection of the Forty Hadith of Nawawi.
 - [ ] **Beyond the Desktop (v2.0.0)**: We want Khushu to be wherever you are. This means perfecting the experience for Linux mobile (Phosh/Plasma) and exploring an Android version by leveraging the same core logic we already built.
 
 ## Installation

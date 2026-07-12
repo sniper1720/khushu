@@ -4,7 +4,7 @@ use gtk4 as gtk;
 use libadwaita as adw;
 use std::rc::Rc;
 
-use rand::seq::SliceRandom;
+use rand::prelude::IndexedRandom;
 use serde::Deserialize;
 
 #[derive(Clone, Deserialize)]
@@ -71,7 +71,7 @@ pub fn get_n_random_dikrs(category: &str, n: usize) -> Vec<Dikr> {
         .filter(|d| d.category == category)
         .collect();
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     adkars.choose_multiple(&mut rng, n).cloned().collect()
 }
 

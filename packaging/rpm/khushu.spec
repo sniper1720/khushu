@@ -1,5 +1,5 @@
 Name:           khushu
-Version:        1.2.2
+Version:        1.3.0
 Release:        1%{?dist}
 Summary:        An all-in-one Muslim app for Linux
 
@@ -55,6 +55,10 @@ adaptive UI built with GTK4 and Libadwaita.
 %{_datadir}/fonts/truetype/%{name}/
 
 %changelog
+* Fri Jul 12 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.0-1
+- Added high-latitude prayer time estimation (LocalRelativeEstimation for 48.6°–66.5° and NearestLatitude polar fallback for >66.5°)
+- Migrated prayer time library from salah to mawaqit for high-latitude and polar zone support
+- Fixed blank label in KDE tray settings
 * Tue Jul 07 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.2.2-1
 - Fixed verse highlighting, navigation, and recitation on multi-Surah pages
 - Surah header now updates when clicking a verse from a different Surah on multi-Surah pages

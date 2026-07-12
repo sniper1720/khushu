@@ -2,9 +2,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.2.2\n"
+"Project-Id-Version: Khushu 1.3.0\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
-"POT-Creation-Date: 2026-07-07 20:53+0000\n"
+"POT-Creation-Date: 2026-07-12 01:31+0000\n"
 "PO-Revision-Date: 2026-05-14 12:00+0100\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Spanish\n"
@@ -409,23 +409,55 @@ msgstr ""
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Fixed verse highlighting, navigation, and recitation on multi-Surah pages"
-msgstr "Se corrigieron el resaltado de versículos, la navegación y la recitación en las páginas que contienen varias suras."
+msgstr ""
+"Se corrigieron el resaltado de versículos, la navegación y la recitación en "
+"las páginas que contienen varias suras."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Surah header now updates when clicking a verse from a different Surah on "
 "multi-Surah pages"
-msgstr "El encabezado de la sura ahora se actualiza automáticamente al hacer clic en un versículo de otra sura en las páginas que contienen varias suras."
+msgstr ""
+"El encabezado de la sura ahora se actualiza automáticamente al hacer clic en "
+"un versículo de otra sura en las páginas que contienen varias suras."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
-msgid "Translated Surah name labels now truncate with ellipsis to prevent overflow on narrow windows"
-msgstr "Las etiquetas con los nombres traducidos de las suras ahora se truncan con puntos suspensivos (…) para evitar que el texto se desborde en ventanas estrechas."
+msgid ""
+"Translated Surah name labels now truncate with ellipsis to prevent overflow "
+"on narrow windows"
+msgstr ""
+"Las etiquetas con los nombres traducidos de las suras ahora se truncan con "
+"puntos suspensivos (…) para evitar que el texto se desborde en ventanas "
+"estrechas."
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid ""
 "Reduced memory usage by sharing Quran data between callers instead of "
 "cloning it"
-msgstr "Se redujo el uso de memoria al compartir los datos del Corán entre los llamadores en lugar de duplicarlos."
+msgstr ""
+"Se redujo el uso de memoria al compartir los datos del Corán entre los "
+"llamadores en lugar de duplicarlos."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Added high-latitude prayer time estimation (LocalRelativeEstimation for "
+"48.6°–66.5° and NearestLatitude polar fallback for >66.5°)"
+msgstr ""
+"Se añadió la estimación de los horarios de oración para latitudes altas "
+"(LocalRelativeEstimation para latitudes entre 48.6° y 66.5°, y NearestLatitude "
+"como método de respaldo para las regiones polares por encima de 66.5°)."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Migrated prayer time library from salah to mawaqit for high-latitude and "
+"polar zone support"
+msgstr ""
+"Se migró la biblioteca de horarios de oración de `salah` a `mawaqit` para "
+"ofrecer compatibilidad con latitudes altas y regiones polares."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed blank label in KDE tray settings"
+msgstr "Se corrigió una etiqueta vacía en la configuración del icono de la bandeja del sistema en KDE."
 
 # ============================================================================
 # SECTION 2: HIJRI CALENDAR - MONTHS
@@ -1688,5 +1720,3 @@ msgid ""
 msgstr ""
 "Se mejoró la activación desde la bandeja del sistema: al hacer clic en «Open "
 "Khushu», la ventana de la aplicación se muestra directamente en primer plano"
-
-

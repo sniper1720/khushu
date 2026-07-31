@@ -10,7 +10,7 @@ static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
 fn client() -> &'static Client {
     HTTP_CLIENT.get_or_init(|| {
         Client::builder()
-            .user_agent("Khushu-Prayer-App/1.1.1")
+            .user_agent(crate::USER_AGENT)
             .timeout(std::time::Duration::from_secs(15))
             .build()
             .expect("Failed to create HTTP client")

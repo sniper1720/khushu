@@ -60,9 +60,9 @@ fn start_rotation_animation(
     }
     let anim_inner = anim.clone();
     let id = gtk::glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
-        let mut cur = current.borrow_mut();
-        let tgt = *target.borrow();
-        let diff = tgt - *cur;
+        let mut current = current.borrow_mut();
+        let target = *target.borrow();
+        let diff = target - *current;
         let dw = if diff > 180.0 {
             diff - 360.0
         } else if diff < -180.0 {
@@ -71,12 +71,12 @@ fn start_rotation_animation(
             diff
         };
         if dw.abs() < 0.2 {
-            *cur = tgt;
+            *current = target;
             da.queue_draw();
             *anim_inner.borrow_mut() = None;
             return gtk::glib::ControlFlow::Break;
         }
-        *cur = (*cur + dw * 0.2 + 360.0) % 360.0;
+        *current = (*current + dw * 0.2 + 360.0) % 360.0;
         da.queue_draw();
         gtk::glib::ControlFlow::Continue
     });
@@ -146,12 +146,12 @@ impl QiblaPage {
             self.anim_source_id.clone(),
         );
 
-        let cb = self.cached_bearing.clone();
-        let cur = self.current_rotation.clone();
-        let tgt = self.target_rotation.clone();
-        let da_c = self.drawing_area.clone();
-        let bl = self.b_label.clone();
-        let sl = self.s_label.clone();
+        let cached_bearing = self.cached_bearing.clone();
+        let current_rotation = self.current_rotation.clone();
+        let target_rotation = self.target_rotation.clone();
+        let drawing_area = self.drawing_area.clone();
+        let bearing_label = self.b_label.clone();
+        let status_label = self.s_label.clone();
         let anim_c = self.anim_source_id.clone();
         let compass = self.compass.clone();
         let id = crate::connect_notify_blocked(&self.config, Some("latitude"), move |cfg, _| {
@@ -159,8 +159,8 @@ impl QiblaPage {
                 id.remove();
             }
 
-            *cb.borrow_mut() = None;
-            let qb = compute_bearing(cfg, &cb);
+            *cached_bearing.borrow_mut() = None;
+            let qb = compute_bearing(cfg, &cached_bearing);
 
             let tv = if compass.is_available() {
                 let h = compass.get_heading();
@@ -169,21 +169,21 @@ impl QiblaPage {
                 qb
             };
 
-            *tgt.borrow_mut() = tv;
-            *cur.borrow_mut() = tv;
+            *target_rotation.borrow_mut() = tv;
+            *current_rotation.borrow_mut() = tv;
 
-            bl.set_label(&bearing_label_text(qb));
-            sl.set_label(&status_text(compass.is_available()));
-            da_c.queue_draw();
+            bearing_label.set_label(&bearing_label_text(qb));
+            status_label.set_label(&status_text(compass.is_available()));
+            drawing_area.queue_draw();
         });
         self.notify_ids.borrow_mut().push(id);
 
-        let cb = self.cached_bearing.clone();
-        let cur = self.current_rotation.clone();
-        let tgt = self.target_rotation.clone();
-        let da_c = self.drawing_area.clone();
-        let bl = self.b_label.clone();
-        let sl = self.s_label.clone();
+        let cached_bearing = self.cached_bearing.clone();
+        let current_rotation = self.current_rotation.clone();
+        let target_rotation = self.target_rotation.clone();
+        let drawing_area = self.drawing_area.clone();
+        let bearing_label = self.b_label.clone();
+        let status_label = self.s_label.clone();
         let anim_c = self.anim_source_id.clone();
         let compass = self.compass.clone();
         let id = crate::connect_notify_blocked(&self.config, Some("longitude"), move |cfg, _| {
@@ -191,8 +191,8 @@ impl QiblaPage {
                 id.remove();
             }
 
-            *cb.borrow_mut() = None;
-            let qb = compute_bearing(cfg, &cb);
+            *cached_bearing.borrow_mut() = None;
+            let qb = compute_bearing(cfg, &cached_bearing);
 
             let tv = if compass.is_available() {
                 let h = compass.get_heading();
@@ -201,23 +201,23 @@ impl QiblaPage {
                 qb
             };
 
-            *tgt.borrow_mut() = tv;
-            *cur.borrow_mut() = tv;
+            *target_rotation.borrow_mut() = tv;
+            *current_rotation.borrow_mut() = tv;
 
-            bl.set_label(&bearing_label_text(qb));
-            sl.set_label(&status_text(compass.is_available()));
-            da_c.queue_draw();
+            bearing_label.set_label(&bearing_label_text(qb));
+            status_label.set_label(&status_text(compass.is_available()));
+            drawing_area.queue_draw();
         });
         self.notify_ids.borrow_mut().push(id);
 
         let compass = self.compass.clone();
         let config = self.config.clone();
-        let cached_b = self.cached_bearing.clone();
-        let cur = self.current_rotation.clone();
-        let tgt = self.target_rotation.clone();
-        let da = self.drawing_area.clone();
-        let bl = self.b_label.clone();
-        let sl = self.s_label.clone();
+        let cached_bearing = self.cached_bearing.clone();
+        let current_rotation = self.current_rotation.clone();
+        let target_rotation = self.target_rotation.clone();
+        let drawing_area = self.drawing_area.clone();
+        let bearing_label = self.b_label.clone();
+        let status_label = self.s_label.clone();
         let anim = self.anim_source_id.clone();
         let last_heading = Rc::new(RefCell::new(0.0f64));
         let poll_id =
@@ -226,17 +226,22 @@ impl QiblaPage {
                 let prev = *last_heading.borrow();
                 if (heading - prev).abs() > 0.5 {
                     *last_heading.borrow_mut() = heading;
-                    let qb = compute_bearing(&config, &cached_b);
+                    let qb = compute_bearing(&config, &cached_bearing);
                     let tv = if compass.is_available() {
                         (qb - heading + 360.0) % 360.0
                     } else {
                         qb
                     };
-                    *tgt.borrow_mut() = tv;
-                    bl.set_label(&bearing_label_text(qb));
-                    sl.set_label(&status_text(compass.is_available()));
-                    da.queue_draw();
-                    start_rotation_animation(cur.clone(), tgt.clone(), da.clone(), anim.clone());
+                    *target_rotation.borrow_mut() = tv;
+                    bearing_label.set_label(&bearing_label_text(qb));
+                    status_label.set_label(&status_text(compass.is_available()));
+                    drawing_area.queue_draw();
+                    start_rotation_animation(
+                        current_rotation.clone(),
+                        target_rotation.clone(),
+                        drawing_area.clone(),
+                        anim.clone(),
+                    );
                 }
                 gtk::glib::ControlFlow::Continue
             });
@@ -411,31 +416,36 @@ pub fn create_qibla_page(config: AppConfig, compass_manager: Rc<CompassManager>)
 
     let refresh = Rc::new({
         let config = config.clone();
-        let cb = cached_bearing.clone();
-        let cur = current_rotation.clone();
-        let tgt = target_rotation.clone();
-        let da = drawing_area.clone();
-        let bl = bearing_label.clone();
-        let sl = status_label.clone();
+        let cached_bearing = cached_bearing.clone();
+        let current_rotation = current_rotation.clone();
+        let target_rotation = target_rotation.clone();
+        let drawing_area = drawing_area.clone();
+        let bearing_label = bearing_label.clone();
+        let status_label = status_label.clone();
         let compass = compass_manager.clone();
         let anim = anim_source_id.clone();
         move || {
-            *cb.borrow_mut() = None;
-            let b = compute_bearing(&config, &cb);
+            *cached_bearing.borrow_mut() = None;
+            let b = compute_bearing(&config, &cached_bearing);
             let tv = if compass.is_available() {
                 let h = compass.get_heading();
                 (b - h + 360.0) % 360.0
             } else {
                 b
             };
-            *tgt.borrow_mut() = tv;
+            *target_rotation.borrow_mut() = tv;
             if let Some(id) = anim.borrow_mut().take() {
                 id.remove();
             }
-            bl.set_label(&bearing_label_text(b));
-            sl.set_label(&status_text(compass.is_available()));
-            da.queue_draw();
-            start_rotation_animation(cur.clone(), tgt.clone(), da.clone(), anim.clone());
+            bearing_label.set_label(&bearing_label_text(b));
+            status_label.set_label(&status_text(compass.is_available()));
+            drawing_area.queue_draw();
+            start_rotation_animation(
+                current_rotation.clone(),
+                target_rotation.clone(),
+                drawing_area.clone(),
+                anim.clone(),
+            );
         }
     });
 
@@ -459,6 +469,17 @@ pub fn create_qibla_page(config: AppConfig, compass_manager: Rc<CompassManager>)
 
 fn get_cardinal(bearing: f64) -> &'static str {
     let directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    // DIRECTIONS: Cardinal directions — expose to xgettext
+    if false {
+        tr("N");
+        tr("NE");
+        tr("E");
+        tr("SE");
+        tr("S");
+        tr("SW");
+        tr("W");
+        tr("NW");
+    }
     let index = ((bearing + 22.5) / 45.0).floor() as usize % 8;
     directions[index]
 }

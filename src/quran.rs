@@ -1878,12 +1878,12 @@ fn build_recitation_toolbar(
     let play_fn_c2 = play_fn.clone();
     let prev_play_btn = play_btn.clone();
     prev_btn.connect_clicked(move |_| {
-        let v = prev_rec_state
+        let selected = prev_rec_state
             .borrow()
             .selected_verse
             .get()
             .filter(|&(_, v)| v > 1);
-        if let Some((s, verse)) = v {
+        if let Some((s, verse)) = selected {
             prev_rec_state
                 .borrow()
                 .selected_verse
@@ -1901,8 +1901,8 @@ fn build_recitation_toolbar(
     let play_fn_c3 = play_fn;
     let next_play_btn = play_btn.clone();
     next_btn.connect_clicked(move |_| {
-        let v = next_rec_state.borrow().selected_verse.get();
-        if let Some((s, verse)) = v {
+        let selected = next_rec_state.borrow().selected_verse.get();
+        if let Some((s, verse)) = selected {
             next_rec_state
                 .borrow()
                 .selected_verse
@@ -2655,12 +2655,14 @@ pub fn create_surah_view(
                     }
                     glib::ControlFlow::Break
                 } else {
-                    let t = target.clone();
-                    let c = content_for_scroll.clone();
-                    let s = tick_scrolled.clone();
+                    let target = target.clone();
+                    let content_for_scroll = content_for_scroll.clone();
+                    let tick_scrolled = tick_scrolled.clone();
                     glib::idle_add_local(move || {
-                        if let Some((_, y)) = t.translate_coordinates(&c, 0.0, 0.0) {
-                            let adj = s.vadjustment();
+                        if let Some((_, y)) =
+                            target.translate_coordinates(&content_for_scroll, 0.0, 0.0)
+                        {
+                            let adj = tick_scrolled.vadjustment();
                             let max = (adj.upper() - adj.page_size()).max(0.0);
                             adj.set_value((y - 24.0).clamp(0.0, max));
                         }
@@ -2710,16 +2712,18 @@ pub fn create_surah_view(
                         }
                         glib::ControlFlow::Break
                     } else {
-                        let l = label.clone();
-                        let s = tick_scrolled.clone();
-                        let c = content_widget.clone();
+                        let label = label.clone();
+                        let tick_scrolled = tick_scrolled.clone();
+                        let content_widget = content_widget.clone();
                         glib::idle_add_local(move || {
-                            let layout = l.layout();
+                            let layout = label.layout();
                             let rect = layout.index_to_pos(offset as i32);
-                            if let Some((_, label_y)) = l.translate_coordinates(&c, 0.0, 0.0) {
+                            if let Some((_, label_y)) =
+                                label.translate_coordinates(&content_widget, 0.0, 0.0)
+                            {
                                 let y_pixels =
                                     label_y + rect.y() as f64 / f64::from(gtk::pango::SCALE);
-                                let adj = s.vadjustment();
+                                let adj = tick_scrolled.vadjustment();
                                 let max = (adj.upper() - adj.page_size()).max(0.0);
                                 adj.set_value((y_pixels - 24.0).clamp(0.0, max));
                             }

@@ -116,12 +116,12 @@ async fn setup_tray_icon() {
 
     let data = get_tray_data();
     {
-        let mut d = data.write().unwrap_or_else(|e| {
+        let mut data = data.write().unwrap_or_else(|e| {
             log::warn!("KhushuTray data lock poisoned");
             e.into_inner()
         });
-        d.open_label = tr("Open Khushu");
-        d.quit_label = tr("Quit");
+        data.open_label = tr("Open Khushu");
+        data.quit_label = tr("Quit");
     }
 
     let tray = KhushuTray { data };
@@ -152,12 +152,12 @@ async fn setup_tray_icon() {
 pub fn update_tray_labels() {
     let data = get_tray_data();
     {
-        let mut d = data.write().unwrap_or_else(|e| {
+        let mut data = data.write().unwrap_or_else(|e| {
             log::warn!("KhushuTray data lock poisoned");
             e.into_inner()
         });
-        d.open_label = tr("Open Khushu");
-        d.quit_label = tr("Quit");
+        data.open_label = tr("Open Khushu");
+        data.quit_label = tr("Quit");
     }
 
     if let Some(handle) = TRAY_HANDLE.get().cloned() {

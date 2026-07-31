@@ -18,6 +18,7 @@ mod reciter_ui;
 mod settings_ui;
 mod time;
 mod timer_controller;
+mod tz_dialog;
 mod welcome;
 
 use qibla::CompassManager;
@@ -42,6 +43,8 @@ pub(crate) const APP_ID: &str = match option_env!("APP_ID") {
     Some(id) => id,
     None => "io.github.sniper1720.khushu",
 };
+
+pub(crate) const USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 fn resolved_language_code(lang: &str) -> String {
     if lang == "auto" || lang.is_empty() {
@@ -360,7 +363,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
     let hero = pages_context.hero_label.clone();
     let hijri = pages_context.hijri_label.clone();
     let loc = pages_context.location_label.clone();
-    let lb = pages_context.list_box.clone();
+    let list_box = pages_context.list_box.clone();
     let stop_btn = gtk::Button::from_icon_name("media-playback-stop-symbolic");
     stop_btn.add_css_class("flat");
     stop_btn.set_tooltip_text(Some(&tr("Stop Adhan")));
@@ -379,8 +382,14 @@ fn build_main_ui(app: &Application, config: AppConfig) {
             next_prayer_name,
             adhan_playing,
             adhan_prayer_name,
+            is_iqamah,
         } = state;
 
+        if is_iqamah {
+            hero.add_css_class("warning");
+        } else {
+            hero.remove_css_class("warning");
+        }
         hero.set_label(&hero_text);
         hijri.set_label(&hijri_text);
         loc.set_label(&location_text);
@@ -390,7 +399,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
         }
         stop_btn_rc.set_visible(false);
 
-        let mut child = lb.first_child();
+        let mut child = list_box.first_child();
         while let Some(row) = child {
             if row.widget_name() == next_prayer_name {
                 row.add_css_class("accent");

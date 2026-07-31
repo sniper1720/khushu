@@ -299,24 +299,26 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     refresh_home_initial();
 
     {
-        let rh = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("latitude"), move |_, _| rh());
+        let refresh_home = refresh_home.clone();
+        crate::connect_notify_blocked(&config, Some("latitude"), move |_, _| refresh_home());
     }
     {
-        let rh = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("longitude"), move |_, _| rh());
+        let refresh_home = refresh_home.clone();
+        crate::connect_notify_blocked(&config, Some("longitude"), move |_, _| refresh_home());
     }
     {
-        let rh = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("city-name"), move |_, _| rh());
+        let refresh_home = refresh_home.clone();
+        crate::connect_notify_blocked(&config, Some("city-name"), move |_, _| refresh_home());
     }
     {
-        let rh = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("language"), move |_, _| rh());
+        let refresh_home = refresh_home.clone();
+        crate::connect_notify_blocked(&config, Some("language"), move |_, _| refresh_home());
     }
     {
-        let rh = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("prayer-times-source"), move |_, _| rh());
+        let refresh_home = refresh_home.clone();
+        crate::connect_notify_blocked(&config, Some("prayer-times-source"), move |_, _| {
+            refresh_home()
+        });
     }
 
     let config_loc = config.clone();
@@ -501,6 +503,15 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let toast_overlay = adw::ToastOverlay::new();
     toast_overlay.set_child(Some(view_stack.as_ref()));
     split_view.set_content(Some(&toast_overlay));
+
+    let config_for_map = config.clone();
+    window.connect_map(move |win| {
+        let today = crate::time::effective_today(&config_for_map);
+        if let Ok(result) = crate::time::schedule_for_config(&config_for_map, today) {
+            crate::settings_ui::update_lre_toast(&config_for_map, &result, win);
+            crate::settings_ui::update_fallback_toast(&config_for_map, &result, win);
+        }
+    });
 
     PagesContext {
         hero_label,

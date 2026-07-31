@@ -118,13 +118,14 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
             s_mut.current_hijri_year = h.year();
         }
 
-        let s = state_clone.borrow();
+        let state = state_clone.borrow();
         details_frame_clone.set_label(Some(&tr("Date Details")));
 
-        let dummy_hijri = HijriDate::from_hijri(s.current_hijri_year, s.current_hijri_month, 1)
-            .expect("Valid Hijri date");
+        let dummy_hijri =
+            HijriDate::from_hijri(state.current_hijri_year, state.current_hijri_month, 1)
+                .expect("Valid Hijri date");
 
-        let month_name = get_hijri_month_name(s.current_hijri_month);
+        let month_name = get_hijri_month_name(state.current_hijri_month);
         month_label_clone.set_label(&format!("{} {}", month_name, dummy_hijri.year()));
 
         while let Some(child) = grid_clone.first_child() {
@@ -132,6 +133,16 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
         }
 
         let days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        // DAYS: Short weekday names — expose to xgettext
+        if false {
+            tr("Sun");
+            tr("Mon");
+            tr("Tue");
+            tr("Wed");
+            tr("Thu");
+            tr("Fri");
+            tr("Sat");
+        }
 
         for (i, day) in days.iter().enumerate() {
             let label = Label::new(Some(&tr(day)));
@@ -140,8 +151,9 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
             grid_clone.attach(&label, i as i32, 0, 1, 1);
         }
 
-        let first_day_h = HijriDate::from_hijri(s.current_hijri_year, s.current_hijri_month, 1)
-            .expect("Valid Hijri date");
+        let first_day_h =
+            HijriDate::from_hijri(state.current_hijri_year, state.current_hijri_month, 1)
+                .expect("Valid Hijri date");
         let gr_first = NaiveDate::from_ymd_opt(
             first_day_h.year_gr() as i32,
             first_day_h.month_gr() as u32,
@@ -155,16 +167,17 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
         let m_len = first_day_h.month_len();
 
         for d in 1..=m_len {
-            let current_h = HijriDate::from_hijri(s.current_hijri_year, s.current_hijri_month, d)
-                .expect("Valid Hijri date");
+            let current_hijri =
+                HijriDate::from_hijri(state.current_hijri_year, state.current_hijri_month, d)
+                    .expect("Valid Hijri date");
 
             let day_btn = Button::with_label(&format!("{}", d));
             day_btn.set_height_request(32);
 
             if let Some(ref today_h) = today_hijri
-                && current_h.day() == today_h.day()
-                && current_h.month() == today_h.month()
-                && current_h.year() == today_h.year()
+                && current_hijri.day() == today_h.day()
+                && current_hijri.month() == today_h.month()
+                && current_hijri.year() == today_h.year()
             {
                 day_btn.add_css_class("suggested-action");
             }
@@ -176,16 +189,16 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
             let selected_date_inner = selected_date_clone.clone();
 
             day_btn.connect_clicked(move |_| {
-                let curr = HijriDate::from_hijri(
+                let clicked_hijri = HijriDate::from_hijri(
                     state_inner.borrow().current_hijri_year,
                     state_inner.borrow().current_hijri_month,
                     d,
                 )
                 .expect("Valid Hijri date");
                 let naive = NaiveDate::from_ymd_opt(
-                    curr.year_gr() as i32,
-                    curr.month_gr() as u32,
-                    curr.day_gr() as u32,
+                    clicked_hijri.year_gr() as i32,
+                    clicked_hijri.month_gr() as u32,
+                    clicked_hijri.day_gr() as u32,
                 )
                 .expect("Invalid Gregorian date for Hijri day conversion");
                 *selected_date_inner.borrow_mut() = naive;
@@ -220,12 +233,12 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
     let refresh_prev_inner = refresh_inner.clone();
     prev_btn.connect_clicked(move |_| {
         {
-            let mut s = state_prev.borrow_mut();
-            if s.current_hijri_month == 1 {
-                s.current_hijri_month = 12;
-                s.current_hijri_year -= 1;
+            let mut state = state_prev.borrow_mut();
+            if state.current_hijri_month == 1 {
+                state.current_hijri_month = 12;
+                state.current_hijri_year -= 1;
             } else {
-                s.current_hijri_month -= 1;
+                state.current_hijri_month -= 1;
             }
         }
         refresh_prev_inner(false);
@@ -235,12 +248,12 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
     let refresh_next_inner = refresh_inner.clone();
     next_btn.connect_clicked(move |_| {
         {
-            let mut s = state_next.borrow_mut();
-            if s.current_hijri_month == 12 {
-                s.current_hijri_month = 1;
-                s.current_hijri_year += 1;
+            let mut state = state_next.borrow_mut();
+            if state.current_hijri_month == 12 {
+                state.current_hijri_month = 1;
+                state.current_hijri_year += 1;
             } else {
-                s.current_hijri_month += 1;
+                state.current_hijri_month += 1;
             }
         }
         refresh_next_inner(false);
@@ -297,7 +310,7 @@ fn update_details(date: NaiveDate, hijri_label: &Label, greg_label: &Label, even
 }
 
 fn get_gregorian_month_name(month: u32) -> String {
-    let en_names = [
+    let en_months = [
         "January",
         "February",
         "March",
@@ -311,7 +324,22 @@ fn get_gregorian_month_name(month: u32) -> String {
         "November",
         "December",
     ];
-    let name = en_names
+    // EN_MONTHS: Gregorian month names — expose to xgettext
+    if false {
+        tr("January");
+        tr("February");
+        tr("March");
+        tr("April");
+        tr("May");
+        tr("June");
+        tr("July");
+        tr("August");
+        tr("September");
+        tr("October");
+        tr("November");
+        tr("December");
+    }
+    let name = en_months
         .get((month - 1) as usize)
         .unwrap_or(&"")
         .to_string();
@@ -319,7 +347,7 @@ fn get_gregorian_month_name(month: u32) -> String {
 }
 
 fn get_gregorian_weekday_name(day: chrono::Weekday) -> String {
-    let en_names = [
+    let en_weekdays = [
         "Sunday",
         "Monday",
         "Tuesday",
@@ -328,7 +356,17 @@ fn get_gregorian_weekday_name(day: chrono::Weekday) -> String {
         "Friday",
         "Saturday",
     ];
-    let name = en_names
+    // EN_WEEKDAYS: Weekday names — expose to xgettext
+    if false {
+        tr("Sunday");
+        tr("Monday");
+        tr("Tuesday");
+        tr("Wednesday");
+        tr("Thursday");
+        tr("Friday");
+        tr("Saturday");
+    }
+    let name = en_weekdays
         .get(day.num_days_from_sunday() as usize)
         .unwrap_or(&"")
         .to_string();

@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.1] — 2026-07-29
+
+### Added
+- **Timezone selection dialog** — Replaced manual IANA text entry with a searchable, filterable dialog featuring real-time search, local time preview, UTC offset, and location details.
+- **High-latitude rule setting** — High-latitude Fajr/Isha calculation methods (`Auto (Recommended)`, `MiddleOfTheNight`, `SeventhOfTheNight`, `TwilightAngle`, `LocalRelativeEstimation`) are now user-selectable in Settings; the row is only visible above 48.6° latitude.
+- **Polar estimation method setting** — Added user-selectable method (`NearestLatitude` or `Reference45`) for when the sun never rises or sets (> 66.5° latitude); the row is only visible in that zone.
+- **LRE detection & auto-fallback** — Automatically falls back to `Recommended` and shows a toast (notification) if `LocalRelativeEstimation` is unreachable at the current location.
+- **Polar fallback status** — Shows a toast when polar fallbacks become active or are no longer needed.
+
+### Fixed
+- **Missed notifications on sleep/clock jumps** — Replaced the 60-second window and name-based dedup with persistent time tracking (`prayer_notified_at`), ensuring notifications fire even if the device wakes after the prayer time has passed.
+- **Iqamah notification timing** — Iqamah notifications now respect adhan playback and enforce a 60-second cooldown after the adhan finishes before sounding.
+- **Adkar notification overlap** — Morning Adkar is now held until the Fajr adhan completes plus a 60-second settling period.
+
+### Changed
+- **Time-based notification deduplication** — Standardized prayer, upcoming, and Iqamah notifications to rely on timestamp comparisons (`last_notified_time < prayer_time`), eliminating suppressed notifications between consecutive days.
+- **Modernized reciter selection dialog** — Updated UI layout with a top toolbar `SearchBar` and `Clamp`-wrapped scrolling list.
+
 ## [1.3.0] — 2026-07-12
 
 ### Added

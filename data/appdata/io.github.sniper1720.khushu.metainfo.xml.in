@@ -82,6 +82,18 @@
   </branding>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.3.1" date="2026-07-29">
+      <description>
+        <ul>
+          <li>Added a searchable timezone selection dialog with local time preview and UTC offset details</li>
+          <li>Added user-selectable high-latitude rules and polar estimation methods</li>
+          <li>Added status notifications for high-latitude and polar estimation methods</li>
+          <li>Fixed missed prayer notifications after system sleep or system clock adjustments</li>
+          <li>Fixed Iqamah and morning Adkar notification timing to prevent overlap with Adhan playback</li>
+          <li>Modernized the reciter selection dialog layout</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3.0" date="2026-07-12">
       <description>
         <ul>

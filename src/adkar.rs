@@ -337,6 +337,15 @@ fn create_dikr_row(
         "Ibn As-Sunni",
         "Muslim",
     ];
+    // BOOKS: Hadith book names — expose to xgettext
+    if false {
+        tr("At-Tirmidhi");
+        tr("Ibn Majah");
+        tr("Abu Dawud");
+        tr("Al-Bukhari");
+        tr("Ibn As-Sunni");
+        tr("Muslim");
+    }
 
     for book in books.iter() {
         if let Some(rest) = translated_source.strip_prefix(book) {

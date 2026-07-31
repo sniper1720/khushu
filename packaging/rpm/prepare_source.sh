@@ -2,7 +2,7 @@
 set -e
 
 NAME="khushu"
-VERSION="1.3.0"
+VERSION="1.3.1"
 
 TAR_NAME="v$VERSION.tar.gz"
 SOURCES_DIR="$HOME/rpmbuild/SOURCES"

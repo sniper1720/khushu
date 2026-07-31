@@ -11,7 +11,7 @@ AUTO="po/auto.pot"
 AUTO_RS="po/auto-rs.pot"
 AUTO_META="po/auto-meta.pot"
 
-# Step 1a: Extract tr() calls from .rs files and .desktop.in
+# Step 1a: Extract tr() calls from .rs sources plus .desktop fields (via POTFILES.in)
 xgettext \
   --from-code=UTF-8 \
   --package-name=khushu \
@@ -63,23 +63,24 @@ pot_text = POT.read_text(encoding="utf-8")
 FILE_SECTION_MAP = [
     ("data/io.github.sniper1720.khushu.desktop.in", 1),
     ("data/appdata/",                                1),
+    ("src/calendar.rs",                               2),
     ("src/time.rs",                                   2),
-    ("src/calendar.rs",                               5),
-    ("src/timer_controller.rs",                       7),
-    ("src/qibla_ui.rs",                               9),
-    ("src/quran.rs",                                 10),
-    ("src/reciter_ui.rs",                            13),
-    ("src/adkar.rs",                                 14),
-    ("src/settings_ui.rs",                           16),
-    ("src/location.rs",                              17),
-    ("src/main.rs",                                  20),
-    ("src/nav_ui.rs",                                20),
-    ("src/pages.rs",                                 20),
-    ("src/background.rs",                            20),
-    ("src/welcome.rs",                               21),
-    ("src/home_ui.rs",                               21),
-    ("src/i18n.rs",                                  21),
-    ("src/mawaqit.rs",                               21),
+    ("src/timer_controller.rs",                       3),
+    ("src/qibla_ui.rs",                               4),
+    ("src/quran.rs",                                  5),
+    ("src/reciter_ui.rs",                             5),
+    ("src/adkar.rs",                                  6),
+    ("src/settings_ui.rs",                            7),
+    ("src/location.rs",                               7),
+    ("src/tz_dialog.rs",                              7),
+    ("src/main.rs",                                   8),
+    ("src/nav_ui.rs",                                 8),
+    ("src/pages.rs",                                  8),
+    ("src/background.rs",                             8),
+    ("src/welcome.rs",                                9),
+    ("src/home_ui.rs",                                9),
+    ("src/i18n.rs",                                   9),
+    ("src/mawaqit.rs",                                9),
 ]
 
 SECTION_RE = re.compile(
@@ -266,15 +267,36 @@ for mid, auto_blk in auto_by_msgid.items():
 
 
 # ── Reassemble pot ──────────────────────────────────────────────────
-if not header_blocks:
-    # Fall back to header from auto.pot
-    for block, is_sec, sec, name in auto_blocks:
-        if sec == 0 and not is_sec:
-            block = block.replace('PACKAGE', 'khushu').replace('khushu package', 'khushu package')
-            block = re.sub(r'^# FIRST AUTHOR.*', '# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.', block, flags=re.M)
-            header_blocks.append(block)
+# Pin a canonical header. The POT is a template: POT-Creation-Date keeps
+# the same placeholder pattern as PO-Revision-Date, because the "creation
+# date" that matters lives in each PO (its first git commit date), not in
+# a template regenerated on every run. Project-Id-Version tracks Cargo.toml.
+def canonical_header():
+    version = re.search(
+        r'^version = "([^"]+)"', Path("Cargo.toml").read_text(encoding="utf-8"), re.M
+    )
+    version = version.group(1) if version else "unknown"
+    return "\n".join(
+        [
+            "# SOME DESCRIPTIVE TITLE.",
+            "# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER",
+            "# This file is distributed under the same license as the khushu package.",
+            "#",
+            'msgid ""',
+            'msgstr ""',
+            f'"Project-Id-Version: Khushu {version}\\n"',
+            '"Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\\n"',
+            '"POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\\n"',
+            '"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n"',
+            '"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n"',
+            '"Language-Team: LANGUAGE <LL@li.org>\\n"',
+            '"MIME-Version: 1.0\\n"',
+            '"Content-Type: text/plain; charset=UTF-8\\n"',
+            '"Content-Transfer-Encoding: 8bit\\n"',
+        ]
+    )
 
-output_parts = ["\n\n".join(header_blocks)]
+output_parts = [canonical_header()]
 
 for sec in sorted(section_data.keys()):
     hdr, name, entries = section_data[sec]
@@ -285,27 +307,71 @@ for sec in sorted(section_data.keys()):
 result = "\n\n".join(output_parts) + "\n"
 POT.write_text(result, encoding="utf-8")
 
-print(f"Added {added} new entries, removed {removed}")
+print(f"Added {added} new entries; {removed} stale entries dropped or demoted to manual")
 PYEOF
 
-# Step 3: Fix pot header metadata
-DATE_LINE=$(date -u '+POT-Creation-Date: %Y-%m-%d %H:%M+0000')
-sed "s/\"POT-Creation-Date: .*/\"$DATE_LINE\\\\n\"/" "$POT" > "$POT.tmp"
-mv "$POT.tmp" "$POT"
-sed 's|"Report-Msgid-Bugs-To: [^"]*"|"Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\\n"|' "$POT" > "$POT.tmp"
-mv "$POT.tmp" "$POT"
-
-# Step 4: Validate pot
+# Step 3: Validate pot
 msgfmt -c -o /dev/null "$POT" || { echo "ERROR: $POT is invalid"; exit 1; }
 
-# Step 5: Merge into all .po files (propagates #: refs from pot → .po)
+# Step 4: Merge into all .po files (propagates #: refs from pot → .po).
+#
+# Header policy:
+#   - POT-Creation-Date: frozen per PO to that file's first git commit
+#     date. msgmerge overwrites it from the POT on any change, so it is
+#     restored after merging (fallback: the value already in the PO).
+#   - Project-Id-Version: synced to the Cargo.toml version on mismatch.
+#   - PO-Revision-Date: bumped whenever the file actually changed
+#     (msgmerge diff, frozen-date restore, or version sync).
+CARGO_VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)
 for po in po/*.po; do
   [ -f "$po" ] || continue
   case "$po" in
     *gtk40*|*libadwaita*) continue ;;
   esac
+
+  # Frozen creation date for this PO: first git commit, else keep current.
+  frozen=$(git log --diff-filter=A --format='%ad' --date=format:'%Y-%m-%d %H:%M%z' -- "$po" 2>/dev/null | tail -1)
+  if [ -z "$frozen" ]; then
+    frozen=$(sed -n 's/^"POT-Creation-Date: \([^"]*\)\\n"$/\1/p' "$po" | head -1)
+  fi
+
+  before=$(sha256sum "$po" | cut -d' ' -f1)
   msgmerge --no-fuzzy-matching --backup=off --add-location=file --update --quiet "$po" "$POT"
-  echo "  Updated $po"
+  after=$(sha256sum "$po" | cut -d' ' -f1)
+
+  # Restore the PO's own POT-Creation-Date (msgmerge copies the POT's).
+  if [ -n "$frozen" ]; then
+    sed -i "s|^\"POT-Creation-Date: [^\"]*\\\\n\"$|\"POT-Creation-Date: $frozen\\\\n\"|" "$po"
+  fi
+
+  # Sync Project-Id-Version to the current package version.
+  if [ -n "$CARGO_VERSION" ] && ! grep -Fq "Project-Id-Version: Khushu $CARGO_VERSION\\n" "$po"; then
+    sed -i "s|^\"Project-Id-Version: Khushu [^\"]*\\\\n\"$|\"Project-Id-Version: Khushu $CARGO_VERSION\\\\n\"|" "$po"
+  fi
+
+  final=$(sha256sum "$po" | cut -d' ' -f1)
+  if [ "$before" != "$after" ] || [ "$after" != "$final" ]; then
+    REV_LINE=$(date -u '+%Y-%m-%d %H:%M+0000')
+    sed -i "s|\"PO-Revision-Date: [^\"]*\\\\n\"|\"PO-Revision-Date: $REV_LINE\\\\n\"|" "$po"
+    echo "  Updated $po (PO-Revision-Date bumped)"
+  else
+    echo "  $po unchanged"
+  fi
+done
+
+# Step 5: Guard against header corruption — a PO whose header lost its
+# Language field (e.g. it was recreated from the POT template) would ship
+# a broken catalog silently. Fail loudly instead.
+for po in po/*.po; do
+  [ -f "$po" ] || continue
+  case "$po" in
+    *gtk40*|*libadwaita*) continue ;;
+  esac
+  lang=$(basename "$po" .po)
+  if ! grep -Fq "Language: $lang\\n" "$po"; then
+    echo "ERROR: $po header is missing \"Language: $lang\" — refusing to continue" >&2
+    exit 1
+  fi
 done
 
 # Step 6: Cleanup

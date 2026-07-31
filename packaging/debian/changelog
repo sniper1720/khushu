@@ -1,3 +1,14 @@
+khushu (1.3.1) unstable; urgency=medium
+
+  * Added a searchable timezone selection dialog with local time preview and UTC offset details
+  * Added user-selectable high-latitude rules and polar day/night fallbacks
+  * Added status notifications for high-latitude and polar fallback methods
+  * Fixed missed prayer notifications after system sleep or system clock adjustments
+  * Fixed Iqamah and morning Adkar notification timing to prevent overlap with Adhan playback
+  * Modernized the reciter selection dialog layout
+
+ -- Djalel Oukid <sniper1720@linuxtechmore.com>  Wed, 29 Jul 2026 12:00:00 +0100
+
 khushu (1.3.0) unstable; urgency=medium
 
   * Added high-latitude prayer time estimation (LocalRelativeEstimation for 48.6°–66.5° and NearestLatitude polar fallback for >66.5°)

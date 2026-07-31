@@ -55,6 +55,23 @@ pub enum MadhabChoice {
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
+pub enum HighLatitudeChoice {
+    #[default]
+    Auto,
+    MiddleOfTheNight,
+    SeventhOfTheNight,
+    TwilightAngle,
+    LocalRelativeEstimation,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
+pub enum PolarEstimationMethod {
+    #[default]
+    NearestLatitude,
+    Reference45,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
 pub enum ThemeMode {
     #[serde(rename = "system")]
     #[default]
@@ -200,6 +217,14 @@ pub struct AppConfigData {
     pub stop_condition: StopCondition,
     #[serde(default)]
     pub installed_reciters: Vec<String>,
+    #[serde(default)]
+    pub high_latitude_rule: HighLatitudeChoice,
+    #[serde(default)]
+    pub polar_estimation_method: PolarEstimationMethod,
+    #[serde(default)]
+    pub fallback_was_active: bool,
+    #[serde(default)]
+    pub lre_was_blocked: bool,
 }
 
 impl Default for AppConfigData {
@@ -245,6 +270,10 @@ impl Default for AppConfigData {
             reciter_slug: default_reciter_slug(),
             stop_condition: StopCondition::default(),
             installed_reciters: Vec::new(),
+            high_latitude_rule: HighLatitudeChoice::default(),
+            polar_estimation_method: PolarEstimationMethod::default(),
+            fallback_was_active: false,
+            lre_was_blocked: false,
         }
     }
 }
@@ -274,13 +303,13 @@ fn default_reciter_slug() -> String {
 }
 
 fn default_iqamah_minutes() -> HashMap<String, u32> {
-    let mut m = HashMap::new();
-    m.insert("Fajr".to_string(), 20);
-    m.insert("Dhuhr".to_string(), 10);
-    m.insert("Asr".to_string(), 10);
-    m.insert("Maghrib".to_string(), 5);
-    m.insert("Isha".to_string(), 10);
-    m
+    let mut map = HashMap::new();
+    map.insert("Fajr".to_string(), 20);
+    map.insert("Dhuhr".to_string(), 10);
+    map.insert("Asr".to_string(), 10);
+    map.insert("Maghrib".to_string(), 5);
+    map.insert("Isha".to_string(), 10);
+    map
 }
 
 mod imp {
@@ -703,6 +732,45 @@ impl AppConfig {
             .borrow_mut()
             .installed_reciters
             .retain(|s| s != slug);
+    }
+
+    pub fn high_latitude_rule(&self) -> HighLatitudeChoice {
+        self.imp().data.borrow().high_latitude_rule.clone()
+    }
+    pub fn set_high_latitude_rule(&self, val: HighLatitudeChoice) {
+        self.imp().data.borrow_mut().high_latitude_rule = val;
+    }
+
+    pub fn polar_estimation_method(&self) -> PolarEstimationMethod {
+        self.imp().data.borrow().polar_estimation_method.clone()
+    }
+    pub fn set_polar_estimation_method(&self, val: PolarEstimationMethod) {
+        self.imp().data.borrow_mut().polar_estimation_method = val;
+    }
+
+    pub fn fallback_was_active(&self) -> bool {
+        self.imp().data.borrow().fallback_was_active
+    }
+    pub fn set_fallback_was_active(&self, val: bool) {
+        self.imp().data.borrow_mut().fallback_was_active = val;
+    }
+
+    pub fn lre_was_blocked(&self) -> bool {
+        self.imp().data.borrow().lre_was_blocked
+    }
+    pub fn set_lre_was_blocked(&self, val: bool) {
+        self.imp().data.borrow_mut().lre_was_blocked = val;
+    }
+
+    pub fn latitude_zone(&self) -> u8 {
+        let abs = self.latitude().abs();
+        if abs > 66.5 {
+            3
+        } else if abs > 48.6 {
+            2
+        } else {
+            1
+        }
     }
 
     fn load_data() -> AppConfigData {

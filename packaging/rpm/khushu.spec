@@ -1,5 +1,5 @@
 Name:           khushu
-Version:        1.3.0
+Version:        1.3.1
 Release:        1%{?dist}
 Summary:        An all-in-one Muslim app for Linux
 
@@ -55,7 +55,14 @@ adaptive UI built with GTK4 and Libadwaita.
 %{_datadir}/fonts/truetype/%{name}/
 
 %changelog
-* Fri Jul 12 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.0-1
+* Wed Jul 29 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.1-1
+- Added a searchable timezone selection dialog with local time preview and UTC offset details
+- Added user-selectable high-latitude rules and polar day/night fallbacks
+- Added status notifications for high-latitude and polar fallback methods
+- Fixed missed prayer notifications after system sleep or system clock adjustments
+- Fixed Iqamah and morning Adkar notification timing to prevent overlap with Adhan playback
+- Modernized the reciter selection dialog layout
+* Sun Jul 12 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.0-1
 - Added high-latitude prayer time estimation (LocalRelativeEstimation for 48.6°–66.5° and NearestLatitude polar fallback for >66.5°)
 - Migrated prayer time library from salah to mawaqit for high-latitude and polar zone support
 - Fixed blank label in KDE tray settings

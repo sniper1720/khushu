@@ -85,7 +85,7 @@ pub(crate) fn open_reciter_dialog(
     config: AppConfig,
     label: gtk::Label,
 ) {
-    // RECITERS: Quran reciter display names — translate to native script
+    // RECITERS: Quran reciter display names — expose to xgettext
     if false {
         tr("Mishary Alafasy");
         tr("Abdul Basit");
@@ -97,35 +97,50 @@ pub(crate) fn open_reciter_dialog(
     }
     let total = total_quran_verses();
 
-    let dialog = adw::Dialog::new();
-    dialog.set_content_width(420);
-    dialog.set_content_height(500);
-    dialog.set_title(&tr("Reciter"));
+    let dialog = adw::Dialog::builder()
+        .title(tr("Reciter"))
+        .content_width(420)
+        .content_height(500)
+        .css_classes(["view"])
+        .build();
 
     let toolbar_view = adw::ToolbarView::new();
 
     let header = adw::HeaderBar::new();
     toolbar_view.add_top_bar(&header);
 
-    let content_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    let search_entry = gtk::SearchEntry::builder()
+        .placeholder_text(tr("Search reciters..."))
+        .hexpand(true)
+        .build();
 
-    let search_entry = gtk::SearchEntry::new();
-    search_entry.set_placeholder_text(Some(&tr("Search reciters...")));
-    search_entry.set_margin_start(12);
-    search_entry.set_margin_end(12);
-    search_entry.set_margin_bottom(6);
-    content_box.append(&search_entry);
+    let search_bar = gtk::SearchBar::builder().search_mode_enabled(true).build();
+    search_bar.set_child(Some(&search_entry));
 
-    let scrolled = gtk::ScrolledWindow::new();
-    scrolled.set_vexpand(true);
-    let list_box = gtk::ListBox::new();
-    list_box.set_selection_mode(gtk::SelectionMode::None);
-    list_box.set_activate_on_single_click(true);
-    list_box.set_show_separators(true);
+    let search_bin = adw::Bin::builder()
+        .css_classes(["toolbar"])
+        .child(&search_bar)
+        .build();
+    toolbar_view.add_top_bar(&search_bin);
+
+    let scrolled = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .vexpand(true)
+        .build();
+    let list_box = gtk::ListBox::builder()
+        .selection_mode(gtk::SelectionMode::None)
+        .activate_on_single_click(true)
+        .show_separators(true)
+        .build();
     scrolled.set_child(Some(&list_box));
-    content_box.append(&scrolled);
 
-    toolbar_view.set_content(Some(&content_box));
+    let clamp = adw::Clamp::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .maximum_size(420)
+        .build();
+    clamp.set_child(Some(&scrolled));
+
+    toolbar_view.set_content(Some(&clamp));
     dialog.set_child(Some(&toolbar_view));
 
     let verses_template = tr("{} / {} verses downloaded");

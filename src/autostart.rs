@@ -52,10 +52,10 @@ StartupNotify=true
 fn disable_fs() {
     let path = get_autostart_path();
     let old_path = {
-        let mut p = glib::user_config_dir();
-        p.push("autostart");
-        p.push("khushu.desktop");
-        p
+        let mut autostart_path = glib::user_config_dir();
+        autostart_path.push("autostart");
+        autostart_path.push("khushu.desktop");
+        autostart_path
     };
 
     if fs::remove_file(&path).is_ok() {

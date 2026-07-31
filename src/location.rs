@@ -1,10 +1,17 @@
 use crate::config::MawaqitCache;
 use crate::i18n::tr;
+use chrono::{Datelike, Timelike};
+use icu::calendar::{Date, Gregorian};
+use icu::datetime::options::TimePrecision;
 use icu::datetime::{
-    NoCalendarFormatter,
-    fieldsets::zone::{ExemplarCity, Location as TimeZoneLocation},
+    FixedCalendarDateTimeFormatter, NoCalendarFormatter,
+    fieldsets::{
+        ET,
+        zone::{ExemplarCity, LocalizedOffsetLong, Location as TimeZoneLocation},
+    },
 };
-use icu::time::zone::TimeZone;
+use icu::time::Time;
+use icu::time::zone::{TimeZone, UtcOffset};
 use icu_experimental::displaynames::DisplayNamesOptions;
 use icu_experimental::displaynames::multi::RegionDisplayNames;
 use icu_locale::Locale;
@@ -19,7 +26,7 @@ static TIME_ZONE_LOOKUP: OnceLock<std::collections::HashMap<String, String>> = O
 fn client() -> &'static Client {
     HTTP_CLIENT.get_or_init(|| {
         Client::builder()
-            .user_agent("Khushu-Prayer-App/1.0.0")
+            .user_agent(crate::USER_AGENT)
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .expect("Failed to create HTTP client")
@@ -236,6 +243,143 @@ pub fn localized_time_zone_label(timezone: &str, lang: &str) -> String {
         .or_else(|| city_name_from_time_zone(timezone, lang))
         .or_else(|| non_empty_text(timezone))
         .unwrap_or_else(|| timezone.to_string())
+}
+
+fn localize_iana_root(root: &str, lang: &str) -> Option<String> {
+    // IANA roots without UN M.49 region codes — expose to xgettext
+    if false {
+        tr("Atlantic Ocean");
+        tr("Indian Ocean");
+        tr("Pacific Ocean");
+        tr("Arctic");
+    }
+
+    let m49 = match root {
+        "Africa" => "002",
+        "America" => "019",
+        "Antarctica" => "010",
+        "Asia" => "142",
+        "Australia" => "036",
+        "Europe" => "150",
+        "Atlantic" => return Some(tr("Atlantic Ocean")),
+        "Indian" => return Some(tr("Indian Ocean")),
+        "Pacific" => return Some(tr("Pacific Ocean")),
+        "Arctic" => return Some(tr("Arctic")),
+        _ => return None,
+    };
+    country_name_from_code(m49, lang)
+}
+
+pub fn localized_zone(zone: &str, lang: &str) -> String {
+    let mut parts = zone.splitn(2, '/');
+    let root = parts.next().unwrap_or(zone);
+    let Some(city) = parts.next() else {
+        return zone.to_string();
+    };
+
+    let localized_root = localize_iana_root(root, lang).unwrap_or_else(|| root.to_string());
+    let localized_city = if root == "Etc" {
+        city.to_string()
+    } else {
+        city_name_from_time_zone(zone, lang).unwrap_or_else(|| city.to_string())
+    };
+    format!("{}/{}", localized_root, localized_city)
+}
+
+fn fallback_offset(offset_secs: i32) -> String {
+    let sign = if offset_secs >= 0 { '+' } else { '-' };
+    let abs = offset_secs.unsigned_abs();
+    let hours = abs / 3600;
+    let mins = (abs % 3600) / 60;
+    if mins == 0 {
+        format!("UTC{}{:02}", sign, hours)
+    } else {
+        format!("UTC{}{:02}:{:02}", sign, hours, mins)
+    }
+}
+
+pub fn localized_offset(offset_secs: i32, lang: &str) -> String {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    thread_local! {
+        static CACHE: RefCell<HashMap<String, NoCalendarFormatter<LocalizedOffsetLong>>> =
+            RefCell::new(HashMap::new());
+    }
+
+    let locale_str = icu_locale_key(lang);
+    let offset = match UtcOffset::try_from_seconds(offset_secs) {
+        Ok(o) => o,
+        Err(_) => return fallback_offset(offset_secs),
+    };
+
+    CACHE.with(|cache| {
+        let mut map = cache.borrow_mut();
+        if !map.contains_key(&locale_str) {
+            let locale: Locale = locale_str
+                .parse()
+                .unwrap_or_else(|_| "en".parse().expect("en is valid"));
+            match NoCalendarFormatter::try_new(locale.into(), LocalizedOffsetLong) {
+                Ok(fmt) => {
+                    map.insert(locale_str.clone(), fmt);
+                }
+                Err(_) => {
+                    return fallback_offset(offset_secs);
+                }
+            }
+        }
+        map.get(&locale_str)
+            .map(|fmt| fmt.format(&offset).to_string())
+            .unwrap_or_else(|| fallback_offset(offset_secs))
+    })
+}
+
+fn fallback_time(dt: chrono::DateTime<chrono_tz::Tz>) -> String {
+    dt.format("%a %H:%M").to_string()
+}
+
+pub fn localized_time(dt: chrono::DateTime<chrono_tz::Tz>, lang: &str) -> String {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    thread_local! {
+        static CACHE: RefCell<HashMap<String, FixedCalendarDateTimeFormatter<Gregorian, ET>>> =
+            RefCell::new(HashMap::new());
+    }
+
+    let locale_str = icu_locale_key(lang);
+    let date = match Date::try_new_gregorian(dt.year(), dt.month() as u8, dt.day() as u8) {
+        Ok(d) => d,
+        Err(_) => return fallback_time(dt),
+    };
+    let time = match Time::try_new(dt.hour() as u8, dt.minute() as u8, dt.second() as u8, 0) {
+        Ok(t) => t,
+        Err(_) => return fallback_time(dt),
+    };
+    let input = icu::time::DateTime { date, time };
+
+    CACHE.with(|cache| {
+        let mut map = cache.borrow_mut();
+        if !map.contains_key(&locale_str) {
+            let locale: Locale = locale_str
+                .parse()
+                .unwrap_or_else(|_| "en".parse().expect("en is valid"));
+            match FixedCalendarDateTimeFormatter::<Gregorian, _>::try_new(
+                locale.into(),
+                ET::short().with_time_precision(TimePrecision::Minute),
+            ) {
+                Ok(fmt) => {
+                    map.insert(locale_str.clone(), fmt);
+                }
+                Err(_) => {
+                    return fallback_time(dt);
+                }
+            }
+        }
+        map.get(&locale_str)
+            .map(|fmt| fmt.format(&input).to_string())
+            .unwrap_or_else(|| fallback_time(dt))
+    })
 }
 
 pub fn mawaqit_fallback_city_name(
@@ -533,6 +677,40 @@ mod tests {
         let label = time_zone_location_name("Africa/Algiers", "ar").expect("localized timezone");
         assert!(!label.trim().is_empty());
         assert_ne!(label, "Africa/Algiers");
+    }
+
+    #[test]
+    fn localizes_zone_path_components() {
+        assert!(localized_zone("Europe/Oslo", "en").starts_with("Europe/"));
+        assert!(localized_zone("Europe/Oslo", "ar").starts_with("أوروبا/"));
+    }
+
+    #[test]
+    fn ocean_roots_localized_while_etc_stays_raw() {
+        let localized = localized_zone("Atlantic/Canary", "en");
+        assert_ne!(localized, "Atlantic/Canary");
+        assert!(localized.ends_with("Canaries"));
+        assert_eq!(localized_zone("Etc/UTC", "en"), "Etc/UTC");
+    }
+
+    #[test]
+    fn localizes_time_with_weekday_without_seconds() {
+        use chrono::TimeZone;
+        let tz: chrono_tz::Tz = "Europe/Oslo".parse().unwrap();
+        let naive = chrono::NaiveDate::from_ymd_opt(2026, 1, 30)
+            .unwrap()
+            .and_hms_opt(15, 47, 42)
+            .unwrap();
+        let dt: chrono::DateTime<chrono_tz::Tz> = tz.from_local_datetime(&naive).unwrap();
+
+        let en = localized_time(dt, "en");
+        assert!(en.contains("Fri"), "weekday should be localized: {en}");
+        assert!(en.contains("3:47"), "hour:minute should be shown: {en}");
+        assert!(!en.contains("42"), "seconds must not be rendered: {en}");
+
+        let ar = localized_time(dt, "ar");
+        assert!(!ar.trim().is_empty());
+        assert!(!ar.contains("Fri"), "weekday must be localized, got: {ar}");
     }
 
     #[test]

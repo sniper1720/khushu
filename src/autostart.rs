@@ -39,7 +39,7 @@ StartupNotify=true
 "#;
 
     if fs::write(&path, desktop_content).is_ok() {
-        if let Ok(mut perms) = fs::metadata(&path).map(|m| m.permissions()) {
+        if let Ok(mut perms) = fs::metadata(&path).map(|metadata| metadata.permissions()) {
             perms.set_mode(0o644);
             let _ = fs::set_permissions(&path, perms);
         }
@@ -88,7 +88,7 @@ StartupNotify=true
 "#;
 
         if fs::write(&path, desktop_content).is_ok() {
-            if let Ok(mut perms) = fs::metadata(&path).map(|m| m.permissions()) {
+            if let Ok(mut perms) = fs::metadata(&path).map(|metadata| metadata.permissions()) {
                 perms.set_mode(0o644);
                 let _ = fs::set_permissions(&path, perms);
             }
@@ -114,7 +114,7 @@ async fn request_portal(enable: bool) -> Result<bool, ashpd::Error> {
         .reason("Allow Khushu to start automatically at login for prayer notifications.")
         .auto_start(enable)
         .dbus_activatable(false)
-        .command(&["khushu", "--background"])
+        .command(["khushu", "--background"])
         .send()
         .await?
         .response()?;
@@ -136,8 +136,8 @@ fn sync_flatpak(should_enable: bool) -> glib::JoinHandle<bool> {
     glib::spawn_future_local(async move {
         match request_portal(should_enable).await {
             Ok(granted) => granted,
-            Err(e) => {
-                log::error!("Portal autostart failed: {e}");
+            Err(err) => {
+                log::error!("Portal autostart failed: {err}");
                 false
             }
         }

@@ -62,6 +62,52 @@ pub fn build_sidebar(split_view: &adw::OverlaySplitView) -> ListBox {
     sidebar_list
 }
 
+pub fn page_title(name: &str) -> String {
+    match name {
+        "home" => tr("Prayer Times"),
+        "calendar" => tr("Calendar"),
+        "qibla" => tr("Qibla"),
+        "adkar" => tr("Adkar"),
+        "quran" => tr("Noble Quran"),
+        "settings" => tr("Settings"),
+        _ => "Khushu".to_string(),
+    }
+}
+
+pub fn navigate_to(
+    name: &str,
+    sidebar_list: &ListBox,
+    view_stack: &adw::ViewStack,
+    window_title: &adw::WindowTitle,
+    current_lang: &str,
+    split_view: &adw::OverlaySplitView,
+    config: &crate::config::AppConfig,
+) {
+    if name == "quran" {
+        crate::quran::open_last_read_or_list(view_stack, current_lang, config.clone());
+    } else {
+        view_stack.set_visible_child_name(name);
+    }
+
+    if split_view.is_collapsed() {
+        split_view.set_show_sidebar(false);
+    }
+
+    window_title.set_title(&page_title(name));
+    if let Some(row) = sidebar_list.row_at_index(0) {
+        let mut child = Some(row.upcast::<gtk::Widget>());
+        while let Some(widget) = child {
+            if let Some(list_row) = widget.downcast_ref::<ListBoxRow>()
+                && list_row.widget_name() == name
+            {
+                sidebar_list.select_row(Some(list_row));
+                break;
+            }
+            child = widget.next_sibling();
+        }
+    }
+}
+
 pub fn connect_sidebar_navigation(
     sidebar_list: &ListBox,
     view_stack: Rc<adw::ViewStack>,
@@ -85,35 +131,20 @@ pub fn connect_sidebar_navigation(
         if name == "about" {
             crate::show_about_window(&window_sidebar);
             let prev = last_valid_row_act.borrow().as_ref().cloned();
-            if let Some(p) = prev {
-                list.select_row(Some(&p));
+            if let Some(prev_row) = prev {
+                list.select_row(Some(&prev_row));
             }
         } else if !name.is_empty() {
             *last_valid_row_act.borrow_mut() = Some(row.clone());
-            if name == "quran" {
-                crate::quran::open_last_read_or_list(
-                    &view_stack_clone,
-                    &current_lang_sidebar.borrow(),
-                    config.clone(),
-                );
-            } else {
-                view_stack_clone.set_visible_child_name(&name);
-            }
-
-            if split_view_hide.is_collapsed() {
-                split_view_hide.set_show_sidebar(false);
-            }
-
-            let title = match name.as_str() {
-                "home" => tr("Prayer Times"),
-                "calendar" => tr("Calendar"),
-                "qibla" => tr("Qibla"),
-                "adkar" => tr("Adkar"),
-                "quran" => tr("Noble Quran"),
-                "settings" => tr("Settings"),
-                _ => "Khushu".to_string(),
-            };
-            window_title_sidebar.set_title(&title);
+            navigate_to(
+                &name,
+                list,
+                &view_stack_clone,
+                &window_title_sidebar,
+                &current_lang_sidebar.borrow(),
+                &split_view_hide,
+                &config,
+            );
         }
     });
 

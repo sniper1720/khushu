@@ -84,7 +84,7 @@ pub fn show_notification(title: &str, body: &str, is_adhan: bool, open_lbl: &str
                         }
                     });
                 }
-                Err(e) => log::error!("Failed to send notification: {}", e),
+                Err(err) => log::error!("Failed to send notification: {}", err),
             }
         });
     }

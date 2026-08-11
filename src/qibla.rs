@@ -4,19 +4,20 @@ use gtk4::glib;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-const KAABA_LAT: f64 = 21.4225;
-const KAABA_LON: f64 = 39.8262;
+const KAABA_LATITUDE: f64 = 21.4225;
+const KAABA_LONGITUDE: f64 = 39.8262;
 
-pub fn calculate_qibla_bearing(lat: f64, lon: f64) -> f64 {
-    let lat_rad = lat.to_radians();
-    let lon_rad = lon.to_radians();
-    let kaaba_lat_rad = KAABA_LAT.to_radians();
-    let kaaba_lon_rad = KAABA_LON.to_radians();
+pub fn calculate_qibla_bearing(latitude: f64, longitude: f64) -> f64 {
+    let latitude_rad = latitude.to_radians();
+    let longitude_rad = longitude.to_radians();
+    let kaaba_latitude_rad = KAABA_LATITUDE.to_radians();
+    let kaaba_longitude_rad = KAABA_LONGITUDE.to_radians();
 
-    let y = (kaaba_lon_rad - lon_rad).sin();
-    let x = lat_rad.cos() * kaaba_lat_rad.tan() - lat_rad.sin() * (kaaba_lon_rad - lon_rad).cos();
+    let longitude_diff_sin = (kaaba_longitude_rad - longitude_rad).sin();
+    let meridian_component = latitude_rad.cos() * kaaba_latitude_rad.tan()
+        - latitude_rad.sin() * (kaaba_longitude_rad - longitude_rad).cos();
 
-    let bearing_rad = y.atan2(x);
+    let bearing_rad = longitude_diff_sin.atan2(meridian_component);
     let bearing_deg = bearing_rad.to_degrees();
 
     (bearing_deg + 360.0) % 360.0
@@ -55,9 +56,9 @@ impl CompassManager {
             }
 
             let conn = match gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
-                Ok(c) => c,
-                Err(e) => {
-                    log::error!("Compass: D-Bus connection failed: {e}");
+                Ok(conn) => conn,
+                Err(err) => {
+                    log::error!("Compass: D-Bus connection failed: {err}");
                     return;
                 }
             };
@@ -82,9 +83,9 @@ impl CompassManager {
                     -1,
                     gio::Cancellable::NONE,
                 ) {
-                    Ok(v) => v.child_value(0).get::<bool>().unwrap_or(false),
-                    Err(e) => {
-                        log::warn!("Compass: HasCompass query failed: {e}");
+                    Ok(value) => value.child_value(0).get::<bool>().unwrap_or(false),
+                    Err(err) => {
+                        log::warn!("Compass: HasCompass query failed: {err}");
                         false
                     }
                 }
@@ -118,7 +119,7 @@ impl CompassManager {
                     "net.hadess.SensorProxy".to_variant(),
                     "CompassHeading".to_variant(),
                 ]);
-                if let Ok(v) = conn.call_sync(
+                if let Ok(value) = conn.call_sync(
                     Some("net.hadess.SensorProxy"),
                     "/net/hadess/SensorProxy",
                     "org.freedesktop.DBus.Properties",
@@ -128,9 +129,9 @@ impl CompassManager {
                     gio::DBusCallFlags::NONE,
                     -1,
                     gio::Cancellable::NONE,
-                ) && let Some(h) = v.child_value(0).get::<f64>()
+                ) && let Some(compass_heading) = value.child_value(0).get::<f64>()
                 {
-                    *heading.lock().expect("compass heading lock") = h;
+                    *heading.lock().expect("compass heading lock") = compass_heading;
                 }
             }
 
@@ -147,13 +148,13 @@ impl CompassManager {
                     if epoch_cb.load(Ordering::SeqCst) != my_epoch {
                         return;
                     }
-                    if let Ok(mut heading) = heading_cb.lock() {
+                    if let Ok(mut heading_guard) = heading_cb.lock() {
                         let changed = signal_ref.parameters.child_value(1);
                         let dict = glib::VariantDict::new(Some(&changed));
                         if let Some(val) = dict.lookup_value("CompassHeading", None)
                             && let Some(h) = val.get::<f64>()
                         {
-                            *heading = h;
+                            *heading_guard = h;
                         }
                     }
                 },
@@ -176,16 +177,16 @@ impl CompassManager {
     }
 
     pub fn get_heading(&self) -> f64 {
-        *self.heading.lock().unwrap_or_else(|e| {
-            log::error!("Failed to lock heading: {e}");
-            e.into_inner()
+        *self.heading.lock().unwrap_or_else(|err| {
+            log::error!("Failed to lock heading: {err}");
+            err.into_inner()
         })
     }
 
     pub fn is_available(&self) -> bool {
-        *self.available.lock().unwrap_or_else(|e| {
-            log::error!("Failed to lock available: {e}");
-            e.into_inner()
+        *self.available.lock().unwrap_or_else(|err| {
+            log::error!("Failed to lock available: {err}");
+            err.into_inner()
         })
     }
 }
@@ -194,18 +195,18 @@ impl CompassManager {
 mod tests {
     use super::*;
 
-    fn assert_bearing_near(lat: f64, lon: f64, expected_deg: f64, tolerance: f64) {
-        let bearing = calculate_qibla_bearing(lat, lon);
+    fn assert_bearing_near(latitude: f64, longitude: f64, expected_deg: f64, tolerance: f64) {
+        let bearing = calculate_qibla_bearing(latitude, longitude);
         let diff = (bearing - expected_deg + 540.0) % 360.0 - 180.0;
         assert!(
             diff.abs() < tolerance,
-            "Qibla from ({lat}, {lon}): expected ~{expected_deg}°, got {bearing:.2}° (diff {diff:.2}°)"
+            "Qibla from ({latitude}, {longitude}): expected ~{expected_deg}°, got {bearing:.2}° (diff {diff:.2}°)"
         );
     }
 
     #[test]
     fn qibla_from_makkah_is_near_zero() {
-        let bearing = calculate_qibla_bearing(KAABA_LAT, KAABA_LON);
+        let bearing = calculate_qibla_bearing(KAABA_LATITUDE, KAABA_LONGITUDE);
         assert!(bearing.is_finite());
     }
 

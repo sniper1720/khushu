@@ -2,17 +2,18 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.3.1\n"
+"Project-Id-Version: Khushu 1.3.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-03-04 20:21+0100\n"
-"PO-Revision-Date: 2026-07-31 03:27+0000\n"
+"PO-Revision-Date: 2026-08-11 10:53+0000\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Arabic\n"
 "Language: ar\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
 
 # =============================================================================
 # SECTION 1: APPSTREAM METADATA
@@ -43,10 +44,6 @@ msgstr ""
 "اللوحية والهواتف الذكية. يجمع كل ما تحتاجه لعبادتك اليومية، مع مواقيت صلاة "
 "دقيقة، وإشعارات أذكار أصلية ومتدرجة، وقارئ مخصص للقرآن الكريم مع التلاوة آيةً "
 "بآية."
-
-#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
-msgid "Accurate prayer calculation methods (Offline)"
-msgstr "طرق حساب دقيقة لأوقات الصلاة (بدون إنترنت)"
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Morning, Evening, and Night Adkar with built-in counters"
@@ -475,6 +472,43 @@ msgstr "تحسين سلوك شريط المهام لتحديث التسميات 
 msgid "Initial stable release of Khushu."
 msgstr "الإصدار المستقر الأول لتطبيق خشوع."
 
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Accurate offline prayer (Salah) calculation methods, including recommended "
+"high-latitude and polar estimation methods."
+msgstr ""
+"طرق حساب مواقيت الصلاة الدقيقة بدون إنترنت، تشمل طرق التقدير الموصى بها "
+"لمناطق خطوط العرض العليا والمناطق القطبية."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Added native Adkar translations in French, Spanish, Turkish, and Indonesian, "
+"verified against authentic sources"
+msgstr ""
+"إضافة ترجمات أصيلة للأذكار باللغات الفرنسية، والإسبانية، والتركية، "
+"والإندونيسية، مراجَعة من مصادر معتمدة."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Daily Adkar reminders now prioritize favorited Adkar over random selection"
+msgstr ""
+"تمنح تذكيرات الأذكار اليومية الآن الأولوية للأذكار المفضلة بدلاً من الاختيار "
+"العشوائي."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed the Indonesian UI selection not persisting after restart"
+msgstr ""
+"إصلاح مشكلة عدم استمرار اختيار اللغة الإندونيسية للواجهة بعد إعادة تشغيل "
+"التطبيق."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed the invalid adhan file toast never showing"
+msgstr "إصلاح مشكلة عدم ظهور إشعار (Toast) ملف الأذان غير الصالح."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Added font settings for the interface, Arabic text, and Quran"
+msgstr "إضافة إعدادات الخطوط لواجهة المستخدم، والنصوص العربية، والقرآن."
+
 # =============================================================================
 # SECTION 2: CALENDAR
 # =============================================================================
@@ -704,6 +738,10 @@ msgstr "الإقامة"
 #: src/timer_controller.rs
 msgid "It is time for Iqamah of"
 msgstr "حان وقت إقامة صلاة"
+
+#: src/timer_controller.rs
+msgid "Prayer times unavailable — retrying"
+msgstr ""
 
 # =============================================================================
 # SECTION 4: QIBLA COMPASS
@@ -944,6 +982,14 @@ msgstr "تنزيل للاستخدام دون اتصال"
 msgid "Downloading..."
 msgstr "جارٍ التنزيل..."
 
+#: src/quran.rs
+msgid "Open Fonts Settings"
+msgstr "افتح إعدادات الخطوط"
+
+#: src/quran.rs
+msgid "Choose the font family used for the Quran text."
+msgstr "اختر عائلة الخط لنص القرآن الكريم."
+
 # =============================================================================
 # SECTION 6: ADKAR
 # =============================================================================
@@ -958,34 +1004,6 @@ msgstr "المساء"
 #: src/adkar.rs
 msgid "Night"
 msgstr "النوم"
-
-#: src/adkar.rs
-msgid "At-Tirmidhi"
-msgstr "الترمذي"
-
-#: src/adkar.rs
-msgid "Ibn Majah"
-msgstr "ابن ماجه"
-
-#: src/adkar.rs
-msgid "Abu Dawud"
-msgstr "أبو داود"
-
-#: src/adkar.rs
-msgid "Al-Bukhari"
-msgstr "البخاري"
-
-#: src/adkar.rs
-msgid "Ibn As-Sunni"
-msgstr "ابن السني"
-
-#: src/adkar.rs
-msgid "Muslim"
-msgstr "مسلم"
-
-#: src/adkar.rs
-msgid "(no. "
-msgstr "(رقم "
 
 # =============================================================================
 # SECTION 7: SETTINGS
@@ -1162,7 +1180,7 @@ msgstr "غير مُعدّ"
 msgid "Refresh now"
 msgstr "تحديث الآن"
 
-#: src/settings_ui.rs
+#: src/mawaqit.rs
 msgid "Invalid Mawaqit URL"
 msgstr "رابط مواقيت غير صالح"
 
@@ -1565,6 +1583,70 @@ msgstr "المحيط الهادئ"
 msgid "Arctic"
 msgstr "المحيط المتجمد الشمالي"
 
+msgid "Use system default"
+msgstr "استخدام خط النظام الافتراضي"
+
+#: src/settings_ui.rs
+msgid "Fonts"
+msgstr "الخطوط"
+
+#: src/settings_ui.rs
+msgid ""
+"Choose the fonts used across the app. 'System default' follows your desktop "
+"font settings."
+msgstr ""
+"اختر الخطوط المستخدمة في التطبيق. الخيار \"النظام الافتراضي\" يتبع إعدادات "
+"الخط في سطح المكتب لديك."
+
+#: src/settings_ui.rs
+msgid "Select Interface Font"
+msgstr "اختر خط الواجهة"
+
+#: src/settings_ui.rs
+msgid "UI Font"
+msgstr "خط الواجهة"
+
+msgid "System default"
+msgstr "النظام الافتراضي"
+
+#: src/settings_ui.rs
+msgid "Select Arabic Font"
+msgstr "اختر الخط العربي"
+
+#: src/settings_ui.rs
+msgid "Arabic Font"
+msgstr "الخط العربي"
+
+#: src/settings_ui.rs
+msgid "Select Quran Font"
+msgstr "اختر خط القرآن الكريم"
+
+#: src/settings_ui.rs
+msgid "Quran Font"
+msgstr "خط القرآن الكريم"
+
+msgid "Amiri Quran (default)"
+msgstr "أميري قرآن (افتراضي)"
+
+#: src/settings_ui.rs
+msgid "Restore to default"
+msgstr "استعادة الإعدادات الافتراضية"
+
+#: src/settings_ui.rs
+msgid "Used for Arabic content, such as the adkar texts."
+msgstr "يُستخدم للمحتوى العربي، مثل نصوص الأذكار."
+
+#: src/settings_ui.rs
+msgid ""
+"Must support Uthmani Quran script; otherwise verses may render incorrectly."
+msgstr ""
+"يجب أن يدعم الخط الرسم العثماني للقرآن الكريم؛ وإلا قد تُعرض الآيات بشكل غير "
+"صحيح."
+
+#: src/audio.rs
+msgid "File not usable or unsupported format"
+msgstr "تعذر استخدام الملف أو أن تنسيقه غير مدعوم."
+
 # =============================================================================
 # SECTION 8: APP UI & SYSTEM ACTIONS
 # =============================================================================
@@ -1682,7 +1764,7 @@ msgstr "الإعدادات"
 msgid "About"
 msgstr "حول"
 
-#: src/pages.rs src/settings_ui.rs
+#: src/settings_ui.rs
 msgid "Last updated"
 msgstr "آخر تحديث"
 
@@ -1736,3 +1818,7 @@ msgstr "اكتشف الآن"
 #: src/welcome.rs
 msgid "Continue"
 msgstr "متابعة"
+
+#: src/mawaqit.rs
+msgid "Mawaqit fetch failed"
+msgstr ""

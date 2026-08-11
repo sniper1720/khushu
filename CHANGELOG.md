@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.2] — 2026-08-03
+
+### Added
+- **Adkar translations** — the Adkar collection now shows native translations in French, Spanish, Turkish, and Indonesian, with the Arabic text and every translation verified against authentic published sources (listed in the README)
+- **Font settings** — new Fonts section in Settings with native GTK font pickers for the interface, Arabic content, and Quran text (defaults to Amiri Quran), each with a reset-to-default (Closes #12)
+
+### Fixed
+- **Indonesian selection not persisting** — switching the UI to Indonesian was lost on restart; language index↔code mapping is now centralized and covers all six supported languages
+- **Invalid adhan file toast** — the "File not usable or unsupported format" toast never appeared; it now shows correctly
+- **Mawaqit refresh reliability** — Failed Mawaqit fetches are now retried hourly instead of being abandoned
+- **Unavailable prayer times** — When prayer data is missing, the app now clearly displays "Prayer times unavailable — retrying" rather than showing stale times
+- **Adhan preview button** — Fixed the settings preview button to accurately reflect live adhan playback status instead of being conflated with recitation state
+
+### Changed
+- **Noble Quran playback** — playback now advances on event-driven state changes instead of a 200 ms polling timer
+- **Daily Adkar picks prefer favorites** — morning, evening, and night reminders now prioritize favorited Adkar over random selection
+- **Adkar favorites migration** — existing favorites are migrated automatically to the new structured collection on startup
+- **Location search** — city search no longer requests the timezone field from OpenStreetMap, reducing the data sent
+
 ## [1.3.1] — 2026-07-29
 
 ### Added
@@ -11,7 +30,7 @@
 
 ### Fixed
 - **Missed notifications on sleep/clock jumps** — Replaced the 60-second window and name-based dedup with persistent time tracking (`prayer_notified_at`), ensuring notifications fire even if the device wakes after the prayer time has passed.
-- **Iqamah notification timing** — Iqamah notifications now respect adhan playback and enforce a 60-second cooldown after the adhan finishes before sounding.
+- **Iqamah notification timing** — Iqamah notifications now respect adhan playback and enforce a 60-second quiet period after the adhan finishes before sounding.
 - **Adkar notification overlap** — Morning Adkar is now held until the Fajr adhan completes plus a 60-second settling period.
 
 ### Changed

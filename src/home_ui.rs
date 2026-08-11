@@ -6,8 +6,8 @@ use crate::config::AppConfig;
 use crate::location;
 
 fn contains_arabic(text: &str) -> bool {
-    text.chars().any(|c| {
-        let code = c as u32;
+    text.chars().any(|character| {
+        let code = character as u32;
         (0x0600..=0x06FF).contains(&code)
             || (0x0750..=0x077F).contains(&code)
             || (0x08A0..=0x08FF).contains(&code)

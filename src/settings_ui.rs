@@ -27,7 +27,7 @@ thread_local! {
 }
 
 pub fn register_audio_button(btn: &Button, idle_label_key: &'static str) {
-    set_audio_toggle_button_label(btn, idle_label_key, crate::audio::is_playing());
+    set_audio_toggle_button_label(btn, idle_label_key, crate::audio::is_adhan());
     AUDIO_BUTTONS.with(|reg| {
         reg.borrow_mut().push(AudioButtonEntry {
             btn: btn.downgrade(),
@@ -36,16 +36,32 @@ pub fn register_audio_button(btn: &Button, idle_label_key: &'static str) {
     });
 }
 
-pub fn on_audio_state_changed(is_playing: bool) {
+pub fn on_audio_state_changed(is_adhan: bool) {
     gtk::glib::MainContext::default().invoke(move || {
         AUDIO_BUTTONS.with(|reg| {
-            let reg = reg.borrow();
-            for entry in reg.iter() {
+            let reg_guard = reg.borrow();
+            for entry in reg_guard.iter() {
                 if let Some(btn) = entry.btn.upgrade() {
-                    set_audio_toggle_button_label(&btn, entry.idle_label_key, is_playing);
+                    set_audio_toggle_button_label(&btn, entry.idle_label_key, is_adhan);
                 }
             }
         });
+    });
+}
+
+thread_local! {
+    static OPEN_FONTS_SETTINGS: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
+}
+
+pub fn register_open_fonts_settings(callback: Rc<dyn Fn()>) {
+    OPEN_FONTS_SETTINGS.with(|cell| *cell.borrow_mut() = Some(callback));
+}
+
+pub fn open_fonts_settings() {
+    OPEN_FONTS_SETTINGS.with(|cell| {
+        if let Some(callback) = cell.borrow().clone() {
+            callback();
+        }
     });
 }
 
@@ -55,19 +71,66 @@ pub fn find_toast_overlay(window: &adw::ApplicationWindow) -> Option<adw::ToastO
             return Some(overlay.clone());
         }
         let mut child = widget.first_child();
-        while let Some(c) = child {
-            if let Some(found) = search(&c) {
+        while let Some(child_widget) = child {
+            if let Some(found) = search(&child_widget) {
                 return Some(found);
             }
-            child = c.next_sibling();
+            child = child_widget.next_sibling();
         }
         None
     }
     window.content().as_ref().and_then(search)
 }
 
-fn set_audio_toggle_button_label(btn: &Button, idle_label_key: &str, is_playing: bool) {
-    let label = if is_playing {
+/// Builds the "Connected Mosque" status subtitle from a cached Mawaqit schedule.
+pub fn mawaqit_status_subtitle(cache: &crate::config::MawaqitCache, lang: &str) -> String {
+    let tz = cache.timezone.clone().unwrap_or_default();
+    let tz_label = if tz.is_empty() {
+        String::new()
+    } else {
+        location::localized_time_zone_label(&tz, lang)
+    };
+    if tz_label.is_empty() {
+        format!("{} • {}", tr("Last updated"), cache.fetched_on)
+    } else {
+        format!(
+            "{} • {} • {}",
+            tz_label,
+            tr("Last updated"),
+            cache.fetched_on
+        )
+    }
+}
+
+fn apply_sound_combo_state(combo: &ComboRow, preset_files: &[String], current_path: Option<&str>) {
+    if let Some(path) = current_path {
+        let path_obj = PathBuf::from(path);
+        if let Some(name) = path_obj
+            .file_name()
+            .and_then(|file_name| file_name.to_str())
+        {
+            if let Some(pos) = preset_files
+                .iter()
+                .position(|preset| preset.as_str() == name)
+            {
+                // Entries 0 (Default) and 1 (Custom File...) precede the preset files.
+                combo.set_selected((pos + 2) as u32);
+            } else {
+                combo.set_selected(1);
+                combo.set_subtitle(path);
+            }
+        } else {
+            combo.set_selected(1);
+            combo.set_subtitle(path);
+        }
+    } else {
+        combo.set_selected(0);
+        combo.set_subtitle(&tr("Using builtin default"));
+    }
+}
+
+fn set_audio_toggle_button_label(btn: &Button, idle_label_key: &str, is_adhan: bool) {
+    let label = if is_adhan {
         tr("⏹ Stop Adhan")
     } else {
         tr(idle_label_key)
@@ -83,6 +146,125 @@ fn finish_entry_row_interaction(row: &adw::EntryRow) {
     if let Some(root) = row.root() {
         root.set_focus(Option::<&gtk::Widget>::None);
     }
+}
+
+struct FontSettingRow {
+    row: adw::ActionRow,
+    font_button: gtk::FontDialogButton,
+    reset_btn: Button,
+    dialog: gtk::FontDialog,
+    default_desc: gtk::pango::FontDescription,
+}
+
+fn system_font_description() -> gtk::pango::FontDescription {
+    let name = gtk::Settings::default()
+        .and_then(|settings| settings.gtk_font_name())
+        .map(|font_name| font_name.to_string())
+        .unwrap_or_else(|| "Cantarell 11".to_string());
+    gtk::pango::FontDescription::from_string(&name)
+}
+
+fn set_font_row_state(state: &FontSettingRow, current: Option<&str>) {
+    match current {
+        Some(family) => {
+            state
+                .font_button
+                .set_font_desc(&gtk::pango::FontDescription::from_string(family));
+            state.reset_btn.set_sensitive(true);
+        }
+        None => {
+            state.font_button.set_font_desc(&state.default_desc);
+            state.reset_btn.set_sensitive(false);
+        }
+    }
+}
+
+struct FontRowOptions {
+    dialog_title: String,
+    row_title: String,
+    subtitle: String,
+    default_desc: gtk::pango::FontDescription,
+    current: Option<String>,
+}
+
+type FontFamilySetter = dyn Fn(&AppConfig, Option<String>);
+
+fn setup_font_setting_row(
+    config: &AppConfig,
+    fonts_group: &PreferencesGroup,
+    options: FontRowOptions,
+    apply_family: impl Fn(&AppConfig, Option<String>) + 'static,
+) -> FontSettingRow {
+    let dialog = gtk::FontDialog::builder()
+        .title(options.dialog_title)
+        .build();
+    let font_button = gtk::FontDialogButton::new(Some(dialog.clone()));
+    font_button.set_level(gtk::FontLevel::Family);
+    font_button.set_valign(gtk::Align::Center);
+    let reset_btn = Button::builder()
+        .icon_name("edit-undo-symbolic")
+        .tooltip_text(tr("Restore to default"))
+        .has_frame(false)
+        .valign(gtk::Align::Center)
+        .build();
+
+    let row = adw::ActionRow::builder()
+        .title(options.row_title)
+        .subtitle(options.subtitle)
+        .build();
+    row.set_activatable_widget(Some(&font_button));
+    row.add_suffix(&font_button);
+    row.add_suffix(&reset_btn);
+
+    let state = FontSettingRow {
+        row: row.clone(),
+        font_button: font_button.clone(),
+        reset_btn: reset_btn.clone(),
+        dialog: dialog.clone(),
+        default_desc: options.default_desc,
+    };
+    set_font_row_state(&state, options.current.as_deref());
+    fonts_group.add(&row);
+
+    let setter: Rc<FontFamilySetter> = Rc::new(apply_family);
+    let suppress = Rc::new(Cell::new(false));
+
+    let cfg_pick = config.clone();
+    let row_pick = row.clone();
+    let reset_pick = reset_btn.clone();
+    let setter_pick = setter.clone();
+    let suppress_pick = suppress.clone();
+    font_button.connect_font_desc_notify(move |btn| {
+        if suppress_pick.get() {
+            return;
+        }
+        if let Some(family) = btn.font_desc().and_then(|fd| fd.family()) {
+            let family = family.to_string();
+            setter_pick(&cfg_pick, Some(family.clone()));
+            cfg_pick.save();
+            crate::apply_font_css(&cfg_pick);
+            row_pick.set_subtitle(&family);
+            reset_pick.set_sensitive(true);
+        }
+    });
+
+    let cfg_reset = config.clone();
+    let reset_reset = reset_btn.clone();
+    let font_btn_reset = font_button.clone();
+    let setter_reset = setter;
+    let default_desc_reset = state.default_desc.clone();
+    let suppress_reset = suppress;
+    reset_btn.connect_clicked(move |_| {
+        suppress_reset.set(true);
+        setter_reset(&cfg_reset, None);
+        cfg_reset.save();
+        crate::apply_font_css(&cfg_reset);
+        font_btn_reset.set_font_desc(&default_desc_reset);
+        reset_reset.set_sensitive(false);
+        suppress_reset.set(false);
+    });
+
+    state
 }
 
 fn append_settings_section_heading(
@@ -131,15 +313,9 @@ pub struct SettingsUiParams<'a> {
     pub refresh_calendar: Rc<dyn Fn()>,
 }
 
-#[allow(dead_code)]
 pub struct SettingsUiContext {
     pub config: AppConfig,
-    pub list_box_rc: Rc<ListBox>,
-    pub window: adw::ApplicationWindow,
     pub current_lang: Rc<RefCell<String>>,
-    pub loc_tx: std::sync::mpsc::Sender<(f64, f64, Option<String>)>,
-    pub refresh_calendar: Rc<dyn Fn()>,
-    pub settings_box: gtk::Box,
 
     pub general_heading: gtk::Label,
     pub general_desc: gtk::Label,
@@ -149,13 +325,25 @@ pub struct SettingsUiContext {
     pub theme_model: gtk::StringList,
     pub autostart_toggle: adw::SwitchRow,
 
+    pub fonts_heading: gtk::Label,
+    pub fonts_desc: gtk::Label,
+    pub ui_font_row: adw::ActionRow,
+    pub ui_font_reset: Button,
+    pub ui_font_dialog: gtk::FontDialog,
+    pub arabic_font_row: adw::ActionRow,
+    pub arabic_font_reset: Button,
+    pub arabic_font_dialog: gtk::FontDialog,
+    pub quran_font_row: adw::ActionRow,
+    pub quran_font_reset: Button,
+    pub quran_font_dialog: gtk::FontDialog,
+
     pub prayer_setup_heading: gtk::Label,
     pub prayer_setup_desc: gtk::Label,
     pub location_group: PreferencesGroup,
     pub mode_row: ComboRow,
     pub mode_model: gtk::StringList,
-    pub lat_row: adw::SpinRow,
-    pub lon_row: adw::SpinRow,
+    pub latitude_row: adw::SpinRow,
+    pub longitude_row: adw::SpinRow,
     pub status_row: adw::ActionRow,
     pub city_row: adw::EntryRow,
     pub city_btn: Button,
@@ -180,8 +368,8 @@ pub struct SettingsUiContext {
     pub method_model: gtk::StringList,
     pub madhab_row: ComboRow,
     pub madhab_model: gtk::StringList,
-    pub high_lat_row: ComboRow,
-    pub high_lat_model: gtk::StringList,
+    pub high_latitude_row: ComboRow,
+    pub high_latitude_model: gtk::StringList,
     pub polar_row: ComboRow,
     pub polar_model: gtk::StringList,
 
@@ -197,7 +385,6 @@ pub struct SettingsUiContext {
     pub adhan_only_toggle: adw::SwitchRow,
     pub test_notify_btn: Button,
 
-    pub audio_group: PreferencesGroup,
     pub sound_combo: ComboRow,
     pub sound_model: gtk::StringList,
     pub preset_files: Vec<String>,
@@ -246,15 +433,7 @@ pub fn setup_settings_ui<'a>(
         .model(&lang_model)
         .build();
 
-    match lang_val.as_str() {
-        "en" => lang_row.set_selected(1),
-        "ar" => lang_row.set_selected(2),
-        "fr" => lang_row.set_selected(3),
-        "es" => lang_row.set_selected(4),
-        "tr" => lang_row.set_selected(5),
-        "id" => lang_row.set_selected(6),
-        _ => lang_row.set_selected(0),
-    }
+    lang_row.set_selected(crate::i18n::language_index_from_code(lang_val.as_str()));
 
     general_group.add(&lang_row);
 
@@ -324,6 +503,65 @@ pub fn setup_settings_ui<'a>(
     });
     general_group.add(&autostart_toggle);
 
+    let (fonts_heading, fonts_desc) = append_settings_section_heading(
+        settings_box,
+        &tr("Fonts"),
+        Some(&tr(
+            "Choose the fonts used across the app. 'System default' follows your desktop font settings.",
+        )),
+        24,
+    );
+    let fonts_desc = fonts_desc.expect("fonts section description label");
+
+    let fonts_group = PreferencesGroup::new();
+    fonts_group.set_margin_top(0);
+    fonts_group.set_margin_bottom(24);
+    settings_box.append(&fonts_group);
+
+    let system_desc = system_font_description();
+    let amiri_quran_desc = gtk::pango::FontDescription::from_string("Amiri Quran");
+
+    let ui_font_row = setup_font_setting_row(
+        &config,
+        &fonts_group,
+        FontRowOptions {
+            dialog_title: tr("Select Interface Font"),
+            row_title: tr("UI Font"),
+            subtitle: String::new(),
+            default_desc: system_desc.clone(),
+            current: config.ui_font_family(),
+        },
+        |cfg, val| cfg.set_ui_font_family(val),
+    );
+
+    let arabic_font_row = setup_font_setting_row(
+        &config,
+        &fonts_group,
+        FontRowOptions {
+            dialog_title: tr("Select Arabic Font"),
+            row_title: tr("Arabic Font"),
+            subtitle: tr("Used for Arabic content, such as the adkar texts."),
+            default_desc: system_desc,
+            current: config.arabic_font_family(),
+        },
+        |cfg, val| cfg.set_arabic_font_family(val),
+    );
+
+    let quran_font_row = setup_font_setting_row(
+        &config,
+        &fonts_group,
+        FontRowOptions {
+            dialog_title: tr("Select Quran Font"),
+            row_title: tr("Quran Font"),
+            subtitle: tr(
+                "Must support Uthmani Quran script; otherwise verses may render incorrectly.",
+            ),
+            default_desc: amiri_quran_desc,
+            current: config.quran_font_family(),
+        },
+        |cfg, val| cfg.set_quran_font_family(val),
+    );
+
     let (prayer_setup_heading, prayer_setup_desc) = append_settings_section_heading(
         settings_box,
         &tr("Prayer Setup"),
@@ -349,7 +587,7 @@ pub fn setup_settings_ui<'a>(
         tr("City Selection"),
         tr("Auto (GPS/Network)"),
     ];
-    let modes_slices: Vec<&str> = modes_strings.iter().map(|s| s.as_str()).collect();
+    let modes_slices: Vec<&str> = modes_strings.iter().map(|item| item.as_str()).collect();
     let modes = StringList::new(&modes_slices);
     let mode_row = ComboRow::builder()
         .title(tr("Location Method"))
@@ -363,7 +601,7 @@ pub fn setup_settings_ui<'a>(
         LocationMode::Auto => 2,
     });
 
-    let lat_row = adw::SpinRow::builder()
+    let latitude_row = adw::SpinRow::builder()
         .title(tr("Latitude"))
         .adjustment(&gtk::Adjustment::new(
             config.latitude(),
@@ -376,20 +614,20 @@ pub fn setup_settings_ui<'a>(
         .digits(4)
         .build();
 
-    let config_lat = config.clone();
-    let list_box_lat = list_box_rc.clone();
-    let window_lat = window.clone();
-    lat_row.adjustment().connect_value_changed(move |adj| {
-        let lat = adj.value();
-        config_lat.set_latitude(lat);
-        config_lat.save();
-        if let Some(result) = refresh_prayers(&config_lat, &list_box_lat) {
-            update_lre_toast(&config_lat, &result, &window_lat);
-            update_fallback_toast(&config_lat, &result, &window_lat);
+    let config_latitude = config.clone();
+    let list_box_latitude = list_box_rc.clone();
+    let window_latitude = window.clone();
+    latitude_row.adjustment().connect_value_changed(move |adj| {
+        let latitude = adj.value();
+        config_latitude.set_latitude(latitude);
+        config_latitude.save();
+        if let Some(result) = refresh_prayers(&config_latitude, &list_box_latitude) {
+            update_lre_toast(&config_latitude, &result, &window_latitude);
+            update_fallback_toast(&config_latitude, &result, &window_latitude);
         }
     });
 
-    let lon_row = adw::SpinRow::builder()
+    let longitude_row = adw::SpinRow::builder()
         .title(tr("Longitude"))
         .adjustment(&gtk::Adjustment::new(
             config.longitude(),
@@ -402,18 +640,20 @@ pub fn setup_settings_ui<'a>(
         .digits(4)
         .build();
 
-    let config_lon = config.clone();
-    let list_box_lon = list_box_rc.clone();
-    let window_lon = window.clone();
-    lon_row.adjustment().connect_value_changed(move |adj| {
-        let lon = adj.value();
-        config_lon.set_longitude(lon);
-        config_lon.save();
-        if let Some(result) = refresh_prayers(&config_lon, &list_box_lon) {
-            update_lre_toast(&config_lon, &result, &window_lon);
-            update_fallback_toast(&config_lon, &result, &window_lon);
-        }
-    });
+    let config_longitude = config.clone();
+    let list_box_longitude = list_box_rc.clone();
+    let window_longitude = window.clone();
+    longitude_row
+        .adjustment()
+        .connect_value_changed(move |adj| {
+            let longitude = adj.value();
+            config_longitude.set_longitude(longitude);
+            config_longitude.save();
+            if let Some(result) = refresh_prayers(&config_longitude, &list_box_longitude) {
+                update_lre_toast(&config_longitude, &result, &window_longitude);
+                update_fallback_toast(&config_longitude, &result, &window_longitude);
+            }
+        });
 
     let status_row = adw::ActionRow::builder()
         .title(tr("Location Status"))
@@ -448,7 +688,7 @@ pub fn setup_settings_ui<'a>(
     let current_lang_search = current_lang.clone();
 
     let city_row_clone = city_row.clone();
-    let status_row_clone = status_row_clone.clone();
+    let status_row_c = status_row_clone.clone();
     let perform_search = Rc::new(move || {
         let query = city_row_clone.text().to_string();
         if query.trim().is_empty() {
@@ -460,24 +700,24 @@ pub fn setup_settings_ui<'a>(
         city_row_clone.remove_css_class("error");
         city_row_clone.remove_css_class("success");
 
-        let tx = city_tx.clone();
+        let sender = city_tx.clone();
         let city_row_for_update = city_row_clone.clone();
-        let status_row_clone = status_row_clone.clone();
+        let status_row_async_c = status_row_c.clone();
 
         gtk::glib::spawn_future_local(async move {
             let result = location::search_city(&query, &lang).await;
             match result {
-                Ok((lat, lon, name, _timezone)) => {
-                    let _ = tx.send((lat, lon, Some(name.clone())));
+                Ok((latitude, longitude, name, _timezone)) => {
+                    let _ = sender.send((latitude, longitude, Some(name.clone())));
                     city_row_for_update.set_text(&location::short_city_with_country(&name));
                     city_row_for_update.add_css_class("success");
-                    status_row_clone.set_visible(false);
+                    status_row_async_c.set_visible(false);
                 }
-                Err(e) => {
-                    log::error!("City search failed: {}", e);
+                Err(err) => {
+                    log::error!("City search failed: {}", err);
                     city_row_for_update.add_css_class("error");
-                    status_row_clone.set_subtitle(&tr("City not found. Please try again."));
-                    status_row_clone.set_visible(true);
+                    status_row_async_c.set_subtitle(&tr("City not found. Please try again."));
+                    status_row_async_c.set_visible(true);
                 }
             }
         });
@@ -520,7 +760,7 @@ pub fn setup_settings_ui<'a>(
         auto_row_clone.remove_css_class("success");
         status_row_auto.set_visible(false);
 
-        let tx = auto_tx.clone();
+        let sender = auto_tx.clone();
         let auto_row_for_update = auto_row_clone.clone();
         let status_for_update = status_row_auto.clone();
         let btn = auto_btn_click.clone();
@@ -530,15 +770,15 @@ pub fn setup_settings_ui<'a>(
         gtk::glib::spawn_future_local(async move {
             let result = location::fetch_auto_location(&lang).await;
             match result {
-                Ok((lat, lon, name)) => {
-                    let _ = tx.send((lat, lon, Some(name.clone())));
+                Ok((latitude, longitude, name)) => {
+                    let _ = sender.send((latitude, longitude, Some(name.clone())));
                     auto_row_for_update.set_subtitle(&location::short_city_with_country(&name));
                     auto_row_for_update.add_css_class("success");
                 }
-                Err(e) => {
-                    log::error!("Auto-location failed: {}", e);
+                Err(err) => {
+                    log::error!("Auto-location failed: {}", err);
                     auto_row_for_update.add_css_class("error");
-                    status_for_update.set_subtitle(&tr(&e));
+                    status_for_update.set_subtitle(&tr(&err));
                     status_for_update.set_visible(true);
                 }
             }
@@ -549,7 +789,7 @@ pub fn setup_settings_ui<'a>(
     auto_row.add_suffix(&auto_btn);
 
     let source_items = [tr("Calculated (Offline)"), tr("Connected Mosque (URL)")];
-    let source_refs: Vec<&str> = source_items.iter().map(|s| s.as_str()).collect();
+    let source_refs: Vec<&str> = source_items.iter().map(|item| item.as_str()).collect();
     let source_model = StringList::new(&source_refs);
     let source_row = ComboRow::builder()
         .title(tr("Prayer Times Source"))
@@ -591,23 +831,7 @@ pub fn setup_settings_ui<'a>(
             .mosque_name
             .clone()
             .unwrap_or_else(|| cache.url.clone());
-        let tz = cache.timezone.clone().unwrap_or_default();
-        let tz_label = if tz.is_empty() {
-            String::new()
-        } else {
-            location::localized_time_zone_label(&tz, &lang_val)
-        };
-        let subtitle = if tz_label.is_empty() {
-            format!("{} • {}", tr("Last updated"), cache.fetched_on)
-        } else {
-            format!(
-                "{} • {} • {}",
-                tz_label,
-                tr("Last updated"),
-                cache.fetched_on
-            )
-        };
-        mawaqit_status_row.set_subtitle(&subtitle);
+        mawaqit_status_row.set_subtitle(&mawaqit_status_subtitle(cache, &lang_val));
         mawaqit_status_row.set_title(&title);
     } else {
         mawaqit_status_row.set_subtitle(&tr("Not configured"));
@@ -620,8 +844,8 @@ pub fn setup_settings_ui<'a>(
     location_group.add(&mawaqit_status_row);
 
     location_group.add(&mode_row);
-    location_group.add(&lat_row);
-    location_group.add(&lon_row);
+    location_group.add(&latitude_row);
+    location_group.add(&longitude_row);
     location_group.add(&city_row);
     location_group.add(&auto_row);
     location_group.add(&status_row);
@@ -678,8 +902,8 @@ pub fn setup_settings_ui<'a>(
         let cfg = config_for_fetch.clone();
         let list_box = list_box_for_fetch.clone();
         let status = status_for_fetch.clone();
-        let tx = loc_tx_for_fetch.clone();
-        let refresh_calendar = refresh_calendar_for_fetch.clone();
+        let sender = loc_tx_for_fetch.clone();
+        let refresh_calendar_fetch = refresh_calendar_for_fetch.clone();
         let window_bg = window_for_fetch.clone();
         gtk::glib::spawn_future_local(async move {
             match crate::mawaqit::fetch_mawaqit_cache(&raw).await {
@@ -688,9 +912,10 @@ pub fn setup_settings_ui<'a>(
                     {
                         cfg.set_mawaqit_url(Some(cache.url.clone()));
                         cfg.set_mawaqit_cache(Some(cache.clone()));
-                        if let (Some(lat), Some(lon)) = (cache.latitude, cache.longitude) {
-                            cfg.set_latitude(lat);
-                            cfg.set_longitude(lon);
+                        if let (Some(latitude), Some(longitude)) = (cache.latitude, cache.longitude)
+                        {
+                            cfg.set_latitude(latitude);
+                            cfg.set_longitude(longitude);
                             cfg.set_location_mode(LocationMode::City);
                             let fallback_city = crate::location::localized_mawaqit_city_name(
                                 None,
@@ -700,9 +925,9 @@ pub fn setup_settings_ui<'a>(
                             );
                             if let Some(city) = fallback_city.clone() {
                                 cfg.set_city_name(Some(city.clone()));
-                                maybe_loc_update = Some((lat, lon, Some(city)));
+                                maybe_loc_update = Some((latitude, longitude, Some(city)));
                             } else {
-                                maybe_loc_update = Some((lat, lon, None));
+                                maybe_loc_update = Some((latitude, longitude, None));
                             }
                         }
 
@@ -719,57 +944,42 @@ pub fn setup_settings_ui<'a>(
                         }
                         cfg.save();
                     }
-                    if let Some((lat, lon, None)) = &maybe_loc_update {
-                        let lat = *lat;
-                        let lon = *lon;
+                    if let Some((latitude_ref, longitude_ref, None)) = &maybe_loc_update {
+                        let latitude = *latitude_ref;
+                        let longitude = *longitude_ref;
                         let cfg2 = cfg.clone();
-                        let tx2 = tx.clone();
+                        let inner_sender = sender.clone();
                         let lang2 = lang.clone();
                         gtk::glib::spawn_future_local(async move {
                             if let Ok(name) =
-                                crate::location::resolve_city_name(lat, lon, &lang2).await
+                                crate::location::resolve_city_name(latitude, longitude, &lang2)
+                                    .await
                             {
                                 cfg2.set_city_name(Some(name.clone()));
                                 cfg2.save();
-                                let _ = tx2.send((lat, lon, Some(name)));
+                                let _ = inner_sender.send((latitude, longitude, Some(name)));
                             }
                         });
                     }
-                    if let Some((lat, lon, name)) = maybe_loc_update {
-                        let _ = tx.send((lat, lon, name));
+                    if let Some((latitude, longitude, name)) = maybe_loc_update {
+                        let _ = sender.send((latitude, longitude, name));
                     }
                     let title = cache
                         .mosque_name
                         .clone()
                         .unwrap_or_else(|| cache.url.clone());
-                    let tz = cache.timezone.clone().unwrap_or_default();
-                    let tz_label = if tz.is_empty() {
-                        String::new()
-                    } else {
-                        location::localized_time_zone_label(&tz, &lang)
-                    };
-                    let subtitle = if tz_label.is_empty() {
-                        format!("{} • {}", tr("Last updated"), cache.fetched_on)
-                    } else {
-                        format!(
-                            "{} • {} • {}",
-                            tz_label,
-                            tr("Last updated"),
-                            cache.fetched_on
-                        )
-                    };
                     status.set_title(&title);
-                    status.set_subtitle(&subtitle);
+                    status.set_subtitle(&mawaqit_status_subtitle(&cache, &lang));
                     status.remove_css_class("error");
                     if let Some(result) = refresh_prayers(&cfg, &list_box) {
                         update_lre_toast(&cfg, &result, &window_bg);
                         update_fallback_toast(&cfg, &result, &window_bg);
                     }
-                    refresh_calendar();
+                    refresh_calendar_fetch();
                 }
-                Err(e) => {
+                Err(err) => {
                     status.add_css_class("error");
-                    status.set_subtitle(&tr(&e));
+                    status.set_subtitle(&tr(&err));
                 }
             }
         });
@@ -798,7 +1008,7 @@ pub fn setup_settings_ui<'a>(
         tr("Custom Timezone (IANA)"),
         tr("Manual UTC Offset"),
     ];
-    let tz_mode_slices: Vec<&str> = tz_mode_strings.iter().map(|s| s.as_str()).collect();
+    let tz_mode_slices: Vec<&str> = tz_mode_strings.iter().map(|item| item.as_str()).collect();
     let tz_modes = StringList::new(&tz_mode_slices);
     let tz_mode_row = ComboRow::builder()
         .title(tr("Timezone Mode"))
@@ -816,7 +1026,7 @@ pub fn setup_settings_ui<'a>(
     travel_group.add(&tz_mode_row);
 
     let tz_named_init = match &current_tz_mode {
-        TimezoneMode::Named(s) => s.clone(),
+        TimezoneMode::Named(tz_name) => tz_name.clone(),
         _ => location::system_time_zone_id().unwrap_or_default(),
     };
 
@@ -853,7 +1063,7 @@ pub fn setup_settings_ui<'a>(
         }
         let on_select = {
             let cfg = config_tz_gesture.clone();
-            let list_box_tz_gesture = list_box_tz_gesture.clone();
+            let list_box_tz_gesture_c = list_box_tz_gesture.clone();
             let win = window_tz_gesture.clone();
             let row = tz_named_row_for_gesture.clone();
             let lang_rc = current_lang_tz_gesture.clone();
@@ -868,18 +1078,18 @@ pub fn setup_settings_ui<'a>(
                 row.set_subtitle(&sub);
                 cfg.set_timezone_mode(TimezoneMode::Named(zone.to_string()));
                 cfg.save();
-                if let Some(result) = refresh_prayers(&cfg, &list_box_tz_gesture) {
+                if let Some(result) = refresh_prayers(&cfg, &list_box_tz_gesture_c) {
                     update_lre_toast(&cfg, &result, &win);
                     update_fallback_toast(&cfg, &result, &win);
                 }
             })
         };
-        let parent = tz_named_row_for_gesture
+        let root_parent = tz_named_row_for_gesture
             .root()
-            .and_then(|r| r.downcast::<adw::ApplicationWindow>().ok());
-        if let Some(parent) = parent {
+            .and_then(|root| root.downcast::<adw::ApplicationWindow>().ok());
+        if let Some(parent_window) = root_parent {
             let lang = current_lang_tz_gesture.borrow().clone();
-            crate::tz_dialog::open_tz_dialog(&parent, on_select, &lang);
+            crate::tz_dialog::open_tz_dialog(&parent_window, on_select, &lang);
         }
     });
     tz_named_row.add_controller(tz_gesture_click);
@@ -986,7 +1196,7 @@ pub fn setup_settings_ui<'a>(
         tr("France (UOIF)"),
         tr("Algeria"),
     ];
-    let methods_slices: Vec<&str> = methods_strings.iter().map(|s| s.as_str()).collect();
+    let methods_slices: Vec<&str> = methods_strings.iter().map(|item| item.as_str()).collect();
     let methods = StringList::new(&methods_slices);
     let method_row = ComboRow::builder()
         .title(tr("Calculation Method"))
@@ -1041,16 +1251,16 @@ pub fn setup_settings_ui<'a>(
     });
     calc_group.add(&method_row);
 
-    let lat_row_clone = lat_row.clone();
-    let lon_row_clone = lon_row.clone();
-    let city_row_clone = city_row.clone();
-    let auto_row_clone = auto_row.clone();
+    let latitude_row_visibility = latitude_row.clone();
+    let longitude_row_visibility = longitude_row.clone();
+    let city_row_visibility = city_row.clone();
+    let auto_row_visibility = auto_row.clone();
 
     let update_visibility = Rc::new(move |mode: &LocationMode| {
-        lat_row_clone.set_visible(*mode == LocationMode::Manual);
-        lon_row_clone.set_visible(*mode == LocationMode::Manual);
-        city_row_clone.set_visible(*mode == LocationMode::City);
-        auto_row_clone.set_visible(*mode == LocationMode::Auto);
+        latitude_row_visibility.set_visible(*mode == LocationMode::Manual);
+        longitude_row_visibility.set_visible(*mode == LocationMode::Manual);
+        city_row_visibility.set_visible(*mode == LocationMode::City);
+        auto_row_visibility.set_visible(*mode == LocationMode::Auto);
     });
 
     update_visibility(&current_mode);
@@ -1075,8 +1285,6 @@ pub fn setup_settings_ui<'a>(
         if was_mawaqit {
             config_mode.set_prayer_times_source(crate::config::PrayerTimesSource::Calculated);
         }
-        config_mode.set_latitude(config_mode.latitude());
-        config_mode.set_longitude(config_mode.longitude());
         config_mode.set_location_mode(mode.clone());
         config_mode.save();
         if was_mawaqit {
@@ -1086,7 +1294,6 @@ pub fn setup_settings_ui<'a>(
             status_row_for_mode.set_visible(false);
             refresh_btn_for_mode.set_visible(false);
         }
-        AppConfig::save_shared(&config_mode);
         update_vis_clone(&mode);
         if let Some(result) = refresh_prayers(&config_mode, &list_box_mode) {
             update_lre_toast(&config_mode, &result, &window_mode);
@@ -1095,7 +1302,7 @@ pub fn setup_settings_ui<'a>(
     });
 
     let madhab_strings = [tr("Shafi (Maliki/Hanbali)"), tr("Hanafi")];
-    let madhab_slices: Vec<&str> = madhab_strings.iter().map(|s| s.as_str()).collect();
+    let madhab_slices: Vec<&str> = madhab_strings.iter().map(|item| item.as_str()).collect();
     let madhabs = StringList::new(&madhab_slices);
     let madhab_row = ComboRow::builder()
         .title(tr("Asr Calculation (Madhab)"))
@@ -1114,12 +1321,12 @@ pub fn setup_settings_ui<'a>(
     let window_madhab = window.clone();
     madhab_row.connect_selected_notify(move |combo| {
         let index = combo.selected();
-        let m = if index == 1 {
+        let madhab_choice = if index == 1 {
             MadhabChoice::Hanafi
         } else {
             MadhabChoice::Shafi
         };
-        config_madhab.set_madhab(m);
+        config_madhab.set_madhab(madhab_choice);
         config_madhab.save();
         if let Some(result) = refresh_prayers(&config_madhab, &list_box_madhab) {
             update_lre_toast(&config_madhab, &result, &window_madhab);
@@ -1128,39 +1335,42 @@ pub fn setup_settings_ui<'a>(
     });
     calc_group.add(&madhab_row);
 
-    let high_lat_strings = [
+    let high_latitude_strings = [
         tr("Auto (Recommended)"),
         tr("Middle of the Night"),
         tr("Seventh of the Night"),
         tr("Twilight Angle"),
         tr("Local Relative Estimation"),
     ];
-    let high_lat_slices: Vec<&str> = high_lat_strings.iter().map(|s| s.as_str()).collect();
-    let high_lat_model = StringList::new(&high_lat_slices);
-    let high_lat_row = ComboRow::builder()
+    let high_latitude_slices: Vec<&str> = high_latitude_strings
+        .iter()
+        .map(|item| item.as_str())
+        .collect();
+    let high_latitude_model = StringList::new(&high_latitude_slices);
+    let high_latitude_row = ComboRow::builder()
         .title(tr("Fajr/Isha Approximation"))
         .subtitle(tr(
             "How to approximate Fajr and Isha when the twilight angle is not reachable.",
         ))
-        .model(&high_lat_model)
+        .model(&high_latitude_model)
         .build();
-    high_lat_row.set_subtitle_lines(2);
+    high_latitude_row.set_subtitle_lines(2);
 
     match config.high_latitude_rule() {
-        HighLatitudeChoice::Auto => high_lat_row.set_selected(0),
-        HighLatitudeChoice::MiddleOfTheNight => high_lat_row.set_selected(1),
-        HighLatitudeChoice::SeventhOfTheNight => high_lat_row.set_selected(2),
-        HighLatitudeChoice::TwilightAngle => high_lat_row.set_selected(3),
-        HighLatitudeChoice::LocalRelativeEstimation => high_lat_row.set_selected(4),
+        HighLatitudeChoice::Auto => high_latitude_row.set_selected(0),
+        HighLatitudeChoice::MiddleOfTheNight => high_latitude_row.set_selected(1),
+        HighLatitudeChoice::SeventhOfTheNight => high_latitude_row.set_selected(2),
+        HighLatitudeChoice::TwilightAngle => high_latitude_row.set_selected(3),
+        HighLatitudeChoice::LocalRelativeEstimation => high_latitude_row.set_selected(4),
     }
 
-    let config_hl = config.clone();
-    let list_box_hl = list_box_rc.clone();
-    let window_hl = window.clone();
-    let hl_updating = Rc::new(Cell::new(false));
-    let hl_updating_inner = hl_updating.clone();
-    high_lat_row.connect_selected_notify(move |combo| {
-        if hl_updating_inner.get() {
+    let config_high_latitude = config.clone();
+    let list_box_high_latitude = list_box_rc.clone();
+    let window_high_latitude = window.clone();
+    let high_latitude_updating = Rc::new(Cell::new(false));
+    let high_latitude_updating_inner = high_latitude_updating.clone();
+    high_latitude_row.connect_selected_notify(move |combo| {
+        if high_latitude_updating_inner.get() {
             return;
         }
         let choice = match combo.selected() {
@@ -1171,24 +1381,24 @@ pub fn setup_settings_ui<'a>(
             4 => HighLatitudeChoice::LocalRelativeEstimation,
             _ => HighLatitudeChoice::Auto,
         };
-        config_hl.set_high_latitude_rule(choice);
-        config_hl.save();
-        if let Some(result) = refresh_prayers(&config_hl, &list_box_hl) {
+        config_high_latitude.set_high_latitude_rule(choice);
+        config_high_latitude.save();
+        if let Some(result) = refresh_prayers(&config_high_latitude, &list_box_high_latitude) {
             if result.lre_blocked {
-                hl_updating_inner.set(true);
+                high_latitude_updating_inner.set(true);
                 combo.set_selected(0);
-                hl_updating_inner.set(false);
-                config_hl.set_high_latitude_rule(HighLatitudeChoice::Auto);
-                config_hl.save();
+                high_latitude_updating_inner.set(false);
+                config_high_latitude.set_high_latitude_rule(HighLatitudeChoice::Auto);
+                config_high_latitude.save();
             }
-            update_lre_toast(&config_hl, &result, &window_hl);
-            update_fallback_toast(&config_hl, &result, &window_hl);
+            update_lre_toast(&config_high_latitude, &result, &window_high_latitude);
+            update_fallback_toast(&config_high_latitude, &result, &window_high_latitude);
         }
     });
-    calc_group.add(&high_lat_row);
+    calc_group.add(&high_latitude_row);
 
     let polar_strings = [tr("Nearest Latitude"), tr("Reference Latitude 45°")];
-    let polar_slices: Vec<&str> = polar_strings.iter().map(|s| s.as_str()).collect();
+    let polar_slices: Vec<&str> = polar_strings.iter().map(|item| item.as_str()).collect();
     let polar_model = StringList::new(&polar_slices);
     let polar_row = ComboRow::builder()
         .title(tr("Polar Estimation Method"))
@@ -1222,16 +1432,16 @@ pub fn setup_settings_ui<'a>(
     });
     calc_group.add(&polar_row);
 
-    let zone = config.latitude_zone();
-    high_lat_row.set_visible(zone >= 2);
-    polar_row.set_visible(zone >= 3);
+    let latitude_zone = config.latitude_zone();
+    high_latitude_row.set_visible(latitude_zone >= 2);
+    polar_row.set_visible(latitude_zone >= 3);
 
-    let hl_clone = high_lat_row.clone();
+    let high_latitude_clone = high_latitude_row.clone();
     let pf_clone = polar_row.clone();
     crate::connect_notify_blocked(&config, Some("latitude"), move |cfg, _| {
-        let zone = cfg.latitude_zone();
-        hl_clone.set_visible(zone >= 2);
-        pf_clone.set_visible(zone >= 3);
+        let updated_latitude_zone = cfg.latitude_zone();
+        high_latitude_clone.set_visible(updated_latitude_zone >= 2);
+        pf_clone.set_visible(updated_latitude_zone >= 3);
     });
 
     let iqamah_group = PreferencesGroup::builder()
@@ -1314,12 +1524,10 @@ pub fn setup_settings_ui<'a>(
         config_only.set_adhan_only_mode(enabled);
         if enabled {
             config_only.set_pre_prayer_notify(false);
-            config_only.set_pre_prayer_minutes(config_only.pre_prayer_minutes());
             config_only.set_iqamah_notify(false);
             config_only.set_adkar_notification_enabled(false);
         } else {
             config_only.set_pre_prayer_notify(true);
-            config_only.set_pre_prayer_minutes(config_only.pre_prayer_minutes());
             config_only.set_iqamah_notify(true);
             config_only.set_adkar_notification_enabled(true);
         }
@@ -1364,7 +1572,6 @@ pub fn setup_settings_ui<'a>(
     let config_notify = config.clone();
     notify_toggle.connect_active_notify(move |row| {
         config_notify.set_pre_prayer_notify(row.is_active());
-        config_notify.set_pre_prayer_minutes(config_notify.pre_prayer_minutes());
         config_notify.save();
     });
 
@@ -1388,7 +1595,7 @@ pub fn setup_settings_ui<'a>(
     let config_test_notif = config.clone();
     bind_audio_toggle_button_sync(&test_notify_btn, "Test Notification");
     test_notify_btn.connect_clicked(move |btn| {
-        if crate::audio::is_playing() {
+        if crate::audio::is_adhan() {
             crate::audio::stop();
             set_audio_toggle_button_label(btn, "Test Notification", false);
         } else {
@@ -1411,16 +1618,8 @@ pub fn setup_settings_ui<'a>(
 
     notif_group.add(&test_notify_btn);
 
-    let prayer_iqamah_defs = [
-        ("Fajr", 20u32),
-        ("Dhuhr", 10u32),
-        ("Asr", 10u32),
-        ("Maghrib", 5u32),
-        ("Isha", 10u32),
-    ];
-
     let mut iqamah_rows = Vec::new();
-    for (prayer_name, default_mins) in prayer_iqamah_defs {
+    for (prayer_name, default_mins) in crate::config::DEFAULT_IQAMAH_MINUTES {
         let current = config
             .iqamah_minutes()
             .get(prayer_name)
@@ -1436,13 +1635,13 @@ pub fn setup_settings_ui<'a>(
         iqamah_rows.push(iq_row.clone());
         iqamah_group.add(&iq_row);
 
-        let config_iq = config.clone();
+        let config_iq_row = config.clone();
         let prayer_key = prayer_name.to_string();
         iq_adj.connect_value_changed(move |adj| {
-            let mut mins = config_iq.iqamah_minutes();
+            let mut mins = config_iq_row.iqamah_minutes();
             mins.insert(prayer_key.clone(), adj.value() as u32);
-            config_iq.set_iqamah_minutes(mins);
-            config_iq.save();
+            config_iq_row.set_iqamah_minutes(mins);
+            config_iq_row.save();
         });
     }
 
@@ -1459,7 +1658,7 @@ pub fn setup_settings_ui<'a>(
         preset_labels.push(adhan_preset_label(name));
     }
 
-    let label_refs: Vec<&str> = preset_labels.iter().map(|s| s.as_str()).collect();
+    let label_refs: Vec<&str> = preset_labels.iter().map(|item| item.as_str()).collect();
     let model = gtk::StringList::new(&label_refs);
 
     let sound_combo = ComboRow::builder()
@@ -1467,24 +1666,11 @@ pub fn setup_settings_ui<'a>(
         .model(&model)
         .build();
 
-    let current_path = config.adhan_sound_path();
-    if let Some(path) = current_path {
-        let path_obj = PathBuf::from(&path);
-        if let Some(name) = path_obj.file_name().and_then(|n| n.to_str()) {
-            if let Some(pos) = preset_files.iter().position(|p| p.as_str() == name) {
-                sound_combo.set_selected((pos + 2) as u32);
-            } else {
-                sound_combo.set_selected(1);
-                sound_combo.set_subtitle(&path);
-            }
-        } else {
-            sound_combo.set_selected(1);
-            sound_combo.set_subtitle(&path);
-        }
-    } else {
-        sound_combo.set_selected(0);
-        sound_combo.set_subtitle(&tr("Using builtin default"));
-    }
+    apply_sound_combo_state(
+        &sound_combo,
+        &preset_files,
+        config.adhan_sound_path().as_deref(),
+    );
 
     let window_clone_sound = window.clone();
     let config_sound = config.clone();
@@ -1513,7 +1699,6 @@ pub fn setup_settings_ui<'a>(
                 .filters(&filters)
                 .build();
 
-            let _config_dialog = config_sound.clone();
             let combo_dialog = combo.clone();
             let parent_window = window_clone_sound.clone();
 
@@ -1522,9 +1707,9 @@ pub fn setup_settings_ui<'a>(
                     && let Some(path) = file.path()
                     && let Some(path_str) = path.to_str()
                 {
-                    let combo = combo_dialog.clone();
+                    let combo_owned = combo_dialog.clone();
                     let parent = parent_window.clone();
-                    crate::audio::validate_audio_async(path_str.to_string(), combo, parent);
+                    crate::audio::validate_audio_async(path_str.to_string(), combo_owned, parent);
                 }
             });
         } else {
@@ -1589,7 +1774,7 @@ pub fn setup_settings_ui<'a>(
     let config_test = config.clone();
     bind_audio_toggle_button_sync(&test_audio_btn, "▶ Preview Adhan");
     test_audio_btn.connect_clicked(move |btn| {
-        if crate::audio::is_playing() {
+        if crate::audio::is_adhan() {
             crate::audio::stop();
             set_audio_toggle_button_label(btn, "▶ Preview Adhan", false);
         } else {
@@ -1608,12 +1793,7 @@ pub fn setup_settings_ui<'a>(
 
     let ctx = SettingsUiContext {
         config: config.clone(),
-        list_box_rc: list_box_rc.clone(),
-        window: window.clone(),
         current_lang: current_lang.clone(),
-        loc_tx: loc_tx.clone(),
-        refresh_calendar: refresh_calendar.clone(),
-        settings_box: settings_box.clone(),
 
         general_heading,
         general_desc,
@@ -1623,13 +1803,25 @@ pub fn setup_settings_ui<'a>(
         theme_model: theme_model.clone(),
         autostart_toggle,
 
+        fonts_heading,
+        fonts_desc,
+        ui_font_row: ui_font_row.row.clone(),
+        ui_font_reset: ui_font_row.reset_btn.clone(),
+        ui_font_dialog: ui_font_row.dialog.clone(),
+        arabic_font_row: arabic_font_row.row.clone(),
+        arabic_font_reset: arabic_font_row.reset_btn.clone(),
+        arabic_font_dialog: arabic_font_row.dialog.clone(),
+        quran_font_row: quran_font_row.row.clone(),
+        quran_font_reset: quran_font_row.reset_btn.clone(),
+        quran_font_dialog: quran_font_row.dialog.clone(),
+
         prayer_setup_heading,
         prayer_setup_desc,
         location_group: location_group.clone(),
         mode_row: mode_row.clone(),
         mode_model: modes.clone(),
-        lat_row: lat_row.clone(),
-        lon_row: lon_row.clone(),
+        latitude_row: latitude_row.clone(),
+        longitude_row: longitude_row.clone(),
         status_row: status_row.clone(),
         city_row: city_row.clone(),
         city_btn: city_btn.clone(),
@@ -1654,8 +1846,8 @@ pub fn setup_settings_ui<'a>(
         method_model: methods.clone(),
         madhab_row: madhab_row.clone(),
         madhab_model: madhabs.clone(),
-        high_lat_row: high_lat_row.clone(),
-        high_lat_model: high_lat_model.clone(),
+        high_latitude_row: high_latitude_row.clone(),
+        high_latitude_model: high_latitude_model.clone(),
         polar_row: polar_row.clone(),
         polar_model: polar_model.clone(),
 
@@ -1671,7 +1863,6 @@ pub fn setup_settings_ui<'a>(
         adhan_only_toggle: adhan_only_toggle.clone(),
         test_notify_btn: test_notify_btn.clone(),
 
-        audio_group: audio_group.clone(),
         sound_combo: sound_combo.clone(),
         sound_model: model.clone(),
         preset_files,
@@ -1700,19 +1891,44 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
         tr("Turkish"),
         tr("Indonesian"),
     ];
-    let lang_refs: Vec<&str> = lang_items.iter().map(|s| s.as_str()).collect();
+    let lang_refs: Vec<&str> = lang_items.iter().map(|item| item.as_str()).collect();
     ctx.lang_model
         .splice(0, ctx.lang_model.n_items(), &lang_refs);
 
     ctx.theme_row.set_title(&tr("Theme"));
     let theme_items = [tr("System Default"), tr("Light"), tr("Dark")];
-    let theme_refs: Vec<&str> = theme_items.iter().map(|s| s.as_str()).collect();
+    let theme_refs: Vec<&str> = theme_items.iter().map(|item| item.as_str()).collect();
     ctx.theme_model
         .splice(0, ctx.theme_model.n_items(), &theme_refs);
 
     ctx.autostart_toggle.set_title(&tr("Start Automatically"));
     ctx.autostart_toggle
         .set_subtitle(&tr("Run Khushu in the background when you log in."));
+
+    ctx.fonts_heading.set_label(&tr("Fonts"));
+    ctx.fonts_desc.set_label(&tr(
+        "Choose the fonts used across the app. 'System default' follows your desktop font settings.",
+    ));
+
+    ctx.ui_font_row.set_title(&tr("UI Font"));
+    ctx.ui_font_reset
+        .set_tooltip_text(Some(&tr("Restore to default")));
+    ctx.ui_font_dialog.set_title(&tr("Select Interface Font"));
+
+    ctx.arabic_font_row.set_title(&tr("Arabic Font"));
+    ctx.arabic_font_reset
+        .set_tooltip_text(Some(&tr("Restore to default")));
+    ctx.arabic_font_dialog.set_title(&tr("Select Arabic Font"));
+    ctx.arabic_font_row
+        .set_subtitle(&tr("Used for Arabic content, such as the adkar texts."));
+
+    ctx.quran_font_row.set_title(&tr("Quran Font"));
+    ctx.quran_font_reset
+        .set_tooltip_text(Some(&tr("Restore to default")));
+    ctx.quran_font_dialog.set_title(&tr("Select Quran Font"));
+    ctx.quran_font_row.set_subtitle(&tr(
+        "Must support Uthmani Quran script; otherwise verses may render incorrectly.",
+    ));
 
     ctx.prayer_setup_heading.set_label(&tr("Prayer Setup"));
     ctx.prayer_setup_desc.set_label(&tr("Set your location, prayer times source, timezone, calculation methods, and Iqamah delays for each prayer."));
@@ -1728,13 +1944,13 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
         tr("City Selection"),
         tr("Auto (GPS/Network)"),
     ];
-    let mode_refs: Vec<&str> = mode_items.iter().map(|s| s.as_str()).collect();
+    let mode_refs: Vec<&str> = mode_items.iter().map(|item| item.as_str()).collect();
     ctx.mode_model
         .splice(0, ctx.mode_model.n_items(), &mode_refs);
     ctx.mode_row.set_title(&tr("Location Method"));
 
-    ctx.lat_row.set_title(&tr("Latitude"));
-    ctx.lon_row.set_title(&tr("Longitude"));
+    ctx.latitude_row.set_title(&tr("Latitude"));
+    ctx.longitude_row.set_title(&tr("Longitude"));
 
     ctx.status_row.set_title(&tr("Location Status"));
 
@@ -1790,7 +2006,7 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
     }
 
     let source_items = [tr("Calculated (Offline)"), tr("Connected Mosque (URL)")];
-    let source_refs: Vec<&str> = source_items.iter().map(|s| s.as_str()).collect();
+    let source_refs: Vec<&str> = source_items.iter().map(|item| item.as_str()).collect();
     ctx.source_model
         .splice(0, ctx.source_model.n_items(), &source_refs);
     ctx.source_row.set_title(&tr("Prayer Times Source"));
@@ -1805,23 +2021,8 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
 
     ctx.mawaqit_status_row.set_title(&tr("Connected Mosque"));
     if let Some(cache) = cfg.mawaqit_cache().as_ref() {
-        let tz = cache.timezone.clone().unwrap_or_default();
-        let tz_label = if tz.is_empty() {
-            String::new()
-        } else {
-            location::localized_time_zone_label(&tz, lang)
-        };
-        let subtitle = if tz_label.is_empty() {
-            format!("{} • {}", tr("Last updated"), cache.fetched_on)
-        } else {
-            format!(
-                "{} • {} • {}",
-                tz_label,
-                tr("Last updated"),
-                cache.fetched_on
-            )
-        };
-        ctx.mawaqit_status_row.set_subtitle(&subtitle);
+        ctx.mawaqit_status_row
+            .set_subtitle(&mawaqit_status_subtitle(cache, lang));
     } else {
         ctx.mawaqit_status_row.set_subtitle(&tr("Not configured"));
     }
@@ -1838,7 +2039,7 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
         tr("Custom Timezone (IANA)"),
         tr("Manual UTC Offset"),
     ];
-    let tz_mode_refs: Vec<&str> = tz_mode_items.iter().map(|s| s.as_str()).collect();
+    let tz_mode_refs: Vec<&str> = tz_mode_items.iter().map(|item| item.as_str()).collect();
     ctx.tz_mode_model
         .splice(0, ctx.tz_mode_model.n_items(), &tz_mode_refs);
     ctx.tz_mode_row.set_title(&tr("Timezone Mode"));
@@ -1884,40 +2085,44 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
         tr("France (UOIF)"),
         tr("Algeria"),
     ];
-    let method_refs: Vec<&str> = method_items.iter().map(|s| s.as_str()).collect();
+    let method_refs: Vec<&str> = method_items.iter().map(|item| item.as_str()).collect();
     ctx.method_model
         .splice(0, ctx.method_model.n_items(), &method_refs);
     ctx.method_row.set_title(&tr("Calculation Method"));
 
     let madhab_items = [tr("Shafi (Maliki/Hanbali)"), tr("Hanafi")];
-    let madhab_refs: Vec<&str> = madhab_items.iter().map(|s| s.as_str()).collect();
+    let madhab_refs: Vec<&str> = madhab_items.iter().map(|item| item.as_str()).collect();
     ctx.madhab_model
         .splice(0, ctx.madhab_model.n_items(), &madhab_refs);
     ctx.madhab_row.set_title(&tr("Asr Calculation (Madhab)"));
 
-    ctx.high_lat_row.set_title(&tr("Fajr/Isha Approximation"));
-    ctx.high_lat_row.set_subtitle(&tr(
+    ctx.high_latitude_row
+        .set_title(&tr("Fajr/Isha Approximation"));
+    ctx.high_latitude_row.set_subtitle(&tr(
         "How to approximate Fajr and Isha when the twilight angle is not reachable.",
     ));
-    let hl_items = [
+    let high_latitude_items = [
         tr("Auto (Recommended)"),
         tr("Middle of the Night"),
         tr("Seventh of the Night"),
         tr("Twilight Angle"),
         tr("Local Relative Estimation"),
     ];
-    let hl_refs: Vec<&str> = hl_items.iter().map(|s| s.as_str()).collect();
-    ctx.high_lat_model
-        .splice(0, ctx.high_lat_model.n_items(), &hl_refs);
+    let high_latitude_refs: Vec<&str> = high_latitude_items
+        .iter()
+        .map(|item| item.as_str())
+        .collect();
+    ctx.high_latitude_model
+        .splice(0, ctx.high_latitude_model.n_items(), &high_latitude_refs);
 
     ctx.polar_row.set_title(&tr("Polar Estimation Method"));
     ctx.polar_row.set_subtitle(&tr(
         "Fallback applied when the sun never rises or sets (above ~66.5° latitude).",
     ));
-    let pf_items = [tr("Nearest Latitude"), tr("Reference Latitude 45°")];
-    let pf_refs: Vec<&str> = pf_items.iter().map(|s| s.as_str()).collect();
+    let polar_items = [tr("Nearest Latitude"), tr("Reference Latitude 45°")];
+    let polar_refs: Vec<&str> = polar_items.iter().map(|item| item.as_str()).collect();
     ctx.polar_model
-        .splice(0, ctx.polar_model.n_items(), &pf_refs);
+        .splice(0, ctx.polar_model.n_items(), &polar_refs);
 
     ctx.iqamah_group.set_title(&tr("Iqamah Delays"));
     ctx.iqamah_group.set_description(Some(&tr(
@@ -1925,8 +2130,8 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
     )));
 
     let prayer_names = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
-    for (i, name) in prayer_names.iter().enumerate() {
-        if let Some(row) = ctx.iqamah_rows.get(i) {
+    for (prayer_index, name) in prayer_names.iter().enumerate() {
+        if let Some(row) = ctx.iqamah_rows.get(prayer_index) {
             row.set_title(&tr(name));
             row.set_subtitle(&tr("Minutes"));
         }
@@ -1966,29 +2171,16 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
     for name in &ctx.preset_files {
         preset_labels.push(adhan_preset_label(name));
     }
-    let preset_refs: Vec<&str> = preset_labels.iter().map(|s| s.as_str()).collect();
+    let preset_refs: Vec<&str> = preset_labels.iter().map(|item| item.as_str()).collect();
     ctx.sound_model
         .splice(0, ctx.sound_model.n_items(), &preset_refs);
     ctx.sound_combo.set_title(&tr("Adhan Sound"));
 
-    let current_path = ctx.config.adhan_sound_path();
-    if let Some(path) = &current_path {
-        let path_obj = PathBuf::from(path);
-        if let Some(name) = path_obj.file_name().and_then(|n| n.to_str()) {
-            if let Some(pos) = ctx.preset_files.iter().position(|p| p.as_str() == name) {
-                ctx.sound_combo.set_selected((pos + 2) as u32);
-            } else {
-                ctx.sound_combo.set_selected(1);
-                ctx.sound_combo.set_subtitle(path);
-            }
-        } else {
-            ctx.sound_combo.set_selected(1);
-            ctx.sound_combo.set_subtitle(path);
-        }
-    } else {
-        ctx.sound_combo.set_selected(0);
-        ctx.sound_combo.set_subtitle(&tr("Using builtin default"));
-    }
+    apply_sound_combo_state(
+        &ctx.sound_combo,
+        &ctx.preset_files,
+        ctx.config.adhan_sound_path().as_deref(),
+    );
 
     ctx.mute_toggle.set_title(&tr("Mute Adhan"));
     ctx.mute_toggle
@@ -2003,7 +2195,7 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, lang: &str) {
 fn adhan_preset_label(file_name: &str) -> String {
     let stem = std::path::Path::new(file_name)
         .file_stem()
-        .and_then(|s| s.to_str())
+        .and_then(|os_str| os_str.to_str())
         .unwrap_or(file_name);
     match stem {
         "Makkah" => tr("Makkah Adhan"),

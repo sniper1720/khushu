@@ -45,7 +45,7 @@ pub struct PrayerEngine {
     location: Coordinates,
     polar: mawaqit::PolarFallback,
     madhab: Madhab,
-    high_lat: HighLatitudeChoice,
+    high_latitude: HighLatitudeChoice,
 }
 
 impl PrayerEngine {
@@ -54,7 +54,7 @@ impl PrayerEngine {
         longitude: f64,
         method: &CalculationMethod,
         madhab: &MadhabChoice,
-        high_lat: &HighLatitudeChoice,
+        high_latitude: &HighLatitudeChoice,
         polar: &PolarEstimationMethod,
     ) -> Self {
         let location = Coordinates::new(latitude, longitude);
@@ -93,7 +93,7 @@ impl PrayerEngine {
             PolarEstimationMethod::Reference45 => mawaqit::PolarFallback::Reference45,
         };
 
-        params.high_latitude_rule = match high_lat {
+        params.high_latitude_rule = match high_latitude {
             HighLatitudeChoice::Auto => mawaqit::HighLatitudeRule::Recommended,
             HighLatitudeChoice::MiddleOfTheNight => mawaqit::HighLatitudeRule::MiddleOfTheNight,
             HighLatitudeChoice::SeventhOfTheNight => mawaqit::HighLatitudeRule::SeventhOfTheNight,
@@ -108,13 +108,13 @@ impl PrayerEngine {
             location,
             polar: params.polar_fallback,
             madhab: mawaqit_madhab,
-            high_lat: high_lat.clone(),
+            high_latitude: high_latitude.clone(),
         }
     }
 
     pub fn get_prayer_times(&self, date: NaiveDate) -> Result<PrayerResult, &'static str> {
         let date_utc = Utc
-            .with_ymd_and_hms(date.year(), date.month(), date.day(), 12, 0, 0)
+            .with_ymd_and_hms(date.year(), date.month(), date.day(), 0, 0, 0)
             .single()
             .ok_or("failed to create UTC date")?;
         let resolved = self
@@ -124,13 +124,18 @@ impl PrayerEngine {
         let fallback_active = (resolved - self.location.latitude).abs() > 0.001;
 
         let (times, lre_blocked) = match PrayerTimes::try_new(date, self.location, self.params) {
-            Ok(t) => (t, false),
-            Err(_) if matches!(self.high_lat, HighLatitudeChoice::LocalRelativeEstimation) => {
+            Ok(prayer_times) => (prayer_times, false),
+            Err(_)
+                if matches!(
+                    self.high_latitude,
+                    HighLatitudeChoice::LocalRelativeEstimation
+                ) =>
+            {
                 let mut params = self.params;
                 params.high_latitude_rule = mawaqit::HighLatitudeRule::Recommended;
                 (PrayerTimes::try_new(date, self.location, params)?, true)
             }
-            Err(e) => return Err(e),
+            Err(err) => return Err(err),
         };
 
         Ok(PrayerResult {
@@ -158,12 +163,12 @@ impl PrayerEngine {
 
 fn parse_hm(s: &str) -> Option<(u32, u32)> {
     let mut it = s.split(':');
-    let h = it.next()?.parse::<u32>().ok()?;
-    let m = it.next()?.parse::<u32>().ok()?;
-    if h > 23 || m > 59 {
+    let hours = it.next()?.parse::<u32>().ok()?;
+    let minutes = it.next()?.parse::<u32>().ok()?;
+    if hours > 23 || minutes > 59 {
         return None;
     }
-    Some((h, m))
+    Some((hours, minutes))
 }
 
 pub fn schedule_from_hm(
@@ -175,39 +180,81 @@ pub fn schedule_from_hm(
     maghrib: &str,
     isha: &str,
 ) -> Option<PrayerSchedule> {
-    let (fh, fm) = parse_hm(fajr)?;
-    let (sh, sm) = parse_hm(shurooq)?;
-    let (dh, dm) = parse_hm(dhuhr)?;
-    let (ah, am) = parse_hm(asr)?;
-    let (mh, mm) = parse_hm(maghrib)?;
-    let (ih, im) = parse_hm(isha)?;
+    let (fajr_hours, fajr_minutes) = parse_hm(fajr)?;
+    let (shurooq_hours, shurooq_minutes) = parse_hm(shurooq)?;
+    let (dhuhr_hours, dhuhr_minutes) = parse_hm(dhuhr)?;
+    let (asr_hours, asr_minutes) = parse_hm(asr)?;
+    let (maghrib_hours, maghrib_minutes) = parse_hm(maghrib)?;
+    let (isha_hours, isha_minutes) = parse_hm(isha)?;
 
-    let fajr = Local
-        .with_ymd_and_hms(date.year(), date.month(), date.day(), fh, fm, 0)
+    let fajr_time = Local
+        .with_ymd_and_hms(
+            date.year(),
+            date.month(),
+            date.day(),
+            fajr_hours,
+            fajr_minutes,
+            0,
+        )
         .single()?;
-    let shurooq = Local
-        .with_ymd_and_hms(date.year(), date.month(), date.day(), sh, sm, 0)
+    let shurooq_time = Local
+        .with_ymd_and_hms(
+            date.year(),
+            date.month(),
+            date.day(),
+            shurooq_hours,
+            shurooq_minutes,
+            0,
+        )
         .single()?;
-    let dhuhr = Local
-        .with_ymd_and_hms(date.year(), date.month(), date.day(), dh, dm, 0)
+    let dhuhr_time = Local
+        .with_ymd_and_hms(
+            date.year(),
+            date.month(),
+            date.day(),
+            dhuhr_hours,
+            dhuhr_minutes,
+            0,
+        )
         .single()?;
-    let asr = Local
-        .with_ymd_and_hms(date.year(), date.month(), date.day(), ah, am, 0)
+    let asr_time = Local
+        .with_ymd_and_hms(
+            date.year(),
+            date.month(),
+            date.day(),
+            asr_hours,
+            asr_minutes,
+            0,
+        )
         .single()?;
-    let maghrib = Local
-        .with_ymd_and_hms(date.year(), date.month(), date.day(), mh, mm, 0)
+    let maghrib_time = Local
+        .with_ymd_and_hms(
+            date.year(),
+            date.month(),
+            date.day(),
+            maghrib_hours,
+            maghrib_minutes,
+            0,
+        )
         .single()?;
-    let isha = Local
-        .with_ymd_and_hms(date.year(), date.month(), date.day(), ih, im, 0)
+    let isha_time = Local
+        .with_ymd_and_hms(
+            date.year(),
+            date.month(),
+            date.day(),
+            isha_hours,
+            isha_minutes,
+            0,
+        )
         .single()?;
 
     Some(PrayerSchedule {
-        fajr,
-        shurooq,
-        dhuhr,
-        asr,
-        maghrib,
-        isha,
+        fajr: fajr_time,
+        shurooq: shurooq_time,
+        dhuhr: dhuhr_time,
+        asr: asr_time,
+        maghrib: maghrib_time,
+        isha: isha_time,
     })
 }
 
@@ -224,8 +271,8 @@ pub fn schedule_for_config(
             && let Some(arr) = month.get(&date.day())
         {
             return schedule_from_hm(date, &arr[0], &arr[1], &arr[2], &arr[3], &arr[4], &arr[5])
-                .map(|s| PrayerResult {
-                    schedule: apply_timezone_override(config, s),
+                .map(|schedule| PrayerResult {
+                    schedule: apply_timezone_override(config, schedule),
                     lre_blocked: false,
                     fallback_active: false,
                 })
@@ -242,9 +289,9 @@ pub fn schedule_for_config(
         &config.polar_estimation_method(),
     )
     .get_prayer_times(date)
-    .map(|mut r| {
-        r.schedule = apply_timezone_override(config, r.schedule);
-        r
+    .map(|mut result| {
+        result.schedule = apply_timezone_override(config, result.schedule);
+        result
     })
 }
 
@@ -333,8 +380,8 @@ pub fn format_hijri_date(dt: DateTime<Local>, hijri_offset: i64) -> String {
             let hijri_month = tr(HIJRI_MONTH_NAMES.get(hijri.month() - 1).unwrap_or(&""));
             format!("{} {} {}", hijri.day(), hijri_month, hijri.year())
         }
-        Err(e) => {
-            log::error!("Failed to calculate Hijri date: {e}");
+        Err(err) => {
+            log::error!("Failed to calculate Hijri date: {err}");
             "—".to_string()
         }
     }
@@ -404,14 +451,14 @@ mod tests {
 
     #[test]
     fn test_prayer_times_calculation() {
-        let (hl, pf) = default_params();
+        let (high_latitude_rule, prayer_params) = default_params();
         let engine = PrayerEngine::new(
             21.4225,
             39.8262,
             &CalculationMethod::Makkah,
             &MadhabChoice::Shafi,
-            &hl,
-            &pf,
+            &high_latitude_rule,
+            &prayer_params,
         );
         let date = NaiveDate::from_ymd_opt(2023, 10, 1).unwrap();
 
@@ -435,43 +482,66 @@ mod tests {
         let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
 
         for method in &methods {
-            let (hl, pf) = default_params();
-            let engine = PrayerEngine::new(36.75, 3.05, method, &MadhabChoice::Shafi, &hl, &pf);
-            let t = engine
+            let (high_latitude_rule, prayer_params) = default_params();
+            let engine = PrayerEngine::new(
+                36.75,
+                3.05,
+                method,
+                &MadhabChoice::Shafi,
+                &high_latitude_rule,
+                &prayer_params,
+            );
+            let schedule = engine
                 .get_prayer_times(date)
                 .expect("schedule must exist")
                 .schedule;
-            assert!(t.fajr < t.shurooq, "Fajr < Sunrise failed for {:?}", method);
             assert!(
-                t.shurooq < t.dhuhr,
+                schedule.fajr < schedule.shurooq,
+                "Fajr < Sunrise failed for {:?}",
+                method
+            );
+            assert!(
+                schedule.shurooq < schedule.dhuhr,
                 "Sunrise < Dhuhr failed for {:?}",
                 method
             );
-            assert!(t.dhuhr < t.asr, "Dhuhr < Asr failed for {:?}", method);
-            assert!(t.asr < t.maghrib, "Asr < Maghrib failed for {:?}", method);
-            assert!(t.maghrib < t.isha, "Maghrib < Isha failed for {:?}", method);
+            assert!(
+                schedule.dhuhr < schedule.asr,
+                "Dhuhr < Asr failed for {:?}",
+                method
+            );
+            assert!(
+                schedule.asr < schedule.maghrib,
+                "Asr < Maghrib failed for {:?}",
+                method
+            );
+            assert!(
+                schedule.maghrib < schedule.isha,
+                "Maghrib < Isha failed for {:?}",
+                method
+            );
         }
     }
 
     #[test]
     fn hanafi_asr_later_than_shafi() {
         let date = NaiveDate::from_ymd_opt(2024, 3, 20).unwrap();
-        let (hl, pf) = default_params();
+        let (high_latitude_rule, prayer_params) = default_params();
         let shafi = PrayerEngine::new(
             36.75,
             3.05,
             &CalculationMethod::MWL,
             &MadhabChoice::Shafi,
-            &hl,
-            &pf,
+            &high_latitude_rule,
+            &prayer_params,
         );
         let hanafi = PrayerEngine::new(
             36.75,
             3.05,
             &CalculationMethod::MWL,
             &MadhabChoice::Hanafi,
-            &hl,
-            &pf,
+            &high_latitude_rule,
+            &prayer_params,
         );
 
         let shafi_asr = shafi.get_prayer_times(date).unwrap().schedule.asr;
@@ -488,14 +558,14 @@ mod tests {
     #[test]
     fn next_prayer_wraps_to_tomorrow_fajr() {
         let date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
-        let (hl, pf) = default_params();
+        let (high_latitude_rule, prayer_params) = default_params();
         let engine = PrayerEngine::new(
             36.75,
             3.05,
             &CalculationMethod::MWL,
             &MadhabChoice::Shafi,
-            &hl,
-            &pf,
+            &high_latitude_rule,
+            &prayer_params,
         );
 
         let today = engine.get_prayer_times(date).unwrap().schedule;
@@ -516,22 +586,22 @@ mod tests {
     #[test]
     fn different_methods_produce_different_times() {
         let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
-        let (hl, pf) = default_params();
+        let (high_latitude_rule, prayer_params) = default_params();
         let mwl = PrayerEngine::new(
             36.75,
             3.05,
             &CalculationMethod::MWL,
             &MadhabChoice::Shafi,
-            &hl,
-            &pf,
+            &high_latitude_rule,
+            &prayer_params,
         );
         let egypt = PrayerEngine::new(
             36.75,
             3.05,
             &CalculationMethod::Egypt,
             &MadhabChoice::Shafi,
-            &hl,
-            &pf,
+            &high_latitude_rule,
+            &prayer_params,
         );
 
         let mwl_t = mwl.get_prayer_times(date).unwrap().schedule;

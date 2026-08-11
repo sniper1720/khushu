@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::sync::OnceLock;
 
 use crate::config::MawaqitCache;
+use crate::i18n::tr;
 
 static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
 
@@ -59,30 +60,30 @@ fn extract_braced_json_from(html: &str, near: usize) -> Option<String> {
         let mut in_str = false;
         let mut escape = false;
         for end in start..bytes.len() {
-            let c = bytes[end] as char;
+            let current = bytes[end] as char;
             if in_str {
                 if escape {
                     escape = false;
-                } else if c == '\\' {
+                } else if current == '\\' {
                     escape = true;
-                } else if c == '"' {
+                } else if current == '"' {
                     in_str = false;
                 }
                 continue;
             }
-            match c {
+            match current {
                 '"' => in_str = true,
                 '{' => depth += 1,
                 '}' => {
                     depth -= 1;
                     if depth == 0 {
-                        let s = &html[start..=end];
-                        if let Ok(v) = serde_json::from_str::<Value>(s)
-                            && v.get("times").is_some()
-                            && v.get("shuruq").is_some()
-                            && v.get("calendar").is_some()
+                        let snippet = &html[start..=end];
+                        if let Ok(json) = serde_json::from_str::<Value>(snippet)
+                            && json.get("times").is_some()
+                            && json.get("shuruq").is_some()
+                            && json.get("calendar").is_some()
                         {
-                            return Some(s.to_string());
+                            return Some(snippet.to_string());
                         }
                         break;
                     }
@@ -94,52 +95,52 @@ fn extract_braced_json_from(html: &str, near: usize) -> Option<String> {
     None
 }
 
-fn parse_cache_from_value(url: &str, v: &Value) -> Result<MawaqitCache, String> {
-    let times = v
+fn parse_cache_from_value(url: &str, json: &Value) -> Result<MawaqitCache, String> {
+    let times = json
         .get("times")
-        .and_then(|t| t.as_array())
+        .and_then(|arr| arr.as_array())
         .ok_or_else(|| "Mawaqit fetch failed".to_string())?;
     if times.len() != 5 {
         return Err("Mawaqit fetch failed".to_string());
     }
-    let shuruq = v
+    let shuruq = json
         .get("shuruq")
-        .and_then(|s| s.as_str())
+        .and_then(|value| value.as_str())
         .ok_or_else(|| "Mawaqit fetch failed".to_string())?;
-    let timezone = v
+    let timezone = json
         .get("timezone")
-        .and_then(|s| s.as_str())
-        .map(|s| s.to_string());
-    let mosque_name = v
+        .and_then(|value| value.as_str())
+        .map(|value| value.to_string());
+    let mosque_name = json
         .get("name")
-        .and_then(|s| s.as_str())
-        .map(|s| s.to_string())
+        .and_then(|value| value.as_str())
+        .map(|value| value.to_string())
         .or_else(|| {
-            v.get("label")
-                .and_then(|s| s.as_str())
-                .map(|s| s.to_string())
+            json.get("label")
+                .and_then(|value| value.as_str())
+                .map(|value| value.to_string())
         });
-    let latitude = v
+    let latitude = json
         .get("latitude")
-        .and_then(|n| n.as_f64())
-        .or_else(|| v.get("lat").and_then(|n| n.as_f64()));
-    let longitude = v
+        .and_then(|number| number.as_f64())
+        .or_else(|| json.get("lat").and_then(|number| number.as_f64()));
+    let longitude = json
         .get("longitude")
-        .and_then(|n| n.as_f64())
-        .or_else(|| v.get("lng").and_then(|n| n.as_f64()))
-        .or_else(|| v.get("lon").and_then(|n| n.as_f64()));
-    let country_code = v
+        .and_then(|number| number.as_f64())
+        .or_else(|| json.get("lng").and_then(|number| number.as_f64()))
+        .or_else(|| json.get("lon").and_then(|number| number.as_f64()));
+    let country_code = json
         .get("countryCode")
-        .and_then(|s| s.as_str())
-        .map(|s| s.to_string());
+        .and_then(|value| value.as_str())
+        .map(|value| value.to_string());
 
     let mut months: Vec<std::collections::BTreeMap<u32, [String; 6]>> = Vec::new();
-    if let Some(cal) = v.get("calendar").and_then(|c| c.as_array()) {
-        for month_obj in cal {
-            let mut map = std::collections::BTreeMap::new();
+    if let Some(calendar) = json.get("calendar").and_then(|value| value.as_array()) {
+        for month_obj in calendar {
+            let mut month_map = std::collections::BTreeMap::new();
             if let Some(obj) = month_obj.as_object() {
                 for (day, arr) in obj {
-                    let Ok(d) = day.parse::<u32>() else {
+                    let Ok(day_num) = day.parse::<u32>() else {
                         continue;
                     };
                     let Some(vals) = arr.as_array() else {
@@ -150,20 +151,20 @@ fn parse_cache_from_value(url: &str, v: &Value) -> Result<MawaqitCache, String> 
                     }
                     let mut out: [String; 6] = Default::default();
                     let mut ok = true;
-                    for (i, it) in vals.iter().enumerate() {
-                        if let Some(s) = it.as_str() {
-                            out[i] = s.to_string();
+                    for (slot_index, value) in vals.iter().enumerate() {
+                        if let Some(str_val) = value.as_str() {
+                            out[slot_index] = str_val.to_string();
                         } else {
                             ok = false;
                             break;
                         }
                     }
                     if ok {
-                        map.insert(d, out);
+                        month_map.insert(day_num, out);
                     }
                 }
             }
-            months.push(map);
+            months.push(month_map);
         }
     }
 
@@ -177,7 +178,10 @@ fn parse_cache_from_value(url: &str, v: &Value) -> Result<MawaqitCache, String> 
 
     let month_idx = now.month0() as usize;
     let day = now.day();
-    if months.get(month_idx).is_some_and(|m| !m.contains_key(&day)) {
+    if months
+        .get(month_idx)
+        .is_some_and(|month_map| !month_map.contains_key(&day))
+    {
         let fajr = times[0].as_str().unwrap_or_default().to_string();
         let dhuhr = times[1].as_str().unwrap_or_default().to_string();
         let asr = times[2].as_str().unwrap_or_default().to_string();
@@ -200,6 +204,11 @@ fn parse_cache_from_value(url: &str, v: &Value) -> Result<MawaqitCache, String> 
 }
 
 pub async fn fetch_mawaqit_cache(raw_url: &str) -> Result<MawaqitCache, String> {
+    // Mawaqit error strings — expose to xgettext
+    if false {
+        let _ = tr("Invalid Mawaqit URL");
+        let _ = tr("Mawaqit fetch failed");
+    }
     let url = normalize_mawaqit_url(raw_url)?;
     let html = client()
         .get(&url)
@@ -211,10 +220,10 @@ pub async fn fetch_mawaqit_cache(raw_url: &str) -> Result<MawaqitCache, String> 
         .map_err(|_| "Mawaqit fetch failed".to_string())?;
 
     for idx in extract_object_candidates(&html) {
-        if let Some(s) = extract_braced_json_from(&html, idx)
-            && let Ok(v) = serde_json::from_str::<Value>(&s)
+        if let Some(snippet) = extract_braced_json_from(&html, idx)
+            && let Ok(json) = serde_json::from_str::<Value>(&snippet)
         {
-            return parse_cache_from_value(&url, &v);
+            return parse_cache_from_value(&url, &json);
         }
     }
 
@@ -234,8 +243,8 @@ mod tests {
         "#;
         let idx = html.find("\"times\":[").unwrap();
         let json = extract_braced_json_from(html, idx).expect("extract json");
-        let v = serde_json::from_str::<Value>(&json).unwrap();
-        let cache = parse_cache_from_value("https://mawaqit.net/x", &v).unwrap();
+        let parsed = serde_json::from_str::<Value>(&json).unwrap();
+        let cache = parse_cache_from_value("https://mawaqit.net/x", &parsed).unwrap();
         assert_eq!(cache.url, "https://mawaqit.net/x");
         assert_eq!(cache.timezone.as_deref(), Some("Europe/Paris"));
         assert_eq!(cache.months.len(), 12);

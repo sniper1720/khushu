@@ -6,7 +6,7 @@
   [![Rust](https://img.shields.io/badge/Language-Rust-fa4f28?style=flat-square&logo=rust)](https://www.rust-lang.org/)
   [![GTK4](https://img.shields.io/badge/GUI-GTK4-4a86cf?style=flat-square&logo=gnome)](https://gtk.org/)
   [![Libadwaita](https://img.shields.io/badge/Style-Libadwaita-62a0ea?style=flat-square&logo=gnome)](https://gnome.pages.gitlab.gnome.org/libadwaita/)
-  [![Version](https://img.shields.io/badge/Version-1.3.1-success?style=flat-square)](#)
+  [![Version](https://img.shields.io/badge/Version-1.3.2-success?style=flat-square)](#)
   [![License](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
   [![Translations](https://img.shields.io/badge/Languages-6_Supported-9cf?style=flat-square)](#)
 
@@ -41,7 +41,7 @@ Named after the state of heart-presence and humility in prayer (Salah), the app 
 
 ## Features
 
-- **Accurate Prayer (Salah) Times**: Calculations based on standard calculation methods (MWL, ISNA, Egypt, etc.).
+- **Accurate Prayer (Salah) Times**: Offline calculations with standard methods (MWL, ISNA, Egypt, etc.) plus recommended high-latitude and polar estimation methods.
 - **Privacy-First Location**:
     - **Manual**: Enter coordinates manually (Zero network usage).
     - **City Search**: Search via OpenStreetMap (Minimal data).
@@ -66,7 +66,7 @@ Khushu is under active development. Our goal is to build the premier all-in-one 
 - [x] **v1.2.0 — Noble Quran Recitation**: Ayah-by-ayah audio playback with selectable reciters, real-time verse highlighting, and auto-scroll.
 - [x] **v1.3.0 — High-Latitude Support**: Migrated prayer time library from salah to mawaqit, added `LocalRelativeEstimation` rule for high-latitude zones (48.6°–66.5°) and `NearestLatitude` polar fallback (>66.5°), ensuring accurate prayer times at extreme latitudes.
 - [ ] **Tafsir (v1.4.0)**: We are working on an in-depth Quran commentary experience with classical and modern exegeses including Al-Muyassar, Ibn Kathir, Tabari, Qurtubi, and Al-Saddi, fetched per-surah with offline caching.
-- [ ] **Islamic Essentials (v1.5.0)**: We are working on a few more tools, including a **Global Typography** customizer (Arabic & UI fonts), a simple Zakat calculator, a way to reflect on the 99 Names of Allah, and a collection of the Forty Hadith of Nawawi.
+- [ ] **Islamic Essentials (v1.5.0)**: We are working on a few more tools, including a simple Zakat calculator, a way to reflect on the 99 Names of Allah, and a collection of the Forty Hadith of Nawawi.
 - [ ] **Beyond the Desktop (v2.0.0)**: We want Khushu to be wherever you are. This means perfecting the experience for Linux mobile (Phosh/Plasma) and exploring an Android version by leveraging the same core logic we already built.
 
 ## Installation
@@ -163,7 +163,11 @@ Khushu is designed with privacy as a core principle. Here is exactly what data l
 
 **No analytics, no telemetry, no accounts.** All prayer calculations, Adkar, Hijri dates, and Qibla bearing are computed locally on your device.
 
-## Quran Data Sources
+## Data Sources
+
+Khushu embeds two content modules that rely on third-party sources: the Noble Quran and the Adkar (Hisn al-Muslim).
+
+### Noble Quran
 
 The Noble Quran module in Khushu uses the following sources for its Arabic text and translations:
 
@@ -178,6 +182,20 @@ The Noble Quran module in Khushu uses the following sources for its Arabic text 
 
 > [!NOTE]
 > No translation of Quran can be a hundred percent accurate, nor it can be used as a replacement of the Quran text. We got Quran translations from [Tanzil.net](https://tanzil.net) and [QuranEnc.com](https://quranenc.com) websites, we cannot guarantee their authenticity and/or accuracy. Please use them at your own discretion.
+
+### Adkar (Hisn al-Muslim)
+
+The Adkar module in Khushu uses the following sources for its Arabic text and translations:
+
+- **Arabic Text (Hisn al-Muslim)**: Authored by Shaykh Sa'id bin Ali bin Wahf al-Qahtani, sourced from [Sunnah.com](https://sunnah.com/hisn) and [IslamHouse (Arabic)](https://islamhouse.com/ar/books/2522).
+- **English Translation**: *Fortress of the Muslim — Du'a from the Qur'an & Sunnah*, published by Darussalam Publishers, Riyadh, sourced from [Sunnah.com](https://sunnah.com/hisn) and [Kalamullah.com](https://www.kalamullah.com/Books/fortress_of_the_muslim.pdf).
+- **French Translation**: *La Citadelle du Musulman*, supervised translation by Shaykh Sa'id bin Ali bin Wahf al-Qahtani, published by Albouraq (Ennour), sourced from [IslamHouse (French)](https://islamhouse.com/fr/books/1566) and its [PDF](https://d1.islamhouse.com/data/fr/ih_books/single/fr_Fortress_of_the_Muslim.pdf).
+- **Spanish Translation**: *La Fortaleza del Musulmán, súplicas del Corán y la Sunnah*, translated by Muhammad Isa García, published by Oficina de Dawa en Rabwah, Riyadh (2006), sourced from [IslamHouse](https://islamhouse.com/es/books/1081) and its [PDF](https://d1.islamhouse.com/data/es/ih_books/single/es_Muslim_bastion.pdf).
+- **Indonesian Translation**: *Hisnul Muslim* (Benteng Orang Muslim), sourced from [IslamHouse](https://id.islamhouse.com) and [HisnulMuslim.org](https://hisnulmuslim.org/hisnul-muslim/indonesian/).
+- **Turkish Translation**: *Hisnü'l-Müslim — Kur'an ve Sünnetten Müslümanın Sığınağı*, published by IslamHouse TR, sourced from [IslamHouse (Turkish)](https://islamhouse.com/tr/books/861) and its [PDF](https://d1.islamhouse.com/data/tr/ih_books/single/tr_Hisnul_Muslim.pdf).
+
+> [!NOTE]
+> The Adkar texts were transcribed from the published editions listed above and carefully checked against their authentic sources — the Arabic against the original Hisn al-Muslim with its hadith references, and each translation against its printed edition. Despite this care, an error can still slip through, especially in translations. If you notice any wording that differs from the published editions, please report it so we can fix it.
 
 ## Contribute & Support
 

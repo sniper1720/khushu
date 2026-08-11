@@ -13,7 +13,6 @@ msgstr ""
 "X-Generator: Poedit 3.9\n"
 
 #. GTK4 About dialog strings
-
 msgid "GNU General Public License, version 3 or later"
 msgstr "GNU General Public License, versi 3 atau setelahnya"
 

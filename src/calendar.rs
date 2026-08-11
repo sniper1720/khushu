@@ -25,7 +25,7 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
     )
     .expect("Failed to calculate initial Hijri date from current time");
 
-    let state = Rc::new(RefCell::new(CalendarState {
+    let calendar_state = Rc::new(RefCell::new(CalendarState {
         current_hijri_month: initial_hijri.month(),
         current_hijri_year: initial_hijri.year(),
     }));
@@ -90,7 +90,7 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
 
     let selected_date = Rc::new(RefCell::new(adjusted_now));
 
-    let state_clone = state.clone();
+    let state_clone = calendar_state.clone();
     let grid_clone = grid.clone();
     let month_label_clone = month_label.clone();
     let hijri_details_clone = hijri_details_label.clone();
@@ -111,21 +111,24 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
         )
         .ok();
 
-        if recenter_on_today && let Some(ref h) = today_hijri {
+        if recenter_on_today && let Some(ref hijri_today) = today_hijri {
             *selected_date_clone.borrow_mut() = corrected_today;
-            let mut s_mut = state_clone.borrow_mut();
-            s_mut.current_hijri_month = h.month();
-            s_mut.current_hijri_year = h.year();
+            let mut state_guard_mut = state_clone.borrow_mut();
+            state_guard_mut.current_hijri_month = hijri_today.month();
+            state_guard_mut.current_hijri_year = hijri_today.year();
         }
 
-        let state = state_clone.borrow();
+        let state_guard = state_clone.borrow();
         details_frame_clone.set_label(Some(&tr("Date Details")));
 
-        let dummy_hijri =
-            HijriDate::from_hijri(state.current_hijri_year, state.current_hijri_month, 1)
-                .expect("Valid Hijri date");
+        let dummy_hijri = HijriDate::from_hijri(
+            state_guard.current_hijri_year,
+            state_guard.current_hijri_month,
+            1,
+        )
+        .expect("Valid Hijri date");
 
-        let month_name = get_hijri_month_name(state.current_hijri_month);
+        let month_name = get_hijri_month_name(state_guard.current_hijri_month);
         month_label_clone.set_label(&format!("{} {}", month_name, dummy_hijri.year()));
 
         while let Some(child) = grid_clone.first_child() {
@@ -144,16 +147,19 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
             tr("Sat");
         }
 
-        for (i, day) in days.iter().enumerate() {
+        for (day_index, day) in days.iter().enumerate() {
             let label = Label::new(Some(&tr(day)));
             label.set_css_classes(&["dim-label"]);
             label.set_halign(gtk::Align::Center);
-            grid_clone.attach(&label, i as i32, 0, 1, 1);
+            grid_clone.attach(&label, day_index as i32, 0, 1, 1);
         }
 
-        let first_day_h =
-            HijriDate::from_hijri(state.current_hijri_year, state.current_hijri_month, 1)
-                .expect("Valid Hijri date");
+        let first_day_h = HijriDate::from_hijri(
+            state_guard.current_hijri_year,
+            state_guard.current_hijri_month,
+            1,
+        )
+        .expect("Valid Hijri date");
         let gr_first = NaiveDate::from_ymd_opt(
             first_day_h.year_gr() as i32,
             first_day_h.month_gr() as u32,
@@ -164,14 +170,17 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
 
         let mut row = 1;
         let mut col = start_weekday as i32;
-        let m_len = first_day_h.month_len();
+        let month_length = first_day_h.month_len();
 
-        for d in 1..=m_len {
-            let current_hijri =
-                HijriDate::from_hijri(state.current_hijri_year, state.current_hijri_month, d)
-                    .expect("Valid Hijri date");
+        for day_num in 1..=month_length {
+            let current_hijri = HijriDate::from_hijri(
+                state_guard.current_hijri_year,
+                state_guard.current_hijri_month,
+                day_num,
+            )
+            .expect("Valid Hijri date");
 
-            let day_btn = Button::with_label(&format!("{}", d));
+            let day_btn = Button::with_label(&format!("{}", day_num));
             day_btn.set_height_request(32);
 
             if let Some(ref today_h) = today_hijri
@@ -192,7 +201,7 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
                 let clicked_hijri = HijriDate::from_hijri(
                     state_inner.borrow().current_hijri_year,
                     state_inner.borrow().current_hijri_month,
-                    d,
+                    day_num,
                 )
                 .expect("Valid Hijri date");
                 let naive = NaiveDate::from_ymd_opt(
@@ -229,31 +238,31 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
 
     refresh_ui();
 
-    let state_prev = state.clone();
+    let state_prev = calendar_state.clone();
     let refresh_prev_inner = refresh_inner.clone();
     prev_btn.connect_clicked(move |_| {
         {
-            let mut state = state_prev.borrow_mut();
-            if state.current_hijri_month == 1 {
-                state.current_hijri_month = 12;
-                state.current_hijri_year -= 1;
+            let mut state_guard_mut = state_prev.borrow_mut();
+            if state_guard_mut.current_hijri_month == 1 {
+                state_guard_mut.current_hijri_month = 12;
+                state_guard_mut.current_hijri_year -= 1;
             } else {
-                state.current_hijri_month -= 1;
+                state_guard_mut.current_hijri_month -= 1;
             }
         }
         refresh_prev_inner(false);
     });
 
-    let state_next = state.clone();
+    let state_next = calendar_state.clone();
     let refresh_next_inner = refresh_inner.clone();
     next_btn.connect_clicked(move |_| {
         {
-            let mut state = state_next.borrow_mut();
-            if state.current_hijri_month == 12 {
-                state.current_hijri_month = 1;
-                state.current_hijri_year += 1;
+            let mut state_guard_mut = state_next.borrow_mut();
+            if state_guard_mut.current_hijri_month == 12 {
+                state_guard_mut.current_hijri_month = 1;
+                state_guard_mut.current_hijri_year += 1;
             } else {
-                state.current_hijri_month += 1;
+                state_guard_mut.current_hijri_month += 1;
             }
         }
         refresh_next_inner(false);

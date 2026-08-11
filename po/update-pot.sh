@@ -71,6 +71,7 @@ FILE_SECTION_MAP = [
     ("src/reciter_ui.rs",                             5),
     ("src/adkar.rs",                                  6),
     ("src/settings_ui.rs",                            7),
+    ("src/audio.rs",                                  7),
     ("src/location.rs",                               7),
     ("src/tz_dialog.rs",                              7),
     ("src/main.rs",                                   8),

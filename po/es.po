@@ -2,10 +2,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.3.1\n"
+"Project-Id-Version: Khushu 1.3.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-03-04 20:21+0100\n"
-"PO-Revision-Date: 2026-07-31 03:14+0000\n"
+"PO-Revision-Date: 2026-08-11 10:53+0000\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Spanish\n"
 "Language: es\n"
@@ -44,10 +44,6 @@ msgstr ""
 "necesario para tu práctica diaria: horarios de oración precisos, "
 "notificaciones nativas y escalonadas de adhkar y un lector dedicado del "
 "Noble Corán con recitación versículo por versículo."
-
-#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
-msgid "Accurate prayer calculation methods (Offline)"
-msgstr "Métodos de cálculo de oración precisos (sin conexión)"
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Morning, Evening, and Night Adkar with built-in counters"
@@ -540,6 +536,48 @@ msgstr ""
 msgid "Initial stable release of Khushu."
 msgstr "Primera versión estable de Khushu."
 
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Accurate offline prayer (Salah) calculation methods, including recommended "
+"high-latitude and polar estimation methods."
+msgstr ""
+"Métodos precisos de cálculo de los horarios de oración (Salah) sin conexión, "
+"que incluyen los métodos de estimación recomendados para altas latitudes y "
+"regiones polares."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Added native Adkar translations in French, Spanish, Turkish, and Indonesian, "
+"verified against authentic sources"
+msgstr ""
+"Se añadieron traducciones auténticas de los Adhkar en francés, español, "
+"turco e indonesio, verificadas con fuentes confiables."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Daily Adkar reminders now prioritize favorited Adkar over random selection"
+msgstr ""
+"Los recordatorios diarios de Adhkar ahora priorizan los Adhkar favoritos "
+"sobre la selección aleatoria."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed the Indonesian UI selection not persisting after restart"
+msgstr ""
+"Se corrigió el problema por el cual la selección del idioma indonesio en la "
+"interfaz no se guardaba tras reiniciar."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed the invalid adhan file toast never showing"
+msgstr ""
+"Se corrigió el problema por el cual la notificación (toast) de archivo de "
+"adhan no válido nunca se mostraba."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Added font settings for the interface, Arabic text, and Quran"
+msgstr ""
+"Se añadieron ajustes de fuente para la interfaz, el texto en árabe y el "
+"Corán."
+
 # =============================================================================
 # SECTION 2: CALENDAR
 # =============================================================================
@@ -769,6 +807,10 @@ msgstr "Iqamah"
 #: src/timer_controller.rs
 msgid "It is time for Iqamah of"
 msgstr "Es hora de la Iqamah de"
+
+#: src/timer_controller.rs
+msgid "Prayer times unavailable — retrying"
+msgstr ""
 
 # =============================================================================
 # SECTION 4: QIBLA COMPASS
@@ -1009,6 +1051,14 @@ msgstr "Descargar para usar sin conexión"
 msgid "Downloading..."
 msgstr "Descargando..."
 
+#: src/quran.rs
+msgid "Open Fonts Settings"
+msgstr "Abrir la configuración de fuentes"
+
+#: src/quran.rs
+msgid "Choose the font family used for the Quran text."
+msgstr "Seleccionar la familia tipográfica para el texto del Corán."
+
 # =============================================================================
 # SECTION 6: ADKAR
 # =============================================================================
@@ -1023,34 +1073,6 @@ msgstr "Tarde"
 #: src/adkar.rs
 msgid "Night"
 msgstr "Noche"
-
-#: src/adkar.rs
-msgid "At-Tirmidhi"
-msgstr "At-Tirmidhi"
-
-#: src/adkar.rs
-msgid "Ibn Majah"
-msgstr "Ibn Majah"
-
-#: src/adkar.rs
-msgid "Abu Dawud"
-msgstr "Abu Dawud"
-
-#: src/adkar.rs
-msgid "Al-Bukhari"
-msgstr "Al-Bukhari"
-
-#: src/adkar.rs
-msgid "Ibn As-Sunni"
-msgstr "Ibn As-Sunni"
-
-#: src/adkar.rs
-msgid "Muslim"
-msgstr "Muslim"
-
-#: src/adkar.rs
-msgid "(no. "
-msgstr "(núm. "
 
 # =============================================================================
 # SECTION 7: SETTINGS
@@ -1230,7 +1252,7 @@ msgstr "No configurada"
 msgid "Refresh now"
 msgstr "Actualizar ahora"
 
-#: src/settings_ui.rs
+#: src/mawaqit.rs
 msgid "Invalid Mawaqit URL"
 msgstr "URL de Mawaqit inválida"
 
@@ -1642,6 +1664,70 @@ msgstr "Océano Pacífico"
 msgid "Arctic"
 msgstr "Océano Ártico"
 
+msgid "Use system default"
+msgstr "Usar la fuente predeterminada del sistema"
+
+#: src/settings_ui.rs
+msgid "Fonts"
+msgstr "Fuentes"
+
+#: src/settings_ui.rs
+msgid ""
+"Choose the fonts used across the app. 'System default' follows your desktop "
+"font settings."
+msgstr ""
+"Elija las fuentes utilizadas en toda la aplicación. \"Predeterminada del "
+"sistema\" sigue la configuración de fuentes de su escritorio."
+
+#: src/settings_ui.rs
+msgid "Select Interface Font"
+msgstr "Seleccionar la fuente de la interfaz"
+
+#: src/settings_ui.rs
+msgid "UI Font"
+msgstr "Fuente de la interfaz"
+
+msgid "System default"
+msgstr "Predeterminada del sistema"
+
+#: src/settings_ui.rs
+msgid "Select Arabic Font"
+msgstr "Seleccionar la fuente árabe"
+
+#: src/settings_ui.rs
+msgid "Arabic Font"
+msgstr "Fuente árabe"
+
+#: src/settings_ui.rs
+msgid "Select Quran Font"
+msgstr "Seleccionar la fuente del Corán"
+
+#: src/settings_ui.rs
+msgid "Quran Font"
+msgstr "Fuente del Corán"
+
+msgid "Amiri Quran (default)"
+msgstr "Amiri Quran (predeterminada)"
+
+#: src/settings_ui.rs
+msgid "Restore to default"
+msgstr "Restaurar los valores predeterminados"
+
+#: src/settings_ui.rs
+msgid "Used for Arabic content, such as the adkar texts."
+msgstr "Se utiliza para el contenido en árabe, como los textos de los adhkar."
+
+#: src/settings_ui.rs
+msgid ""
+"Must support Uthmani Quran script; otherwise verses may render incorrectly."
+msgstr ""
+"Debe admitir la caligrafía Uthmani del Corán; de lo contrario, los "
+"versículos podrían no mostrarse correctamente."
+
+#: src/audio.rs
+msgid "File not usable or unsupported format"
+msgstr "El archivo no se puede utilizar o su formato no es compatible."
+
 # =============================================================================
 # SECTION 8: APP UI & SYSTEM ACTIONS
 # =============================================================================
@@ -1760,7 +1846,7 @@ msgstr "Ajustes"
 msgid "About"
 msgstr "Acerca de"
 
-#: src/pages.rs src/settings_ui.rs
+#: src/settings_ui.rs
 msgid "Last updated"
 msgstr "Última actualización"
 
@@ -1814,3 +1900,7 @@ msgstr "Detectar ahora"
 #: src/welcome.rs
 msgid "Continue"
 msgstr "Continuar"
+
+#: src/mawaqit.rs
+msgid "Mawaqit fetch failed"
+msgstr ""

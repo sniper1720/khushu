@@ -11,6 +11,7 @@ use crate::calendar;
 use crate::config::AppConfig;
 use crate::home_ui::refresh_home_ui;
 use crate::i18n::tr;
+use crate::nav_ui;
 use crate::qibla_ui;
 use crate::settings_ui;
 
@@ -56,15 +57,7 @@ fn handle_lang_change(
     let mut lang_changed = false;
     {
         let mut lang = cur_lang.borrow_mut();
-        let next_lang = match row.selected() {
-            1 => "en".to_string(),
-            2 => "ar".to_string(),
-            3 => "fr".to_string(),
-            4 => "es".to_string(),
-            5 => "tr".to_string(),
-            6 => "id".to_string(),
-            _ => "auto".to_string(),
-        };
+        let next_lang = crate::i18n::language_code_from_index(row.selected()).to_string();
         if *lang != next_lang {
             *lang = next_lang;
             lang_changed = true;
@@ -75,11 +68,7 @@ fn handle_lang_change(
         return;
     }
 
-    let detected_lang = if selected_lang == "auto" || selected_lang.is_empty() {
-        crate::i18n::detect_system_locale()
-    } else {
-        selected_lang.clone()
-    };
+    let detected_lang = crate::i18n::resolved_locale(&selected_lang);
 
     {
         let mut lang = cur_lang.borrow_mut();
@@ -93,7 +82,7 @@ fn handle_lang_change(
     cfg.set_language(&detected_lang);
     cfg.save();
 
-    if detected_lang == "ar" {
+    if crate::i18n::is_rtl(&detected_lang) {
         gtk::Widget::set_default_direction(gtk::TextDirection::Rtl);
         window_app.set_direction(gtk::TextDirection::Rtl);
     } else {
@@ -101,7 +90,7 @@ fn handle_lang_change(
         window_app.set_direction(gtk::TextDirection::Ltr);
     }
 
-    crate::apply_font_css(&detected_lang, cfg);
+    crate::apply_font_css(cfg);
 
     let style_manager = adw::StyleManager::default();
     match cfg.theme() {
@@ -133,12 +122,12 @@ fn handle_lang_change(
         let mut idx = 0;
         while let Some(child) = curr {
             if let Some(row_container) = child.downcast_ref::<gtk::ListBoxRow>()
-                && let Some(r) = row_container
+                && let Some(action_row) = row_container
                     .child()
-                    .and_then(|c| c.downcast::<adw::ActionRow>().ok())
+                    .and_then(|child_widget| child_widget.downcast::<adw::ActionRow>().ok())
                 && idx < labels_deferred.len()
             {
-                r.set_title(&labels_deferred[idx]);
+                action_row.set_title(&labels_deferred[idx]);
                 idx += 1;
             }
             curr = child.next_sibling();
@@ -147,16 +136,7 @@ fn handle_lang_change(
     });
 
     if let Some(name) = view_stack.visible_child_name() {
-        let title = match name.as_str() {
-            "home" => tr("Prayer Times"),
-            "calendar" => tr("Calendar"),
-            "qibla" => tr("Qibla"),
-            "adkar" => tr("Adkar"),
-            "quran" => tr("Noble Quran"),
-            "settings" => tr("Settings"),
-            _ => "Khushu".to_string(),
-        };
-        window_title.set_title(&title);
+        window_title.set_title(&nav_ui::page_title(&name));
     }
 
     window_app.set_title(Some(&tr("Khushu")));
@@ -174,11 +154,13 @@ fn handle_lang_change(
     let list_box_for_geo = list_box.clone();
     let needs_geocode = cfg.prayer_times_source() != crate::config::PrayerTimesSource::Mawaqit;
     if needs_geocode {
-        let (lat, lon) = (cfg.latitude(), cfg.longitude());
+        let (latitude, longitude) = (cfg.latitude(), cfg.longitude());
         let lang_geo = detected_lang.clone();
         gtk::glib::spawn_future_local(async move {
-            if let Ok(name) = crate::location::resolve_city_name(lat, lon, &lang_geo).await {
-                let _ = loc_tx_for_geo.send((lat, lon, Some(name.clone())));
+            if let Ok(name) =
+                crate::location::resolve_city_name(latitude, longitude, &lang_geo).await
+            {
+                let _ = loc_tx_for_geo.send((latitude, longitude, Some(name.clone())));
                 gtk::glib::idle_add_local(move || {
                     cfg_for_geo.set_city_name(Some(name.clone()));
                     refresh_home_for_geo();
@@ -186,27 +168,9 @@ fn handle_lang_change(
                     {
                         let ctx = ctx_for_geo.borrow();
                         if let Some(cache) = cfg_for_geo.mawaqit_cache().as_ref() {
-                            let tz = cache.timezone.clone().unwrap_or_default();
-                            let tz_label = if tz.is_empty() {
-                                String::new()
-                            } else {
-                                crate::location::localized_time_zone_label(&tz, &lang_geo)
-                            };
-                            let subtitle = if tz_label.is_empty() {
-                                format!(
-                                    "{} • {}",
-                                    crate::i18n::tr("Last updated"),
-                                    cache.fetched_on
-                                )
-                            } else {
-                                format!(
-                                    "{} • {} • {}",
-                                    tz_label,
-                                    crate::i18n::tr("Last updated"),
-                                    cache.fetched_on
-                                )
-                            };
-                            ctx.mawaqit_status_row.set_subtitle(&subtitle);
+                            ctx.mawaqit_status_row.set_subtitle(
+                                &crate::settings_ui::mawaqit_status_subtitle(cache, &lang_geo),
+                            );
                         }
                     }
                     gtk::glib::ControlFlow::Break
@@ -299,25 +263,25 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     refresh_home_initial();
 
     {
-        let refresh_home = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("latitude"), move |_, _| refresh_home());
+        let refresh_home_c = refresh_home.clone();
+        crate::connect_notify_blocked(&config, Some("latitude"), move |_, _| refresh_home_c());
     }
     {
-        let refresh_home = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("longitude"), move |_, _| refresh_home());
+        let refresh_home_c = refresh_home.clone();
+        crate::connect_notify_blocked(&config, Some("longitude"), move |_, _| refresh_home_c());
     }
     {
-        let refresh_home = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("city-name"), move |_, _| refresh_home());
+        let refresh_home_c = refresh_home.clone();
+        crate::connect_notify_blocked(&config, Some("city-name"), move |_, _| refresh_home_c());
     }
     {
-        let refresh_home = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("language"), move |_, _| refresh_home());
+        let refresh_home_c = refresh_home.clone();
+        crate::connect_notify_blocked(&config, Some("language"), move |_, _| refresh_home_c());
     }
     {
-        let refresh_home = refresh_home.clone();
+        let refresh_home_c = refresh_home.clone();
         crate::connect_notify_blocked(&config, Some("prayer-times-source"), move |_, _| {
-            refresh_home()
+            refresh_home_c()
         });
     }
 
@@ -328,9 +292,9 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let current_lang_loc = current_lang.clone();
 
     gtk::glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
-        while let Ok((lat, lon, city)) = loc_rx.try_recv() {
-            config_loc.set_latitude(lat);
-            config_loc.set_longitude(lon);
+        while let Ok((latitude, longitude, city)) = loc_rx.try_recv() {
+            config_loc.set_latitude(latitude);
+            config_loc.set_longitude(longitude);
             if let Some(name) = city {
                 config_loc.set_city_name(Some(name));
             }
@@ -363,8 +327,8 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
 
     let calendar_grid = calendar_page
         .first_child()
-        .and_then(|c| c.next_sibling())
-        .and_then(|c| c.downcast::<gtk::Grid>().ok())
+        .and_then(|child| child.next_sibling())
+        .and_then(|child| child.downcast::<gtk::Grid>().ok())
         .expect("Could not find calendar grid");
 
     let mut classes = calendar_grid.css_classes();
@@ -409,7 +373,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     view_stack.connect_visible_child_name_notify(move |_| {
         let name = view_stack_for_notify
             .visible_child_name()
-            .map(|s| s.to_string())
+            .map(|child_name| child_name.to_string())
             .unwrap_or_default();
         if name == "qibla" {
             compass_for_notify.start_monitoring();
@@ -466,14 +430,14 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let ref_list = list_box_rc.clone();
     let ref_ctx = settings_ctx.clone();
 
-    lang_row.connect_selected_notify(move |r| {
+    lang_row.connect_selected_notify(move |row| {
         log::info!(
             "selected-notify (settings): selected={}, cur_lang={}",
-            r.selected(),
+            row.selected(),
             cur_lang_signal.borrow(),
         );
         handle_lang_change(
-            r,
+            row,
             &cur_lang_signal,
             &cfg_signal,
             &ref_cal,
@@ -500,6 +464,27 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
 
     view_stack.add_named(&settings_scroll, Some("settings"));
 
+    let settings_scroll_for_fonts = settings_scroll.clone();
+    let fonts_heading = settings_ctx.borrow().fonts_heading.clone();
+    let fonts_view_stack = view_stack.clone();
+    let fonts_sidebar_list = sidebar_list.clone();
+    let fonts_window_title = window_title.clone();
+    let fonts_current_lang = current_lang.clone();
+    let fonts_split_view = split_view.clone();
+    let fonts_config = config.clone();
+    settings_ui::register_open_fonts_settings(Rc::new(move || {
+        nav_ui::navigate_to(
+            "settings",
+            &fonts_sidebar_list,
+            &fonts_view_stack,
+            &fonts_window_title,
+            &fonts_current_lang.borrow(),
+            &fonts_split_view,
+            &fonts_config,
+        );
+        scroll_to_widget(&settings_scroll_for_fonts, fonts_heading.upcast_ref());
+    }));
+
     let toast_overlay = adw::ToastOverlay::new();
     toast_overlay.set_child(Some(view_stack.as_ref()));
     split_view.set_content(Some(&toast_overlay));
@@ -519,4 +504,24 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
         location_label,
         list_box: list_box_rc,
     }
+}
+
+fn scroll_to_widget(scrolled: &gtk::ScrolledWindow, target: &gtk::Widget) {
+    let Some(content) = scrolled.child() else {
+        return;
+    };
+    let tick_scrolled = scrolled.clone();
+    let target_c = target.clone();
+    scrolled.add_tick_callback(move |_, _| {
+        if target_c.allocated_width() > 0 {
+            if let Some((_, y)) = target_c.translate_coordinates(&content, 0.0, 0.0) {
+                let adj = tick_scrolled.vadjustment();
+                let max = (adj.upper() - adj.page_size()).max(0.0);
+                adj.set_value((y - 24.0).clamp(0.0, max));
+            }
+            gtk::glib::ControlFlow::Break
+        } else {
+            gtk::glib::ControlFlow::Continue
+        }
+    });
 }

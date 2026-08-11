@@ -122,7 +122,7 @@ fn library_locale_dir_for_domain(domain: &str, lang: &str, locale_dir: &str) -> 
     if bundled.contains(&domain) {
         let our_dir = std::path::Path::new(locale_dir)
             .parent()
-            .map(|p| p.join("khushu/locale").to_string_lossy().to_string())
+            .map(|path| path.join("khushu/locale").to_string_lossy().to_string())
             .unwrap_or_else(|| locale_dir.to_string());
         if domain_catalog_exists(&our_dir, lang, domain) {
             return our_dir;
@@ -141,7 +141,7 @@ fn library_locale_dir_for_domain(domain: &str, lang: &str, locale_dir: &str) -> 
 
     candidates
         .into_iter()
-        .find(|d| domain_catalog_exists(d, lang, domain))
+        .find(|dir| domain_catalog_exists(dir, lang, domain))
         .unwrap_or_else(|| locale_dir.to_string())
 }
 
@@ -158,15 +158,109 @@ fn bind_library_domains(locale_dir: &str, lang: &str) {
 pub fn detect_system_locale() -> String {
     std::env::var("LC_ALL")
         .ok()
-        .filter(|s| !s.is_empty() && s != "C" && s != "POSIX")
-        .map(|s| s.split('.').next().unwrap_or("en").to_string())
+        .filter(|locale| !locale.is_empty() && locale != "C" && locale != "POSIX")
+        .map(|locale| locale.split('.').next().unwrap_or("en").to_string())
         .or_else(|| {
             std::env::var("LANG")
                 .ok()
-                .filter(|s| !s.is_empty() && s != "C" && s != "POSIX")
-                .map(|s| s.split('.').next().unwrap_or("en").to_string())
+                .filter(|locale| !locale.is_empty() && locale != "C" && locale != "POSIX")
+                .map(|locale| locale.split('.').next().unwrap_or("en").to_string())
         })
         .unwrap_or_else(|| "en".to_string())
+}
+
+pub(crate) const SUPPORTED_LANGUAGES: [&str; 6] = ["ar", "en", "fr", "es", "tr", "id"];
+
+/// Resolves a stored locale value to its plain language+region form: `"auto"`/empty
+/// falls back to the detected system locale, and POSIX charset (`.UTF-8`), Unicode
+/// modifier (`@latin`), and `":…"` path suffixes are stripped. Region and underscores
+/// are preserved on purpose — ICU region-aware lookups (country/timezone names) rely on them.
+pub fn resolved_locale(lang: &str) -> String {
+    let raw = if lang == "auto" || lang.is_empty() {
+        detect_system_locale()
+    } else {
+        lang.to_string()
+    };
+
+    raw.trim()
+        .split(':')
+        .next()
+        .unwrap_or_default()
+        .split('@')
+        .next()
+        .unwrap_or_default()
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .to_string()
+}
+
+pub fn supported_language_code(lang: &str) -> String {
+    let resolved = resolved_locale(lang);
+
+    // ICU4X only accepts '-', not '_', as the subtag separator.
+    let normalized = resolved.replace('_', "-");
+
+    let base = icu_locale::LanguageIdentifier::try_from_str(&normalized)
+        .map(|langid| langid.language.as_str().to_string())
+        .unwrap_or_else(|_| normalized.split('-').next().unwrap_or_default().to_string());
+
+    if SUPPORTED_LANGUAGES.contains(&base.as_str()) {
+        base
+    } else {
+        "en".to_string()
+    }
+}
+
+/// Index 0 is the "System Default" row, mapped to "auto".
+pub fn language_code_from_index(index: u32) -> &'static str {
+    match index {
+        1 => "en",
+        2 => "ar",
+        3 => "fr",
+        4 => "es",
+        5 => "tr",
+        6 => "id",
+        _ => "auto",
+    }
+}
+
+/// Index 0 is the "System Default" row; codes start at 1.
+pub fn language_index_from_code(code: &str) -> u32 {
+    match code {
+        "en" => 1,
+        "ar" => 2,
+        "fr" => 3,
+        "es" => 4,
+        "tr" => 5,
+        "id" => 6,
+        _ => 0,
+    }
+}
+
+pub fn icu_locale_key(lang: &str) -> String {
+    let normalized = resolved_locale(lang).replace('_', "-");
+
+    normalized
+        .parse::<icu_locale::Locale>()
+        .map(|locale| locale.to_string())
+        .or_else(|_| {
+            normalized
+                .split('-')
+                .next()
+                .unwrap_or("en")
+                .parse::<icu_locale::Locale>()
+                .map(|locale| locale.to_string())
+        })
+        .unwrap_or_else(|_| "en".to_string())
+}
+
+pub fn is_rtl(lang: &str) -> bool {
+    supported_language_code(lang) == "ar"
+}
+
+pub fn is_arabic(lang: &str) -> bool {
+    supported_language_code(lang) == "ar"
 }
 
 pub fn update_locale(lang: &str) {
@@ -202,21 +296,16 @@ pub fn rebind_locale_after_adw_init() {
 
 pub fn tr(key: &str) -> String {
     if key == "translator-credits" {
-        let res = dgettext("khushu", key);
-        if res != key && !res.is_empty() {
-            return res;
+        let translated = dgettext("khushu", key);
+        if translated != key && !translated.is_empty() {
+            return translated;
         }
         return "Djalel Oukid".to_string();
     }
 
-    let res = dgettext("khushu", key);
-    if res != key && !res.is_empty() {
-        return res;
-    }
-
-    let fallback = dgettext("khushu-gtk", key);
-    if fallback != key && !fallback.is_empty() {
-        return fallback;
+    let translated = dgettext("khushu", key);
+    if translated != key && !translated.is_empty() {
+        return translated;
     }
 
     let adw = dgettext("libadwaita", key);
@@ -227,11 +316,6 @@ pub fn tr(key: &str) -> String {
     let gtk = dgettext("gtk40", key);
     if gtk != key && !gtk.is_empty() {
         return gtk;
-    }
-
-    let gtk_legacy = dgettext("gtk", key);
-    if gtk_legacy != key && !gtk_legacy.is_empty() {
-        return gtk_legacy;
     }
 
     key.to_string()
@@ -282,5 +366,90 @@ mod tests {
         println!("LANGUAGE=fr (again) → {fr2}");
 
         println!("NATIVE LOCALE SWITCHING: OK (fr ≠ ar, consistent on round-trip)");
+    }
+
+    #[test]
+    fn test_supported_language_code_normalizes_locale_values() {
+        assert_eq!(supported_language_code("ar_SA.UTF-8"), "ar");
+        assert_eq!(supported_language_code("en_US"), "en");
+        assert_eq!(supported_language_code("fr_FR@latin"), "fr");
+        assert_eq!(supported_language_code("tr_TR:UTF-8"), "tr");
+        assert_eq!(supported_language_code("id"), "id");
+        assert_eq!(supported_language_code("es"), "es");
+        assert_eq!(supported_language_code("de"), "en");
+        assert_eq!(supported_language_code(""), supported_language_code("auto"));
+        assert_eq!(supported_language_code("C"), "en");
+
+        let auto = supported_language_code("auto");
+        assert!(
+            ["ar", "en", "fr", "es", "tr", "id"].contains(&auto.as_str()),
+            "auto must resolve to a supported code, got: {auto}"
+        );
+    }
+
+    #[test]
+    fn test_resolved_locale_strips_suffixes_but_keeps_region() {
+        assert_eq!(resolved_locale("en_US.UTF-8"), "en_US");
+        assert_eq!(resolved_locale("fr_FR@latin"), "fr_FR");
+        assert_eq!(resolved_locale("ar_SA"), "ar_SA");
+        assert_eq!(resolved_locale("  tr_TR:UTF-8 "), "tr_TR");
+        assert_eq!(resolved_locale("en"), "en");
+
+        assert_eq!(resolved_locale("auto"), detect_system_locale());
+        assert_eq!(resolved_locale(""), detect_system_locale());
+    }
+
+    #[test]
+    fn test_icu_locale_key_is_region_aware() {
+        assert_eq!(icu_locale_key("ar_SA"), "ar-SA");
+        assert_eq!(icu_locale_key("en_US.UTF-8"), "en-US");
+        assert_eq!(icu_locale_key("fr_FR@latin"), "fr-FR");
+        assert_eq!(icu_locale_key("fr"), "fr");
+        assert_eq!(icu_locale_key("123_invalid"), "en");
+    }
+
+    #[test]
+    fn test_is_rtl_only_for_arabic() {
+        assert!(is_rtl("ar"));
+        assert!(is_rtl("ar_SA.UTF-8"));
+        assert!(!is_rtl("en"));
+        assert!(!is_rtl("en_US"));
+        assert!(!is_rtl("fr"));
+        assert!(!is_rtl("de"));
+    }
+
+    #[test]
+    fn test_is_arabic_normalizes_before_comparing() {
+        assert!(is_arabic("ar"));
+        assert!(is_arabic("ar_SA.UTF-8"));
+        assert!(is_arabic("ar-DZ"));
+        assert!(!is_arabic("en"));
+        assert!(!is_arabic("en_US"));
+        assert!(!is_arabic("fr_FR.UTF-8@latin"));
+        assert!(!is_arabic("tr"));
+    }
+
+    #[test]
+    fn test_language_index_mapping_round_trips() {
+        let codes = [
+            ("en", 1),
+            ("ar", 2),
+            ("fr", 3),
+            ("es", 4),
+            ("tr", 5),
+            ("id", 6),
+        ];
+        for (code, index) in codes {
+            assert_eq!(language_index_from_code(code), index);
+            assert_eq!(language_code_from_index(index), code);
+        }
+    }
+
+    #[test]
+    fn test_language_index_mapping_falls_back_to_default() {
+        assert_eq!(language_index_from_code("auto"), 0);
+        assert_eq!(language_index_from_code("xx"), 0);
+        assert_eq!(language_code_from_index(0), "auto");
+        assert_eq!(language_code_from_index(99), "auto");
     }
 }

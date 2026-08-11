@@ -2,10 +2,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.3.1\n"
+"Project-Id-Version: Khushu 1.3.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-03-04 20:21+0100\n"
-"PO-Revision-Date: 2026-07-31 03:14+0000\n"
+"PO-Revision-Date: 2026-08-11 10:53+0000\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Turkish\n"
 "Language: tr\n"
@@ -43,10 +43,6 @@ msgstr ""
 "hepsi bir arada bir Müslüman uygulamasıdır. Günlük ibadetinizi doğru namaz "
 "vakitleri, yerel ve kademeli ezkâr bildirimleri ve ayet ayet tilavet sunan "
 "özel Kur'an-ı Kerim okuyucusuyla tek bir uygulamada bir araya getirir."
-
-#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
-msgid "Accurate prayer calculation methods (Offline)"
-msgstr "Doğru namaz hesaplama yöntemleri (çevrimdışı)"
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Morning, Evening, and Night Adkar with built-in counters"
@@ -511,6 +507,44 @@ msgstr ""
 msgid "Initial stable release of Khushu."
 msgstr "Khushu'nun ilk kararlı sürümü."
 
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Accurate offline prayer (Salah) calculation methods, including recommended "
+"high-latitude and polar estimation methods."
+msgstr ""
+"Çevrimdışı doğru namaz vakti hesaplama yöntemleri, yüksek enlemler ve kutup "
+"bölgeleri için önerilen tahmin yöntemlerini içerir."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Added native Adkar translations in French, Spanish, Turkish, and Indonesian, "
+"verified against authentic sources"
+msgstr ""
+"Fransızca, İspanyolca, Türkçe ve Endonezyaca dillerinde, güvenilir "
+"kaynaklardan doğrulanmış özgün Zikir çevirileri eklendi."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Daily Adkar reminders now prioritize favorited Adkar over random selection"
+msgstr ""
+"Günlük Zikir hatırlatıcıları artık rastgele seçim yerine favorilere eklenen "
+"Zikirleri öne çıkarıyor."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed the Indonesian UI selection not persisting after restart"
+msgstr ""
+"Yeniden başlatmanın ardından Endonezyaca arayüz seçiminin kalıcı olmama "
+"sorunu düzeltildi."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed the invalid adhan file toast never showing"
+msgstr ""
+"Geçersiz ezan dosyası bildiriminin (toast) hiç görünmeme sorunu düzeltildi."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Added font settings for the interface, Arabic text, and Quran"
+msgstr "Arayüz, Arapça metin ve Kur'an için yazı tipi ayarları eklendi."
+
 # =============================================================================
 # SECTION 2: CALENDAR
 # =============================================================================
@@ -740,6 +774,10 @@ msgstr "Kamet"
 #: src/timer_controller.rs
 msgid "It is time for Iqamah of"
 msgstr "Kamet vakti geldi:"
+
+#: src/timer_controller.rs
+msgid "Prayer times unavailable — retrying"
+msgstr ""
 
 # =============================================================================
 # SECTION 4: QIBLA COMPASS
@@ -980,6 +1018,14 @@ msgstr "Çevrimdışı kullanım için indir"
 msgid "Downloading..."
 msgstr "İndiriliyor..."
 
+#: src/quran.rs
+msgid "Open Fonts Settings"
+msgstr "Yazı Tipi Ayarlarını Aç"
+
+#: src/quran.rs
+msgid "Choose the font family used for the Quran text."
+msgstr "Kur'an metni için kullanılacak yazı tipi ailesini seçin."
+
 # =============================================================================
 # SECTION 6: ADKAR
 # =============================================================================
@@ -994,34 +1040,6 @@ msgstr "Akşam"
 #: src/adkar.rs
 msgid "Night"
 msgstr "Gece"
-
-#: src/adkar.rs
-msgid "At-Tirmidhi"
-msgstr "Tirmizi"
-
-#: src/adkar.rs
-msgid "Ibn Majah"
-msgstr "İbn Mace"
-
-#: src/adkar.rs
-msgid "Abu Dawud"
-msgstr "Ebu Davud"
-
-#: src/adkar.rs
-msgid "Al-Bukhari"
-msgstr "Buhari"
-
-#: src/adkar.rs
-msgid "Ibn As-Sunni"
-msgstr "İbn es-Sünni"
-
-#: src/adkar.rs
-msgid "Muslim"
-msgstr "Müslim"
-
-#: src/adkar.rs
-msgid "(no. "
-msgstr "(no. "
 
 # =============================================================================
 # SECTION 7: SETTINGS
@@ -1198,7 +1216,7 @@ msgstr "Yapılandırılmadı"
 msgid "Refresh now"
 msgstr "Şimdi yenile"
 
-#: src/settings_ui.rs
+#: src/mawaqit.rs
 msgid "Invalid Mawaqit URL"
 msgstr "Geçersiz Mawaqit URL'si"
 
@@ -1604,6 +1622,70 @@ msgstr "Büyük Okyanus"
 msgid "Arctic"
 msgstr "Arktik Okyanusu"
 
+msgid "Use system default"
+msgstr "Sistem varsayılanını kullan"
+
+#: src/settings_ui.rs
+msgid "Fonts"
+msgstr "Yazı Tipleri"
+
+#: src/settings_ui.rs
+msgid ""
+"Choose the fonts used across the app. 'System default' follows your desktop "
+"font settings."
+msgstr ""
+"Uygulama genelinde kullanılacak yazı tiplerini seçin. 'Sistem varsayılanı' "
+"masaüstü yazı tipi ayarlarınızı takip eder."
+
+#: src/settings_ui.rs
+msgid "Select Interface Font"
+msgstr "Arayüz Yazı Tipini Seç"
+
+#: src/settings_ui.rs
+msgid "UI Font"
+msgstr "Arayüz Yazı Tipi"
+
+msgid "System default"
+msgstr "Sistem varsayılanı"
+
+#: src/settings_ui.rs
+msgid "Select Arabic Font"
+msgstr "Arapça Yazı Tipini Seç"
+
+#: src/settings_ui.rs
+msgid "Arabic Font"
+msgstr "Arapça Yazı Tipi"
+
+#: src/settings_ui.rs
+msgid "Select Quran Font"
+msgstr "Kur'an Yazı Tipini Seç"
+
+#: src/settings_ui.rs
+msgid "Quran Font"
+msgstr "Kur'an Yazı Tipi"
+
+msgid "Amiri Quran (default)"
+msgstr "Amiri Quran (Varsayılan)"
+
+#: src/settings_ui.rs
+msgid "Restore to default"
+msgstr "Varsayılana geri yükle"
+
+#: src/settings_ui.rs
+msgid "Used for Arabic content, such as the adkar texts."
+msgstr "Arapça içerikler, örneğin ezkâr metinleri için kullanılır."
+
+#: src/settings_ui.rs
+msgid ""
+"Must support Uthmani Quran script; otherwise verses may render incorrectly."
+msgstr ""
+"Kur'an-ı Kerim'in Osmani (Uthmani) hattını desteklemelidir; aksi takdirde "
+"ayetler hatalı görüntülenebilir."
+
+#: src/audio.rs
+msgid "File not usable or unsupported format"
+msgstr "Dosya kullanılamıyor veya biçimi desteklenmiyor."
+
 # =============================================================================
 # SECTION 8: APP UI & SYSTEM ACTIONS
 # =============================================================================
@@ -1722,7 +1804,7 @@ msgstr "Ayarlar"
 msgid "About"
 msgstr "Hakkında"
 
-#: src/pages.rs src/settings_ui.rs
+#: src/settings_ui.rs
 msgid "Last updated"
 msgstr "Son güncelleme"
 
@@ -1776,3 +1858,7 @@ msgstr "Şimdi Algıla"
 #: src/welcome.rs
 msgid "Continue"
 msgstr "Devam"
+
+#: src/mawaqit.rs
+msgid "Mawaqit fetch failed"
+msgstr ""

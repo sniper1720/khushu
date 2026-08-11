@@ -67,13 +67,13 @@ impl Tray for KhushuTray {
 
     fn menu(&self) -> Vec<MenuItem<Self>> {
         use ksni::menu::*;
-        let data = self.data.read().unwrap_or_else(|e| {
+        let tray_data = self.data.read().unwrap_or_else(|err| {
             log::warn!("KhushuTray data lock poisoned");
-            e.into_inner()
+            err.into_inner()
         });
         vec![
             StandardItem {
-                label: data.open_label.clone(),
+                label: tray_data.open_label.clone(),
                 activate: Box::new(|_this: &mut Self| {
                     gtk4::glib::idle_add(move || {
                         if let Some(app) = gtk4::gio::Application::default() {
@@ -86,7 +86,7 @@ impl Tray for KhushuTray {
             }
             .into(),
             StandardItem {
-                label: data.quit_label.clone(),
+                label: tray_data.quit_label.clone(),
                 activate: Box::new(|_this: &mut Self| {
                     gtk4::glib::idle_add(move || {
                         if let Some(app) = gtk4::gio::Application::default() {
@@ -114,17 +114,17 @@ async fn setup_tray_icon() {
         return;
     }
 
-    let data = get_tray_data();
+    let tray_data = get_tray_data();
     {
-        let mut data = data.write().unwrap_or_else(|e| {
+        let mut tray_data = tray_data.write().unwrap_or_else(|err| {
             log::warn!("KhushuTray data lock poisoned");
-            e.into_inner()
+            err.into_inner()
         });
-        data.open_label = tr("Open Khushu");
-        data.quit_label = tr("Quit");
+        tray_data.open_label = tr("Open Khushu");
+        tray_data.quit_label = tr("Quit");
     }
 
-    let tray = KhushuTray { data };
+    let tray = KhushuTray { data: tray_data };
 
     let is_sandboxed = is_sandboxed();
 
@@ -136,28 +136,28 @@ async fn setup_tray_icon() {
         Ok(handle) => {
             let _ = TRAY_HANDLE.set(handle);
         }
-        Err(e) => {
+        Err(err) => {
             TRAY_SPAWNED.store(false, Ordering::SeqCst);
             log::warn!(
                 "System tray unavailable: {} \
                  (requires org.kde.StatusNotifierWatcher on the session bus; \
                  this is expected in sandboxed or minimal desktop environments \
                  and does not affect functionality)",
-                e
+                err
             );
         }
     }
 }
 
 pub fn update_tray_labels() {
-    let data = get_tray_data();
+    let tray_data = get_tray_data();
     {
-        let mut data = data.write().unwrap_or_else(|e| {
+        let mut tray_data = tray_data.write().unwrap_or_else(|err| {
             log::warn!("KhushuTray data lock poisoned");
-            e.into_inner()
+            err.into_inner()
         });
-        data.open_label = tr("Open Khushu");
-        data.quit_label = tr("Quit");
+        tray_data.open_label = tr("Open Khushu");
+        tray_data.quit_label = tr("Quit");
     }
 
     if let Some(handle) = TRAY_HANDLE.get().cloned() {

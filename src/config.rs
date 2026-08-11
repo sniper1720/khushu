@@ -98,7 +98,19 @@ fn default_volume() -> f32 {
 }
 
 fn default_autostart() -> bool {
-    false
+    true
+}
+
+fn default_adkar_notification_enabled() -> bool {
+    true
+}
+
+fn default_iqamah_notify() -> bool {
+    true
+}
+
+fn default_language() -> String {
+    "auto".to_string()
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -119,8 +131,8 @@ pub enum StopCondition {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct QuranBookmark {
     pub page: u32,
-    #[serde(default)]
-    pub surah: u32,
+    #[serde(default, alias = "surah")]
+    pub surah_num: u32,
     #[serde(default)]
     pub verse: u32,
 }
@@ -145,8 +157,15 @@ pub struct MawaqitCache {
     pub fetched_on: String,
 }
 
+/// Config schema version, distinct from the app version.
+/// `0` = files written before versioning; bump this to migrate old files once.
+pub const CONFIG_SCHEMA_VERSION: u32 = 1;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppConfigData {
+    /// Schema version; `0` when absent (legacy files).
+    #[serde(default)]
+    pub schema_version: u32,
     pub latitude: f64,
     pub longitude: f64,
     pub method: CalculationMethod,
@@ -159,13 +178,13 @@ pub struct AppConfigData {
     pub hijri_offset: i64,
     #[serde(default)]
     pub favorites: Vec<String>,
-    #[serde(default)]
+    #[serde(default = "default_adkar_notification_enabled")]
     pub adkar_notification_enabled: bool,
-    #[serde(default)]
+    #[serde(default = "default_iqamah_notify")]
     pub iqamah_notify: bool,
     #[serde(default)]
     pub adhan_only_mode: bool,
-    #[serde(default)]
+    #[serde(default = "default_language")]
     pub language: String,
     #[serde(default)]
     pub theme: ThemeMode,
@@ -177,14 +196,14 @@ pub struct AppConfigData {
     pub adhan_muted: bool,
     #[serde(default = "default_autostart")]
     pub autostart: bool,
-    #[serde(default)]
-    pub quran_bookmark_surah: Option<u32>,
+    #[serde(default, alias = "quran_bookmark_surah", skip_serializing)]
+    pub quran_bookmark_surah_num: Option<u32>,
     #[serde(default)]
     pub quran_bookmark_page: Option<u32>,
     #[serde(default)]
     pub quran_bookmarks: Vec<QuranBookmark>,
-    #[serde(default)]
-    pub quran_last_surah: Option<u32>,
+    #[serde(default, alias = "quran_last_surah")]
+    pub quran_last_surah_num: Option<u32>,
     #[serde(default)]
     pub quran_last_page: Option<u32>,
     #[serde(default)]
@@ -196,8 +215,6 @@ pub struct AppConfigData {
     #[serde(default)]
     pub mawaqit_cache: Option<MawaqitCache>,
     #[serde(default)]
-    pub timezone_override_minutes: Option<i32>,
-    #[serde(default)]
     pub timezone_mode: TimezoneMode,
     #[serde(default = "default_quran_arabic_font_px")]
     pub quran_arabic_font_px: f64,
@@ -205,10 +222,12 @@ pub struct AppConfigData {
     pub quran_translation_font_px: f64,
     #[serde(default = "default_quran_line_height")]
     pub quran_line_height: f64,
-    #[serde(default = "default_global_arabic_font_family")]
-    pub global_arabic_font_family: String,
-    #[serde(default = "default_global_ui_font_family")]
-    pub global_ui_font_family: String,
+    #[serde(default)]
+    pub ui_font_family: Option<String>,
+    #[serde(default)]
+    pub arabic_font_family: Option<String>,
+    #[serde(default)]
+    pub quran_font_family: Option<String>,
     #[serde(default = "default_iqamah_minutes")]
     pub iqamah_minutes: HashMap<String, u32>,
     #[serde(default = "default_reciter_slug")]
@@ -230,6 +249,7 @@ pub struct AppConfigData {
 impl Default for AppConfigData {
     fn default() -> Self {
         Self {
+            schema_version: CONFIG_SCHEMA_VERSION,
             latitude: 36.75,
             longitude: 3.05,
             method: CalculationMethod::MWL,
@@ -241,31 +261,31 @@ impl Default for AppConfigData {
             pre_prayer_minutes: 15,
             hijri_offset: 0,
             favorites: Vec::new(),
-            adkar_notification_enabled: true,
-            iqamah_notify: true,
+            adkar_notification_enabled: default_adkar_notification_enabled(),
+            iqamah_notify: default_iqamah_notify(),
             adhan_only_mode: false,
-            language: "auto".to_string(),
+            language: default_language(),
             theme: ThemeMode::System,
             is_configured: false,
             adhan_volume: 1.0,
             adhan_muted: false,
-            autostart: true,
-            quran_bookmark_surah: None,
+            autostart: default_autostart(),
+            quran_bookmark_surah_num: None,
             quran_bookmark_page: None,
             quran_bookmarks: Vec::new(),
-            quran_last_surah: None,
+            quran_last_surah_num: None,
             quran_last_page: None,
             prayer_times_source: PrayerTimesSource::Calculated,
             mawaqit_url: None,
             mawaqit_auto_refresh_daily: false,
             mawaqit_cache: None,
-            timezone_override_minutes: None,
             timezone_mode: TimezoneMode::Auto,
             quran_arabic_font_px: default_quran_arabic_font_px(),
             quran_translation_font_px: default_quran_translation_font_px(),
             quran_line_height: default_quran_line_height(),
-            global_arabic_font_family: default_global_arabic_font_family(),
-            global_ui_font_family: default_global_ui_font_family(),
+            ui_font_family: None,
+            arabic_font_family: None,
+            quran_font_family: None,
             iqamah_minutes: default_iqamah_minutes(),
             reciter_slug: default_reciter_slug(),
             stop_condition: StopCondition::default(),
@@ -290,26 +310,24 @@ fn default_quran_line_height() -> f64 {
     1.0
 }
 
-fn default_global_arabic_font_family() -> String {
-    "Amiri, Noto Sans Arabic".to_string()
-}
-
-fn default_global_ui_font_family() -> String {
-    "Cantarell, sans-serif".to_string()
-}
-
 fn default_reciter_slug() -> String {
     "Minshawy_Murattal_128kbps".to_string()
 }
 
+/// Order is the settings display order.
+pub const DEFAULT_IQAMAH_MINUTES: [(&str, u32); 5] = [
+    ("Fajr", 20),
+    ("Dhuhr", 10),
+    ("Asr", 10),
+    ("Maghrib", 5),
+    ("Isha", 10),
+];
+
 fn default_iqamah_minutes() -> HashMap<String, u32> {
-    let mut map = HashMap::new();
-    map.insert("Fajr".to_string(), 20);
-    map.insert("Dhuhr".to_string(), 10);
-    map.insert("Asr".to_string(), 10);
-    map.insert("Maghrib".to_string(), 5);
-    map.insert("Isha".to_string(), 10);
-    map
+    DEFAULT_IQAMAH_MINUTES
+        .iter()
+        .map(|(name, mins)| (name.to_string(), *mins))
+        .collect()
 }
 
 mod imp {
@@ -363,10 +381,6 @@ mod imp {
                         .nick("Prayer Times Source")
                         .read_only()
                         .build(),
-                    glib::ParamSpecInt::builder("timezone-override-minutes")
-                        .nick("Timezone Override")
-                        .read_only()
-                        .build(),
                     glib::ParamSpecString::builder("timezone-mode")
                         .nick("Timezone Mode")
                         .read_only()
@@ -390,9 +404,6 @@ mod imp {
                 "language" => obj.language().to_value(),
                 "city-name" => obj.city_name().to_value(),
                 "prayer-times-source" => format!("{:?}", obj.prayer_times_source()).to_value(),
-                "timezone-override-minutes" => {
-                    obj.timezone_override_minutes().unwrap_or(-1).to_value()
-                }
                 "timezone-mode" => format!("{:?}", obj.timezone_mode()).to_value(),
                 "location-mode" => format!("{:?}", obj.location_mode()).to_value(),
                 _ => unimplemented!("property {:?}", pspec.name()),
@@ -418,6 +429,31 @@ impl Default for AppConfig {
     fn default() -> Self {
         glib::Object::new()
     }
+}
+
+/// Runs pending schema migrations, reporting whether the file must be rewritten.
+fn migrate(data: &mut AppConfigData) -> bool {
+    if data.schema_version >= CONFIG_SCHEMA_VERSION {
+        return false;
+    }
+
+    // v0 → v1: Arabic-text favorites become ids; the single bookmark joins the list.
+    crate::adkar::migrate_favorites(data);
+    if let (Some(surah_num), Some(page)) = (data.quran_bookmark_surah_num, data.quran_bookmark_page)
+    {
+        data.quran_bookmarks.push(QuranBookmark {
+            page,
+            surah_num,
+            verse: 1,
+        });
+    }
+    data.quran_bookmarks.sort_by_key(|bookmark| bookmark.page);
+    data.quran_bookmarks.dedup_by_key(|bookmark| bookmark.page);
+    data.quran_bookmark_surah_num = None;
+    data.quran_bookmark_page = None;
+
+    data.schema_version = CONFIG_SCHEMA_VERSION;
+    true
 }
 
 thread_local! {
@@ -578,20 +614,6 @@ impl AppConfig {
         self.imp().data.borrow_mut().autostart = val;
     }
 
-    pub fn quran_bookmark_surah(&self) -> Option<u32> {
-        self.imp().data.borrow().quran_bookmark_surah
-    }
-    pub fn set_quran_bookmark_surah(&self, val: Option<u32>) {
-        self.imp().data.borrow_mut().quran_bookmark_surah = val;
-    }
-
-    pub fn quran_bookmark_page(&self) -> Option<u32> {
-        self.imp().data.borrow().quran_bookmark_page
-    }
-    pub fn set_quran_bookmark_page(&self, val: Option<u32>) {
-        self.imp().data.borrow_mut().quran_bookmark_page = val;
-    }
-
     pub fn quran_bookmarks(&self) -> Vec<QuranBookmark> {
         self.imp().data.borrow().quran_bookmarks.clone()
     }
@@ -599,11 +621,11 @@ impl AppConfig {
         self.imp().data.borrow_mut().quran_bookmarks = val;
     }
 
-    pub fn quran_last_surah(&self) -> Option<u32> {
-        self.imp().data.borrow().quran_last_surah
+    pub fn quran_last_surah_num(&self) -> Option<u32> {
+        self.imp().data.borrow().quran_last_surah_num
     }
-    pub fn set_quran_last_surah(&self, val: Option<u32>) {
-        self.imp().data.borrow_mut().quran_last_surah = val;
+    pub fn set_quran_last_surah_num(&self, val: Option<u32>) {
+        self.imp().data.borrow_mut().quran_last_surah_num = val;
     }
 
     pub fn quran_last_page(&self) -> Option<u32> {
@@ -642,14 +664,6 @@ impl AppConfig {
         self.imp().data.borrow_mut().mawaqit_cache = val;
     }
 
-    pub fn timezone_override_minutes(&self) -> Option<i32> {
-        self.imp().data.borrow().timezone_override_minutes
-    }
-    pub fn set_timezone_override_minutes(&self, val: Option<i32>) {
-        self.imp().data.borrow_mut().timezone_override_minutes = val;
-        self.notify("timezone-override-minutes");
-    }
-
     pub fn timezone_mode(&self) -> TimezoneMode {
         self.imp().data.borrow().timezone_mode.clone()
     }
@@ -679,18 +693,25 @@ impl AppConfig {
         self.imp().data.borrow_mut().quran_line_height = val;
     }
 
-    pub fn global_arabic_font_family(&self) -> String {
-        self.imp().data.borrow().global_arabic_font_family.clone()
+    pub fn ui_font_family(&self) -> Option<String> {
+        self.imp().data.borrow().ui_font_family.clone()
     }
-    pub fn set_global_arabic_font_family(&self, val: &str) {
-        self.imp().data.borrow_mut().global_arabic_font_family = val.to_string();
+    pub fn set_ui_font_family(&self, val: Option<String>) {
+        self.imp().data.borrow_mut().ui_font_family = val;
     }
 
-    pub fn global_ui_font_family(&self) -> String {
-        self.imp().data.borrow().global_ui_font_family.clone()
+    pub fn arabic_font_family(&self) -> Option<String> {
+        self.imp().data.borrow().arabic_font_family.clone()
     }
-    pub fn set_global_ui_font_family(&self, val: &str) {
-        self.imp().data.borrow_mut().global_ui_font_family = val.to_string();
+    pub fn set_arabic_font_family(&self, val: Option<String>) {
+        self.imp().data.borrow_mut().arabic_font_family = val;
+    }
+
+    pub fn quran_font_family(&self) -> Option<String> {
+        self.imp().data.borrow().quran_font_family.clone()
+    }
+    pub fn set_quran_font_family(&self, val: Option<String>) {
+        self.imp().data.borrow_mut().quran_font_family = val;
     }
 
     pub fn iqamah_minutes(&self) -> HashMap<String, u32> {
@@ -731,7 +752,7 @@ impl AppConfig {
             .data
             .borrow_mut()
             .installed_reciters
-            .retain(|s| s != slug);
+            .retain(|reciter| reciter != slug);
     }
 
     pub fn high_latitude_rule(&self) -> HighLatitudeChoice {
@@ -763,10 +784,10 @@ impl AppConfig {
     }
 
     pub fn latitude_zone(&self) -> u8 {
-        let abs = self.latitude().abs();
-        if abs > 66.5 {
+        let latitude_abs = self.latitude().abs();
+        if latitude_abs > 66.5 {
             3
-        } else if abs > 48.6 {
+        } else if latitude_abs > 48.6 {
             2
         } else {
             1
@@ -776,8 +797,15 @@ impl AppConfig {
     fn load_data() -> AppConfigData {
         let path = Self::config_path();
         if let Ok(content) = fs::read_to_string(&path)
-            && let Ok(config) = serde_json::from_str::<AppConfigData>(&content)
+            && let Ok(mut config) = serde_json::from_str::<AppConfigData>(&content)
         {
+            if migrate(&mut config) {
+                Self::write_to_disk(&config);
+                log::info!(
+                    "Configuration migrated to schema version {}",
+                    CONFIG_SCHEMA_VERSION
+                );
+            }
             log::info!("Configuration loaded from {:?}", path);
             return config;
         }
@@ -789,10 +817,10 @@ impl AppConfig {
         CONFIG_INSTANCE.with(|cell| {
             cell.borrow_mut()
                 .get_or_insert_with(|| {
-                    let data = Self::load_data();
+                    let config_data = Self::load_data();
                     let config: Self = glib::Object::new();
                     let imp = config.imp();
-                    *imp.data.borrow_mut() = data;
+                    *imp.data.borrow_mut() = config_data;
                     config
                 })
                 .clone()
@@ -830,10 +858,6 @@ impl AppConfig {
         }
     }
 
-    pub fn save_shared(config: &Self) {
-        config.save();
-    }
-
     pub fn config_path() -> PathBuf {
         let mut path = glib::user_config_dir();
         path.push("khushu");
@@ -847,15 +871,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_default_config_arabic_font_family() {
+    fn test_default_config_font_families() {
         let config = AppConfigData::default();
-        assert_eq!(config.global_arabic_font_family, "Amiri, Noto Sans Arabic");
-    }
-
-    #[test]
-    fn test_default_config_ui_font_family() {
-        let config = AppConfigData::default();
-        assert_eq!(config.global_ui_font_family, "Cantarell, sans-serif");
+        assert_eq!(config.ui_font_family, None);
+        assert_eq!(config.arabic_font_family, None);
+        assert_eq!(config.quran_font_family, None);
     }
 
     #[test]
@@ -883,5 +903,61 @@ mod tests {
         assert_eq!(iqamah.get("Asr"), Some(&10));
         assert_eq!(iqamah.get("Maghrib"), Some(&5));
         assert_eq!(iqamah.get("Isha"), Some(&10));
+    }
+
+    #[test]
+    fn legacy_singular_bookmark_migrates_to_list_and_bumps_version() {
+        let json = serde_json::json!({
+            "latitude": 36.75,
+            "longitude": 3.05,
+            "method": "MWL",
+            "madhab": "Shafi",
+            "location_mode": "Manual",
+            "pre_prayer_notify": true,
+            "pre_prayer_minutes": 15,
+            "hijri_offset": 0,
+            "quran_bookmark_surah": 2,
+            "quran_bookmark_page": 8,
+            "quran_bookmarks": [{"page": 8, "surah": 2, "verse": 1}]
+        });
+        let mut config: AppConfigData = serde_json::from_value(json).unwrap();
+        assert_eq!(
+            config.schema_version, 0,
+            "missing key must default to legacy"
+        );
+        assert_eq!(
+            config.quran_bookmarks.len(),
+            1,
+            "dedup must not duplicate the page"
+        );
+
+        assert!(migrate(&mut config));
+        assert_eq!(config.schema_version, CONFIG_SCHEMA_VERSION);
+        assert_eq!(
+            config.quran_bookmarks,
+            vec![QuranBookmark {
+                page: 8,
+                surah_num: 2,
+                verse: 1
+            }]
+        );
+        assert_eq!(config.quran_bookmark_surah_num, None);
+        assert_eq!(config.quran_bookmark_page, None);
+    }
+
+    #[test]
+    fn migrated_config_is_not_rewritten() {
+        let mut config = AppConfigData {
+            schema_version: CONFIG_SCHEMA_VERSION,
+            ..AppConfigData::default()
+        };
+        config.quran_bookmarks.push(QuranBookmark {
+            page: 42,
+            surah_num: 29,
+            verse: 1,
+        });
+
+        assert!(!migrate(&mut config), "current schema must be a no-op");
+        assert_eq!(config.quran_bookmarks.len(), 1);
     }
 }

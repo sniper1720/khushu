@@ -1,5 +1,5 @@
 use crate::config::MawaqitCache;
-use crate::i18n::tr;
+use crate::i18n::{icu_locale_key, tr};
 use chrono::{Datelike, Timelike};
 use icu::calendar::{Date, Gregorian};
 use icu::datetime::options::TimePrecision;
@@ -45,10 +45,13 @@ pub struct GeocodeAddress {
 
 #[derive(Deserialize, Debug)]
 pub struct GeocodeResult {
-    pub lat: String,
-    pub lon: String,
+    #[serde(rename = "lat")]
+    pub latitude: String,
+    #[serde(rename = "lon")]
+    pub longitude: String,
     pub display_name: String,
     pub address: Option<GeocodeAddress>,
+    #[serde(default)]
     pub timezone: Option<String>,
 }
 
@@ -98,45 +101,11 @@ pub fn system_time_zone_id() -> Option<String> {
         })
 }
 
-fn effective_lang(lang: &str) -> String {
-    if lang == "auto" || lang.is_empty() {
-        crate::i18n::detect_system_locale()
-    } else {
-        lang.to_string()
-    }
-}
-
-fn icu_locale_key(lang: &str) -> String {
-    let lang = effective_lang(lang);
-    let normalized = lang
-        .trim()
-        .split('@')
-        .next()
-        .unwrap_or_default()
-        .split('.')
-        .next()
-        .unwrap_or_default()
-        .replace('_', "-");
-
-    normalized
-        .parse::<Locale>()
-        .map(|locale| locale.to_string())
-        .or_else(|_| {
-            normalized
-                .split('-')
-                .next()
-                .unwrap_or("en")
-                .parse::<Locale>()
-                .map(|locale| locale.to_string())
-        })
-        .unwrap_or_else(|_| "en".to_string())
-}
-
 pub fn short_city_with_country(display_name: &str) -> String {
     let parts: Vec<&str> = display_name
         .split(',')
-        .map(|s| s.trim())
-        .filter(|s: &&str| !s.is_empty())
+        .map(|part| part.trim())
+        .filter(|part: &&str| !part.is_empty())
         .collect();
     if parts.len() >= 2 {
         format!("{}, {}", parts[0], parts[parts.len() - 1])
@@ -180,7 +149,7 @@ pub fn country_name_from_code(code: &str, lang: &str) -> Option<String> {
         }
         map.get(&locale_str)?
             .of(region_code)
-            .map(|s: &str| s.to_string())
+            .map(|city_name: &str| city_name.to_string())
     })
 }
 
@@ -287,14 +256,14 @@ pub fn localized_zone(zone: &str, lang: &str) -> String {
 }
 
 fn fallback_offset(offset_secs: i32) -> String {
-    let sign = if offset_secs >= 0 { '+' } else { '-' };
-    let abs = offset_secs.unsigned_abs();
-    let hours = abs / 3600;
-    let mins = (abs % 3600) / 60;
+    let offset_sign = if offset_secs >= 0 { '+' } else { '-' };
+    let offset_abs = offset_secs.unsigned_abs();
+    let hours = offset_abs / 3600;
+    let mins = (offset_abs % 3600) / 60;
     if mins == 0 {
-        format!("UTC{}{:02}", sign, hours)
+        format!("UTC{}{:02}", offset_sign, hours)
     } else {
-        format!("UTC{}{:02}:{:02}", sign, hours, mins)
+        format!("UTC{}{:02}:{:02}", offset_sign, hours, mins)
     }
 }
 
@@ -309,7 +278,7 @@ pub fn localized_offset(offset_secs: i32, lang: &str) -> String {
 
     let locale_str = icu_locale_key(lang);
     let offset = match UtcOffset::try_from_seconds(offset_secs) {
-        Ok(o) => o,
+        Ok(offset) => offset,
         Err(_) => return fallback_offset(offset_secs),
     };
 
@@ -349,11 +318,11 @@ pub fn localized_time(dt: chrono::DateTime<chrono_tz::Tz>, lang: &str) -> String
 
     let locale_str = icu_locale_key(lang);
     let date = match Date::try_new_gregorian(dt.year(), dt.month() as u8, dt.day() as u8) {
-        Ok(d) => d,
+        Ok(gregorian_date) => gregorian_date,
         Err(_) => return fallback_time(dt),
     };
     let time = match Time::try_new(dt.hour() as u8, dt.minute() as u8, dt.second() as u8, 0) {
-        Ok(t) => t,
+        Ok(time_of_day) => time_of_day,
         Err(_) => return fallback_time(dt),
     };
     let input = icu::time::DateTime { date, time };
@@ -437,15 +406,19 @@ pub fn display_city_label(
     Some(text)
 }
 
-use ashpd::desktop::location::{Accuracy, LocationProxy};
+use ashpd::desktop::location::{Accuracy, CreateSessionOptions, LocationProxy};
 use futures_util::StreamExt;
 
 pub async fn fetch_auto_location(lang: &str) -> Result<(f64, f64, String), String> {
     fetch_portal_location(lang).await
 }
 
-pub async fn resolve_city_name(lat: f64, lon: f64, lang: &str) -> Result<String, String> {
-    reverse_geocode(lat, lon, lang)
+pub async fn resolve_city_name(
+    latitude: f64,
+    longitude: f64,
+    lang: &str,
+) -> Result<String, String> {
+    reverse_geocode(latitude, longitude, lang)
         .await
         .map(|name| short_city_with_country(&name))
 }
@@ -453,28 +426,31 @@ pub async fn resolve_city_name(lat: f64, lon: f64, lang: &str) -> Result<String,
 async fn fetch_portal_location(lang: &str) -> Result<(f64, f64, String), String> {
     log::info!("Attempting to fetch location via ASHPD Portal...");
 
-    let proxy = LocationProxy::new().await.map_err(|e| {
-        log::error!("Failed to create Location proxy: {}", e);
+    let proxy = LocationProxy::new().await.map_err(|err| {
+        log::error!("Failed to create Location proxy: {}", err);
         tr("Location service unavailable. Please check system settings.")
     })?;
 
     let session = proxy
-        .create_session(None, None, Some(Accuracy::City))
+        .create_session(CreateSessionOptions::default().set_accuracy(Accuracy::City))
         .await
-        .map_err(|e| {
-            log::error!("Failed to create location session: {}", e);
+        .map_err(|err| {
+            log::error!("Failed to create location session: {}", err);
             tr("Location access denied or unavailable.")
         })?;
 
-    let mut stream = proxy.receive_location_updated().await.map_err(|e| {
-        log::error!("Failed to receive location updates: {}", e);
+    let mut stream = proxy.receive_location_updated().await.map_err(|err| {
+        log::error!("Failed to receive location updates: {}", err);
         tr("Failed to receive location updates.")
     })?;
 
-    proxy.start(&session, None).await.map_err(|e| {
-        log::error!("Failed to start location session: {}", e);
-        tr("Location access denied or unavailable.")
-    })?;
+    proxy
+        .start(&session, None, Default::default())
+        .await
+        .map_err(|err| {
+            log::error!("Failed to start location session: {}", err);
+            tr("Location access denied or unavailable.")
+        })?;
 
     use futures_util::future::Either;
 
@@ -495,34 +471,34 @@ async fn fetch_portal_location(lang: &str) -> Result<(f64, f64, String), String>
         }
     };
 
-    let lat = location.latitude();
-    let lon = location.longitude();
+    let latitude = location.latitude();
+    let longitude = location.longitude();
 
     let _ = session.close().await;
 
-    log::info!("Portal location fetched: {}, {}", lat, lon);
+    log::info!("Portal location fetched: {}, {}", latitude, longitude);
 
-    let city = match reverse_geocode(lat, lon, lang).await {
+    let city = match reverse_geocode(latitude, longitude, lang).await {
         Ok(name) => {
             log::info!("Reverse geocoded to: {}", name);
             short_city_with_country(&name)
         }
-        Err(e) => {
-            log::warn!("Reverse geocode failed, using coordinates: {}", e);
-            format_coordinates(lat, lon)
+        Err(err) => {
+            log::warn!("Reverse geocode failed, using coordinates: {}", err);
+            format_coordinates(latitude, longitude)
         }
     };
 
-    Ok((lat, lon, city))
+    Ok((latitude, longitude, city))
 }
 
-async fn reverse_geocode(lat: f64, lon: f64, lang: &str) -> Result<String, String> {
+async fn reverse_geocode(latitude: f64, longitude: f64, lang: &str) -> Result<String, String> {
     let http = client();
     let normalized_lang = icu_locale_key(lang);
 
     let url = format!(
         "https://nominatim.openstreetmap.org/reverse?lat={}&lon={}&format=json&zoom=10&accept-language={}&addressdetails=1",
-        lat, lon, normalized_lang
+        latitude, longitude, normalized_lang
     );
 
     let resp = http
@@ -544,7 +520,7 @@ async fn reverse_geocode(lat: f64, lon: f64, lang: &str) -> Result<String, Strin
         && addr
             .country_code
             .as_deref()
-            .is_some_and(|c| c.eq_ignore_ascii_case("il"))
+            .is_some_and(|country| country.eq_ignore_ascii_case("il"))
     {
         let city = addr
             .city
@@ -562,10 +538,16 @@ async fn reverse_geocode(lat: f64, lon: f64, lang: &str) -> Result<String, Strin
     Ok(result.display_name)
 }
 
-fn format_coordinates(lat: f64, lon: f64) -> String {
-    let lat_dir = if lat >= 0.0 { "N" } else { "S" };
-    let lon_dir = if lon >= 0.0 { "E" } else { "W" };
-    format!("{:.2}°{}, {:.2}°{}", lat.abs(), lat_dir, lon.abs(), lon_dir)
+fn format_coordinates(latitude: f64, longitude: f64) -> String {
+    let latitude_dir = if latitude >= 0.0 { "N" } else { "S" };
+    let longitude_dir = if longitude >= 0.0 { "E" } else { "W" };
+    format!(
+        "{:.2}°{}, {:.2}°{}",
+        latitude.abs(),
+        latitude_dir,
+        longitude.abs(),
+        longitude_dir
+    )
 }
 
 pub async fn search_city(
@@ -577,38 +559,38 @@ pub async fn search_city(
     let normalized_lang = icu_locale_key(lang);
 
     let url = format!(
-        "https://nominatim.openstreetmap.org/search?q={}&format=json&limit=1&accept-language={}&addressdetails=1&timezone=true",
+        "https://nominatim.openstreetmap.org/search?q={}&format=json&limit=1&accept-language={}&addressdetails=1",
         urlencoding::encode(query),
         normalized_lang
     );
 
-    let resp = http.get(url).send().await.map_err(|e| {
-        log::error!("Geocoding request failed: {}", e);
+    let resp = http.get(url).send().await.map_err(|err| {
+        log::error!("Geocoding request failed: {}", err);
         tr("Network error. Please check your connection.")
     })?;
 
-    let results: Vec<GeocodeResult> = resp.json().await.map_err(|e| {
-        log::error!("Geocoding JSON parsing failed: {}", e);
+    let results: Vec<GeocodeResult> = resp.json().await.map_err(|err| {
+        log::error!("Geocoding JSON parsing failed: {}", err);
         tr("Invalid response from location service.")
     })?;
 
-    if let Some(res) = results.first() {
-        let lat = res.lat.parse::<f64>().map_err(|_| {
-            log::error!("Invalid latitude from API: {}", res.lat);
+    if let Some(first_result) = results.first() {
+        let latitude = first_result.latitude.parse::<f64>().map_err(|_| {
+            log::error!("Invalid latitude from API: {}", first_result.latitude);
             tr("Invalid response from location service.")
         })?;
-        let lon = res.lon.parse::<f64>().map_err(|_| {
-            log::error!("Invalid longitude from API: {}", res.lon);
+        let longitude = first_result.longitude.parse::<f64>().map_err(|_| {
+            log::error!("Invalid longitude from API: {}", first_result.longitude);
             tr("Invalid response from location service.")
         })?;
 
-        let mut display_name = res.display_name.clone();
+        let mut display_name = first_result.display_name.clone();
 
-        if let Some(ref addr) = res.address
+        if let Some(ref addr) = first_result.address
             && addr
                 .country_code
                 .as_deref()
-                .is_some_and(|c| c.eq_ignore_ascii_case("il"))
+                .is_some_and(|country| country.eq_ignore_ascii_case("il"))
         {
             let city = addr
                 .city
@@ -626,11 +608,16 @@ pub async fn search_city(
         log::info!(
             "City found: {} ({}, {}) timezone: {:?}",
             display_name,
-            lat,
-            lon,
-            res.timezone
+            latitude,
+            longitude,
+            first_result.timezone
         );
-        Ok((lat, lon, display_name, res.timezone.clone()))
+        Ok((
+            latitude,
+            longitude,
+            display_name,
+            first_result.timezone.clone(),
+        ))
     } else {
         log::warn!("City not found for query: {}", query);
         Err(tr("City not found. Please check the spelling."))

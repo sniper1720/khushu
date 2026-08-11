@@ -1,5 +1,5 @@
 Name:           khushu
-Version:        1.3.1
+Version:        1.3.2
 Release:        1%{?dist}
 Summary:        An all-in-one Muslim app for Linux
 
@@ -55,6 +55,12 @@ adaptive UI built with GTK4 and Libadwaita.
 %{_datadir}/fonts/truetype/%{name}/
 
 %changelog
+* Mon Aug 03 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.2-1
+- Added native Adkar translations in French, Spanish, Turkish, and Indonesian, verified against authentic sources
+- Added font settings for the interface, Arabic text, and Quran
+- Daily Adkar reminders now prioritize favorited Adkar over random selection
+- Fixed the Indonesian UI selection not persisting after restart
+- Fixed the invalid adhan file toast never showing
 * Wed Jul 29 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.1-1
 - Added a searchable timezone selection dialog with local time preview and UTC offset details
 - Added user-selectable high-latitude rules and polar day/night fallbacks

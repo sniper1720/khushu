@@ -1,8 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: libadwaita\n"
-"Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/"
-"issues\n"
+"Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-04-18 14:20+0100\n"
 "PO-Revision-Date: 2026-05-28 12:44+0700\n"
 "Last-Translator: WiqbalRar\n"
@@ -14,7 +13,6 @@ msgstr ""
 "X-Generator: Poedit 3.9\n"
 
 #. Libadwaita About dialog strings
-
 msgid "Details"
 msgstr "Detail"
 
@@ -58,8 +56,8 @@ msgid ""
 "This application comes with absolutely no warranty. See the <a "
 "href=\"%s\">%s</a> for details."
 msgstr ""
-"Aplikasi ini sama sekali tidak disertai jaminan apa pun. Lihat "
-"<a href=\"%s\">%s</a> untuk detailnya."
+"Aplikasi ini sama sekali tidak disertai jaminan apa pun. Lihat <a "
+"href=\"%s\">%s</a> untuk detailnya."
 
 msgid "Code by"
 msgstr "Kode oleh"

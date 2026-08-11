@@ -12,7 +12,6 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #. GTK4 About dialog strings
-
 msgid "GNU General Public License, version 3 or later"
 msgstr "رخصة جنو العمومية، الإصدار 3 أو أحدث"
 

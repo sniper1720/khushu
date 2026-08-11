@@ -127,14 +127,9 @@ where
         .model(&lang_model)
         .build();
 
-    match current_lang.borrow().as_str() {
-        "en" => lang_row.set_selected(1),
-        "ar" => lang_row.set_selected(2),
-        "fr" => lang_row.set_selected(3),
-        "es" => lang_row.set_selected(4),
-        "tr" => lang_row.set_selected(5),
-        _ => lang_row.set_selected(0),
-    }
+    lang_row.set_selected(crate::i18n::language_index_from_code(
+        current_lang.borrow().as_str(),
+    ));
 
     lang_group.add(&lang_row);
 
@@ -144,7 +139,7 @@ where
     let autostart_row = adw::SwitchRow::builder()
         .title("Start Automatically")
         .subtitle("Run Khushu in the background when you log in.")
-        .active(false)
+        .active(config.autostart())
         .build();
     behavior_group.add(&autostart_row);
 
@@ -174,11 +169,11 @@ where
 
     location_group.add(&mode_row);
 
-    let lat_row = EntryRow::builder()
+    let latitude_row = EntryRow::builder()
         .title("Latitude")
         .text(config.latitude().to_string())
         .build();
-    let lon_row = EntryRow::builder()
+    let longitude_row = EntryRow::builder()
         .title("Longitude")
         .text(config.longitude().to_string())
         .build();
@@ -198,8 +193,8 @@ where
         .build();
     auto_status_row.add_suffix(&detect_btn);
 
-    location_group.add(&lat_row);
-    location_group.add(&lon_row);
+    location_group.add(&latitude_row);
+    location_group.add(&longitude_row);
     location_group.add(&city_row);
     location_group.add(&auto_status_row);
 
@@ -289,18 +284,18 @@ where
     settings_container.append(&continue_btn);
 
     let update_visibility = Rc::new({
-        let mode_row = mode_row.clone();
-        let lat_row = lat_row.clone();
-        let lon_row = lon_row.clone();
-        let city_row = city_row.clone();
-        let auto_status_row = auto_status_row.clone();
+        let mode_row_c = mode_row.clone();
+        let latitude_row_c = latitude_row.clone();
+        let longitude_row_c = longitude_row.clone();
+        let city_row_c = city_row.clone();
+        let auto_status_row_c = auto_status_row.clone();
 
         move || {
-            let selected = mode_row.selected();
-            lat_row.set_visible(selected == 0);
-            lon_row.set_visible(selected == 0);
-            city_row.set_visible(selected == 1);
-            auto_status_row.set_visible(selected == 2);
+            let selected = mode_row_c.selected();
+            latitude_row_c.set_visible(selected == 0);
+            longitude_row_c.set_visible(selected == 0);
+            city_row_c.set_visible(selected == 1);
+            auto_status_row_c.set_visible(selected == 2);
         }
     });
 
@@ -317,65 +312,60 @@ where
     city_row.add_suffix(&city_search_btn);
 
     let update_translations = Rc::new({
-        let status_page = status_page.clone();
-        let appearance_group = appearance_group.clone();
-        let theme_row = theme_row.clone();
-        let lang_group = lang_group.clone();
-        let lang_row = lang_row.clone();
-        let behavior_group = behavior_group.clone();
-        let autostart_row = autostart_row.clone();
-        let prayer_group = prayer_group.clone();
-        let method_row = method_row.clone();
-        let location_group = location_group.clone();
-        let mode_row = mode_row.clone();
-        let lat_row = lat_row.clone();
-        let lon_row = lon_row.clone();
-        let city_row = city_row.clone();
-        let city_search_btn = city_search_btn.clone();
-        let auto_status_row = auto_status_row.clone();
-        let detect_btn = detect_btn.clone();
-        let continue_btn = continue_btn.clone();
-        let window = window.clone();
-        let _current_lang = current_lang.clone();
-        let modes = modes.clone();
-        let theme_model = theme_model.clone();
-        let lang_model = lang_model.clone();
-        let method_model = method_model.clone();
+        let status_page_c = status_page.clone();
+        let appearance_group_c = appearance_group.clone();
+        let theme_row_c = theme_row.clone();
+        let lang_group_c = lang_group.clone();
+        let lang_row_c = lang_row.clone();
+        let behavior_group_c = behavior_group.clone();
+        let autostart_row_c = autostart_row.clone();
+        let prayer_group_c = prayer_group.clone();
+        let method_row_c = method_row.clone();
+        let location_group_c = location_group.clone();
+        let mode_row_c = mode_row.clone();
+        let latitude_row_c = latitude_row.clone();
+        let longitude_row_c = longitude_row.clone();
+        let city_row_c = city_row.clone();
+        let city_search_btn_c = city_search_btn.clone();
+        let auto_status_row_c = auto_status_row.clone();
+        let detect_btn_c = detect_btn.clone();
+        let continue_btn_c = continue_btn.clone();
+        let window_c = window.clone();
+        let modes_c = modes.clone();
+        let theme_model_c = theme_model.clone();
+        let lang_model_c = lang_model.clone();
+        let method_model_c = method_model.clone();
         let config_font = config.clone();
 
-        let location_state = location_state.clone();
+        let location_state_c = location_state.clone();
         move |lang_code: &str| {
-            let detected = if lang_code == "auto" || lang_code.is_empty() {
-                crate::i18n::detect_system_locale()
-            } else {
-                lang_code.to_string()
-            };
-            let l = &detected;
+            let detected = crate::i18n::resolved_locale(lang_code);
+            let locale = &detected;
 
-            if l == "ar" {
+            if crate::i18n::is_rtl(locale) {
                 gtk::Widget::set_default_direction(gtk::TextDirection::Rtl);
-                window.set_direction(gtk::TextDirection::Rtl);
+                window_c.set_direction(gtk::TextDirection::Rtl);
             } else {
                 gtk::Widget::set_default_direction(gtk::TextDirection::Ltr);
-                window.set_direction(gtk::TextDirection::Ltr);
+                window_c.set_direction(gtk::TextDirection::Ltr);
             }
 
             crate::i18n::update_locale(&detected);
-            crate::apply_font_css(l, &config_font);
+            crate::apply_font_css(&config_font);
 
-            window.set_title(Some(&tr("Welcome to Khushu")));
-            status_page.set_title(&tr("Welcome to Khushu"));
-            status_page.set_description(Some(&tr(
+            window_c.set_title(Some(&tr("Welcome to Khushu")));
+            status_page_c.set_title(&tr("Welcome to Khushu"));
+            status_page_c.set_description(Some(&tr(
                 "Please configure your location to get accurate prayer times.",
             )));
 
-            appearance_group.set_title(&tr("Appearance"));
-            theme_row.set_title(&tr("Theme"));
-            theme_model.splice(0, 3, &[&tr("System Default"), &tr("Light"), &tr("Dark")]);
+            appearance_group_c.set_title(&tr("Appearance"));
+            theme_row_c.set_title(&tr("Theme"));
+            theme_model_c.splice(0, 3, &[&tr("System Default"), &tr("Light"), &tr("Dark")]);
 
-            lang_group.set_title(&tr("Language"));
-            lang_row.set_title(&tr("Language"));
-            lang_model.splice(
+            lang_group_c.set_title(&tr("Language"));
+            lang_row_c.set_title(&tr("Language"));
+            lang_model_c.splice(
                 0,
                 7,
                 &[
@@ -389,13 +379,13 @@ where
                 ],
             );
 
-            behavior_group.set_title(&tr("Autostart"));
-            autostart_row.set_title(&tr("Start Automatically"));
-            autostart_row.set_subtitle(&tr("Run Khushu in the background when you log in."));
+            behavior_group_c.set_title(&tr("Autostart"));
+            autostart_row_c.set_title(&tr("Start Automatically"));
+            autostart_row_c.set_subtitle(&tr("Run Khushu in the background when you log in."));
 
-            prayer_group.set_title(&tr("Prayer Setup"));
-            method_row.set_title(&tr("Calculation Method"));
-            method_model.splice(
+            prayer_group_c.set_title(&tr("Prayer Setup"));
+            method_row_c.set_title(&tr("Calculation Method"));
+            method_model_c.splice(
                 0,
                 14,
                 &[
@@ -416,9 +406,9 @@ where
                 ],
             );
 
-            location_group.set_title(&tr("Location Settings"));
-            mode_row.set_title(&tr("Location Method"));
-            modes.splice(
+            location_group_c.set_title(&tr("Location Settings"));
+            mode_row_c.set_title(&tr("Location Method"));
+            modes_c.splice(
                 0,
                 3,
                 &[
@@ -428,38 +418,38 @@ where
                 ],
             );
 
-            lat_row.set_title(&tr("Latitude"));
-            lon_row.set_title(&tr("Longitude"));
-            city_row.set_title(&tr("City Name"));
+            latitude_row_c.set_title(&tr("Latitude"));
+            longitude_row_c.set_title(&tr("Longitude"));
+            city_row_c.set_title(&tr("City Name"));
 
-            auto_status_row.set_title(&tr("Status"));
+            auto_status_row_c.set_title(&tr("Status"));
 
-            let state = location_state.borrow().clone();
+            let state = location_state_c.borrow().clone();
             match state {
                 LocationState::Initial => {
-                    auto_status_row
+                    auto_status_row_c
                         .set_subtitle(&tr("Enable location services in system settings."));
                 }
                 LocationState::Searching => {
-                    auto_status_row.set_subtitle(&tr("Detecting..."));
+                    auto_status_row_c.set_subtitle(&tr("Detecting..."));
                 }
-                LocationState::Success(city, lat, lon) => {
-                    auto_status_row.set_subtitle(&format!(
+                LocationState::Success(city, latitude, longitude) => {
+                    auto_status_row_c.set_subtitle(&format!(
                         "{}: {} ({:.2}, {:.2})",
                         tr("Found"),
                         city,
-                        lat,
-                        lon
+                        latitude,
+                        longitude
                     ));
                 }
                 LocationState::Error(key) => {
-                    auto_status_row.set_subtitle(&tr(&key));
+                    auto_status_row_c.set_subtitle(&tr(&key));
                 }
             }
 
-            detect_btn.set_label(&tr("Detect Now"));
-            continue_btn.set_label(&tr("Continue"));
-            city_search_btn.set_label(&tr("Search"));
+            detect_btn_c.set_label(&tr("Detect Now"));
+            continue_btn_c.set_label(&tr("Continue"));
+            city_search_btn_c.set_label(&tr("Search"));
         }
     });
 
@@ -473,27 +463,14 @@ where
             row.selected(),
             current_lang_clone.borrow(),
         );
-        let next_lang = match row.selected() {
-            1 => "en",
-            2 => "ar",
-            3 => "fr",
-            4 => "es",
-            5 => "tr",
-            6 => "id",
-            _ => "auto",
-        }
-        .to_string();
+        let next_lang = crate::i18n::language_code_from_index(row.selected()).to_string();
 
         let changed = { *current_lang_clone.borrow() != next_lang };
         if changed {
             {
                 *current_lang_clone.borrow_mut() = next_lang.clone();
             }
-            let detected_for_locale = if next_lang == "auto" || next_lang.is_empty() {
-                crate::i18n::detect_system_locale()
-            } else {
-                next_lang.clone()
-            };
+            let detected_for_locale = crate::i18n::resolved_locale(&next_lang);
             crate::i18n::update_locale(&detected_for_locale);
             update_translations_clone(&detected_for_locale);
         }
@@ -520,9 +497,9 @@ where
         gtk::glib::spawn_future_local(async move {
             let lang = current_lang_clone_search.borrow().clone();
             let result = location::search_city(&query, &lang).await;
-            if let Ok((lat, lon, name, _detected_tz)) = result {
-                config_clone.set_latitude(lat);
-                config_clone.set_longitude(lon);
+            if let Ok((latitude, longitude, name, _detected_tz)) = result {
+                config_clone.set_latitude(latitude);
+                config_clone.set_longitude(longitude);
                 config_clone.set_city_name(Some(name.clone()));
                 config_clone.set_location_mode(LocationMode::City);
 
@@ -557,33 +534,33 @@ where
         label_row.set_subtitle(&tr("Detecting..."));
         *location_state_for_detect.borrow_mut() = LocationState::Searching;
 
-        let config_clone = config_clone.clone();
+        let config_c = config_clone.clone();
         let current_lang_for_status = current_lang_for_detect.clone();
         let state_clone = location_state_for_detect.clone();
         gtk::glib::spawn_future_local(async move {
             let lang = current_lang_for_status.borrow().clone();
             let result = location::fetch_auto_location(&lang).await;
             match result {
-                Ok((lat, lon, city)) => {
-                    config_clone.set_latitude(lat);
-                    config_clone.set_longitude(lon);
-                    config_clone.set_city_name(Some(city.clone()));
-                    config_clone.set_location_mode(LocationMode::Auto);
+                Ok((latitude, longitude, city)) => {
+                    config_c.set_latitude(latitude);
+                    config_c.set_longitude(longitude);
+                    config_c.set_city_name(Some(city.clone()));
+                    config_c.set_location_mode(LocationMode::Auto);
 
                     label_row.set_subtitle(&format!(
                         "{}: {} ({:.2}, {:.2})",
                         tr("Found"),
                         city,
-                        lat,
-                        lon
+                        latitude,
+                        longitude
                     ));
                     label_row.add_css_class("success");
-                    *state_clone.borrow_mut() = LocationState::Success(city, lat, lon);
+                    *state_clone.borrow_mut() = LocationState::Success(city, latitude, longitude);
                 }
-                Err(e) => {
-                    label_row.set_subtitle(&tr(&e));
+                Err(err) => {
+                    label_row.set_subtitle(&tr(&err));
                     label_row.add_css_class("error");
-                    *state_clone.borrow_mut() = LocationState::Error(e);
+                    *state_clone.borrow_mut() = LocationState::Error(err);
                 }
             }
         });
@@ -601,10 +578,16 @@ where
         match mode_row.selected() {
             0 => {
                 config_final.set_location_mode(LocationMode::Manual);
-                let lat = lat_row.text().parse().unwrap_or(config_final.latitude());
-                let lon = lon_row.text().parse().unwrap_or(config_final.longitude());
-                config_final.set_latitude(lat);
-                config_final.set_longitude(lon);
+                let latitude = latitude_row
+                    .text()
+                    .parse()
+                    .unwrap_or(config_final.latitude());
+                let longitude = longitude_row
+                    .text()
+                    .parse()
+                    .unwrap_or(config_final.longitude());
+                config_final.set_latitude(latitude);
+                config_final.set_longitude(longitude);
             }
             1 => {
                 config_final.set_location_mode(LocationMode::City);
@@ -620,14 +603,7 @@ where
         }
 
         let lang_idx = lang_row.selected();
-        let language = match lang_idx {
-            1 => "en",
-            2 => "ar",
-            3 => "fr",
-            4 => "es",
-            5 => "tr",
-            _ => "auto",
-        };
+        let language = crate::i18n::language_code_from_index(lang_idx);
         config_final.set_language(language);
 
         let theme_idx = theme_row.selected();
@@ -655,7 +631,7 @@ where
                         on_done_ref();
                     } else {
                         config_ref.set_autostart(false);
-                        AppConfig::save_shared(&config_ref);
+                        config_ref.save();
                         row_ref.set_active(false);
                         if let Some(overlay) = crate::settings_ui::find_toast_overlay(&window_ref) {
                             overlay.add_toast(adw::Toast::new(&tr(

@@ -79,10 +79,10 @@ fn canonical_tz_set() -> &'static HashSet<String> {
     SET.get_or_init(|| {
         include_str!("../data/zone.tab")
             .lines()
-            .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
-            .filter_map(|l| {
-                let zone = l.split('\t').nth(2)?;
-                let zone = zone.trim();
+            .filter(|line| !line.starts_with('#') && !line.trim().is_empty())
+            .filter_map(|line| {
+                let raw_zone = line.split('\t').nth(2)?;
+                let zone = raw_zone.trim();
                 if zone.is_empty() {
                     None
                 } else {
@@ -113,7 +113,7 @@ fn load_tz_items(lang: &str) -> Vec<TzItem> {
             TzItem::new(&zone, &zone_label, &name, &loc, &offset, &time)
         })
         .collect();
-    items.sort_by_key(|a| a.name().to_lowercase());
+    items.sort_by_key(|item| item.name().to_lowercase());
     items
 }
 
@@ -182,41 +182,43 @@ fn create_factory() -> gtk::SignalListItemFactory {
 
     factory.connect_bind(move |_, list_item| {
         let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
-        let item = list_item.item().and_then(|o| o.downcast::<TzItem>().ok());
+        let item = list_item
+            .item()
+            .and_then(|object| object.downcast::<TzItem>().ok());
         let grid = list_item
             .child()
-            .and_then(|w| w.downcast::<gtk::Grid>().ok());
-        if let (Some(item), Some(grid)) = (item, grid) {
-            if let Some(w) = grid.child_at(0, 0)
-                && let Ok(label) = w.downcast::<gtk::Label>()
+            .and_then(|widget| widget.downcast::<gtk::Grid>().ok());
+        if let (Some(tz_item), Some(tz_grid)) = (item, grid) {
+            if let Some(widget) = tz_grid.child_at(0, 0)
+                && let Ok(label) = widget.downcast::<gtk::Label>()
             {
-                let escaped = glib::markup_escape_text(&item.name());
+                let escaped = glib::markup_escape_text(&tz_item.name());
                 label.set_label(&escaped);
             }
-            if let Some(w) = grid.child_at(1, 0)
-                && let Ok(label) = w.downcast::<gtk::Label>()
+            if let Some(widget) = tz_grid.child_at(1, 0)
+                && let Ok(label) = widget.downcast::<gtk::Label>()
             {
-                let escaped = glib::markup_escape_text(&item.location());
+                let escaped = glib::markup_escape_text(&tz_item.location());
                 label.set_label(&escaped);
             }
-            if let Some(w) = grid.child_at(2, 0)
-                && let Ok(label) = w.downcast::<gtk::Label>()
+            if let Some(widget) = tz_grid.child_at(2, 0)
+                && let Ok(label) = widget.downcast::<gtk::Label>()
             {
-                label.set_label(&item.time());
+                label.set_label(&tz_item.time());
             }
-            if let Some(w) = grid.child_at(0, 1)
-                && let Ok(box_) = w.downcast::<gtk::Box>()
+            if let Some(widget) = tz_grid.child_at(0, 1)
+                && let Ok(box_) = widget.downcast::<gtk::Box>()
             {
                 if let Some(first) = box_.first_child()
                     && let Ok(label) = first.downcast::<gtk::Label>()
                 {
-                    let escaped = glib::markup_escape_text(&item.zone_label());
+                    let escaped = glib::markup_escape_text(&tz_item.zone_label());
                     label.set_label(&escaped);
                 }
                 if let Some(last) = box_.last_child()
                     && let Ok(label) = last.downcast::<gtk::Label>()
                 {
-                    label.set_label(&item.offset());
+                    label.set_label(&tz_item.offset());
                 }
             }
         }
@@ -254,7 +256,7 @@ pub fn open_tz_dialog(parent: &impl IsA<gtk::Widget>, on_select: Rc<dyn Fn(&str)
         } else {
             let filter = gtk::CustomFilter::new(move |obj| {
                 let item = match obj.downcast_ref::<TzItem>() {
-                    Some(i) => i,
+                    Some(item) => item,
                     None => return false,
                 };
                 let search_lower = text.to_lowercase();
@@ -286,9 +288,9 @@ pub fn open_tz_dialog(parent: &impl IsA<gtk::Widget>, on_select: Rc<dyn Fn(&str)
     let dialog_close_ref2 = dialog_close_ref.clone();
     list_view.connect_activate(move |_, position| {
         if let Some(item) = filter_for_activate.item(position)
-            && let Ok(item) = item.downcast::<TzItem>()
+            && let Ok(tz_item) = item.downcast::<TzItem>()
         {
-            on_select_clone(&item.zone());
+            on_select_clone(&tz_item.zone());
             if let Some(dlg) = dialog_close_ref2.borrow().as_ref() {
                 dlg.close();
             }

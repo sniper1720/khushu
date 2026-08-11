@@ -46,16 +46,8 @@ pub(crate) const APP_ID: &str = match option_env!("APP_ID") {
 
 pub(crate) const USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
-fn resolved_language_code(lang: &str) -> String {
-    if lang == "auto" || lang.is_empty() {
-        crate::i18n::detect_system_locale()
-    } else {
-        lang.to_string()
-    }
-}
-
 fn connect_notify_blocked<T, F>(
-    obj: &T,
+    target: &T,
     property: Option<&str>,
     f: F,
 ) -> gtk4::glib::SignalHandlerId
@@ -63,9 +55,9 @@ where
     T: gtk4::glib::prelude::ObjectExt,
     F: Fn(&T, &gtk4::glib::ParamSpec) + 'static,
 {
-    obj.connect_notify_local(property, move |obj, pspec| {
-        let _guard = obj.freeze_notify();
-        f(obj, pspec);
+    target.connect_notify_local(property, move |source, pspec| {
+        let _guard = source.freeze_notify();
+        f(source, pspec);
     })
 }
 
@@ -112,7 +104,7 @@ async fn main() {
 
     crate::i18n::rebind_locale_after_adw_init();
 
-    let app = Application::builder()
+    let application = Application::builder()
         .application_id(APP_ID)
         .flags(gtk::gio::ApplicationFlags::HANDLES_COMMAND_LINE)
         .build();
@@ -120,8 +112,8 @@ async fn main() {
     let app_hold = Rc::new(RefCell::new(None));
 
     let config_startup = config.clone();
-    let app_startup_clone = app.clone();
-    app.connect_startup(move |_| {
+    let app_startup_clone = application.clone();
+    application.connect_startup(move |_| {
         let style_manager = adw::StyleManager::default();
         match config_startup.theme() {
             config::ThemeMode::Light => {
@@ -161,7 +153,7 @@ async fn main() {
 
     let app_hold_cmd = app_hold.clone();
     let _config_clone = config.clone();
-    app.connect_command_line(move |app, cli| {
+    application.connect_command_line(move |app, cli| {
         let args = cli.arguments();
         let mut is_background = false;
 
@@ -187,15 +179,14 @@ async fn main() {
 
     let config_activate = config.clone();
     let app_hold_activate = app_hold.clone();
-    app.connect_activate(move |app| {
-        let resolved_lang = resolved_language_code(&config_activate.language());
-        if resolved_lang == "ar" {
+    application.connect_activate(move |app| {
+        if crate::i18n::is_rtl(&config_activate.language()) {
             gtk::Widget::set_default_direction(gtk::TextDirection::Rtl);
         } else {
             gtk::Widget::set_default_direction(gtk::TextDirection::Ltr);
         }
 
-        apply_font_css(&resolved_lang, &config_activate);
+        apply_font_css(&config_activate);
 
         if !config_activate.is_configured() {
             let app_clone = app.clone();
@@ -224,7 +215,7 @@ async fn main() {
             }
         }
     });
-    app.run();
+    application.run();
 }
 
 fn build_main_ui(app: &Application, config: AppConfig) {
@@ -233,38 +224,40 @@ fn build_main_ui(app: &Application, config: AppConfig) {
 
     if config.location_mode() == LocationMode::Auto {
         let epoch = LOCATION_EPOCH.fetch_add(1, Ordering::Relaxed);
-        let tx = loc_tx.clone();
+        let sender = loc_tx.clone();
         let lang = config.language();
         gtk::glib::spawn_future_local(async move {
             if LOCATION_EPOCH.load(Ordering::Relaxed) != epoch {
                 return;
             }
-            if let Ok((lat, lon, name)) = location::fetch_auto_location(&lang).await {
-                let _ = tx.send((lat, lon, Some(name)));
+            if let Ok((latitude, longitude, name)) = location::fetch_auto_location(&lang).await {
+                let _ = sender.send((latitude, longitude, Some(name)));
             }
         });
     }
 
     {
-        let tx = loc_tx.clone();
+        let sender = loc_tx.clone();
         connect_notify_blocked(&config, Some("location-mode"), move |cfg, _| {
             if cfg.location_mode() == LocationMode::Auto {
                 let epoch = LOCATION_EPOCH.fetch_add(1, Ordering::Relaxed);
                 let lang = cfg.language();
-                let tx = tx.clone();
+                let sender_c = sender.clone();
                 gtk::glib::spawn_future_local(async move {
                     if LOCATION_EPOCH.load(Ordering::Relaxed) != epoch {
                         return;
                     }
-                    if let Ok((lat, lon, name)) = location::fetch_auto_location(&lang).await {
-                        let _ = tx.send((lat, lon, Some(name)));
+                    if let Ok((latitude, longitude, name)) =
+                        location::fetch_auto_location(&lang).await
+                    {
+                        let _ = sender_c.send((latitude, longitude, Some(name)));
                     }
                 });
             }
         });
     }
 
-    let initial_lang = resolved_language_code(&config.language());
+    let initial_lang = crate::i18n::supported_language_code(&config.language());
     let current_lang = Rc::new(RefCell::new(initial_lang));
 
     let split_view = adw::OverlaySplitView::new();
@@ -410,7 +403,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
             if adhan_playing
                 && adhan_prayer_name
                     .as_deref()
-                    .is_some_and(|n| row.widget_name() == n)
+                    .is_some_and(|prayer_name| row.widget_name() == prayer_name)
                 && let Ok(action_row) = row.clone().downcast::<adw::ActionRow>()
             {
                 stop_btn_rc.set_tooltip_text(Some(&tr("Stop Adhan")));
@@ -468,43 +461,44 @@ fn show_about_window(parent: &impl IsA<gtk::Widget>) {
 }
 
 pub fn generate_font_css(
-    lang: &str,
-    arabic_font: &str,
-    ui_font: &str,
+    ui_font: Option<&str>,
+    arabic_font: Option<&str>,
+    quran_font: Option<&str>,
     arabic_px: f64,
     trans_px: f64,
     line_height: f64,
 ) -> String {
-    let base_font = if lang == "ar" {
-        format!("window, popover.background {{ font-family: {arabic_font}, sans-serif; }}\n")
-    } else {
-        if !ui_font.is_empty() && ui_font != "Cantarell, sans-serif" {
-            format!("window {{ font-family: {ui_font}, sans-serif; }}\n")
-        } else {
-            String::new()
-        }
-    };
+    let mut css = String::new();
 
-    let dropdown_font_css = if lang == "ar" {
-        format!(
-            "popover.background list row label, \
-             popover list row label, \
-             .combo list row label {{ font-family: {arabic_font}, sans-serif; }}\n"
-        )
-    } else {
-        String::new()
-    };
+    if let Some(family) = ui_font.filter(|font| !font.is_empty()) {
+        css.push_str(&format!(
+            "window, popover.background {{ font-family: {family}, sans-serif; }}\n"
+        ));
+    }
 
-    format!(
-        "{base_font}{dropdown_font_css}.arabic-text {{ font-family: {arabic_font}, sans-serif; }}\n\
-.marker-row {{ padding: 8px 12px; }}\n\
+    if let Some(family) = arabic_font.filter(|font| !font.is_empty()) {
+        css.push_str(&format!(
+            ".arabic-text {{ font-family: {family}, sans-serif; }}\n"
+        ));
+    }
+
+    let quran_family = quran_font
+        .filter(|font| !font.is_empty())
+        .unwrap_or("'Amiri Quran'");
+    css.push_str(&format!(
+        ".marker-row {{ padding: 8px 12px; }}\n\
 .quran-highlight {{ background-color: alpha(@accent_bg_color, 0.25); border-radius: 12px; }}\n\
-.quran-arabic {{ font-family: 'Amiri Quran', {arabic_font}, sans-serif; font-size: {arabic_px}px; line-height: {line_height}; }}\n\
-.quran-translation {{ font-size: {trans_px}px; line-height: {line_height}; }}\n"
-    )
+.quran-highlight.quran-search-flash {{ animation-name: khushu-search-flash; animation-duration: 2s; }}\n\
+@keyframes khushu-search-flash {{ 0% {{ background-color: alpha(@accent_bg_color, 0.60); }} 100% {{ background-color: alpha(@accent_bg_color, 0.25); }} }}\n\
+.quran-arabic {{ font-family: {quran_family}, sans-serif; font-size: {arabic_px}px; line-height: {line_height}; }}\n\
+.quran-translation {{ font-size: {trans_px}px; line-height: {line_height}; }}\n\
+.quran-arabic-caption {{ font-family: {quran_family}, sans-serif; }}\n"
+    ));
+
+    css
 }
 
-pub fn apply_font_css(lang: &str, config: &crate::config::AppConfig) {
+pub fn apply_font_css(config: &crate::config::AppConfig) {
     use std::cell::RefCell;
 
     thread_local! {
@@ -528,13 +522,11 @@ pub fn apply_font_css(lang: &str, config: &crate::config::AppConfig) {
             let arabic_px = config.quran_arabic_font_px().clamp(16.0, 40.0);
             let trans_px = config.quran_translation_font_px().clamp(10.0, 28.0);
             let line_height = config.quran_line_height().clamp(1.0, 2.6);
-            let arabic_font = config.global_arabic_font_family();
-            let ui_font = config.global_ui_font_family();
 
             let css = generate_font_css(
-                lang,
-                &arabic_font,
-                &ui_font,
+                config.ui_font_family().as_deref(),
+                config.arabic_font_family().as_deref(),
+                config.quran_font_family().as_deref(),
                 arabic_px,
                 trans_px,
                 line_height,
@@ -577,80 +569,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_generate_font_css_arabic() {
-        let css = generate_font_css(
-            "ar",
-            "Amiri, Noto Sans Arabic",
-            "Cantarell, sans-serif",
-            22.0,
-            14.0,
-            1.0,
-        );
-        assert!(css.contains("font-family: Amiri, Noto Sans Arabic"));
-        assert!(css.contains("window, popover.background"));
-        assert!(css.contains("popover.background list row label"));
-        assert!(css.contains(".arabic-text { font-family: Amiri, Noto Sans Arabic"));
-    }
-
-    #[test]
-    fn test_generate_font_css_english_custom_font() {
-        let css = generate_font_css(
-            "en",
-            "Amiri, Noto Sans Arabic",
-            "CustomFont, sans-serif",
-            22.0,
-            14.0,
-            1.0,
-        );
-        assert!(css.contains("font-family: Amiri, Noto Sans Arabic"));
-        assert!(!css.contains("window, popover.background"));
-        assert!(css.contains("window { font-family: CustomFont"));
-        assert!(css.contains(".arabic-text { font-family: Amiri, Noto Sans Arabic"));
-    }
-
-    #[test]
-    fn test_generate_font_css_english_default_font() {
-        let css = generate_font_css(
-            "en",
-            "Amiri, Noto Sans Arabic",
-            "Cantarell, sans-serif",
-            22.0,
-            14.0,
-            1.0,
-        );
-        assert!(css.contains("font-family: Amiri, Noto Sans Arabic"));
+    fn test_generate_font_css_system_defaults() {
+        let css = generate_font_css(None, None, None, 22.0, 14.0, 1.0);
         assert!(!css.contains("window { font-family:"));
-        assert!(css.contains(".arabic-text { font-family: Amiri, Noto Sans Arabic"));
+        assert!(!css.contains(".arabic-text { font-family:"));
+        assert!(css.contains(".quran-arabic { font-family: 'Amiri Quran', sans-serif;"));
+        assert!(css.contains(".quran-arabic-caption { font-family: 'Amiri Quran', sans-serif;"));
     }
 
     #[test]
-    fn test_generate_font_css_quran_classes() {
-        let css = generate_font_css(
-            "ar",
-            "Amiri, Noto Sans Arabic",
-            "Cantarell, sans-serif",
-            22.0,
-            14.0,
-            1.5,
-        );
-        assert!(css.contains(
-            ".quran-arabic { font-family: 'Amiri Quran', Amiri, Noto Sans Arabic, sans-serif;"
-        ));
+    fn test_generate_font_css_custom_ui_font() {
+        let css = generate_font_css(Some("CustomFont"), None, None, 22.0, 14.0, 1.0);
+        assert!(css.contains("window, popover.background { font-family: CustomFont, sans-serif;"));
+        assert!(!css.contains(".arabic-text { font-family:"));
+    }
+
+    #[test]
+    fn test_generate_font_css_custom_arabic_font() {
+        let css = generate_font_css(None, Some("Amiri"), None, 22.0, 14.0, 1.0);
+        assert!(!css.contains("window { font-family:"));
+        assert!(css.contains(".arabic-text { font-family: Amiri, sans-serif;"));
+    }
+
+    #[test]
+    fn test_generate_font_css_custom_quran_font() {
+        let css = generate_font_css(None, None, Some("Uthmani"), 22.0, 14.0, 1.5);
+        assert!(css.contains(".quran-arabic { font-family: Uthmani, sans-serif;"));
+        assert!(css.contains(".quran-arabic-caption { font-family: Uthmani, sans-serif;"));
         assert!(css.contains("font-size: 22px"));
         assert!(css.contains("line-height: 1.5"));
         assert!(css.contains(".quran-translation { font-size: 14px"));
     }
 
     #[test]
-    fn test_generate_font_css_rtl_not_applied_via_css() {
-        let css = generate_font_css(
-            "ar",
-            "Amiri, Noto Sans Arabic",
-            "Cantarell, sans-serif",
-            22.0,
-            14.0,
-            1.0,
-        );
+    fn test_generate_font_css_no_direction_rules() {
+        let css = generate_font_css(Some("A"), Some("B"), Some("C"), 22.0, 14.0, 1.0);
         assert!(!css.contains("direction:"));
         assert!(!css.contains("rtl"));
     }

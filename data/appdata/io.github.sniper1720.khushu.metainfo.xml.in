@@ -12,7 +12,7 @@
       Adkar notifications, and a dedicated Noble Quran reader with ayah-by-ayah recitation.
     </p>
     <ul>
-      <li>Accurate prayer calculation methods (Offline)</li>
+      <li>Accurate offline prayer (Salah) calculation methods, including recommended high-latitude and polar estimation methods.</li>
       <li>Morning, Evening, and Night Adkar with built-in counters</li>
       <li>Customizable Adhan system notifications (Makkah/Madinah audio)</li>
       <li>Dedicated Noble Quran reader with authentic Uthmanic text, multi-language translations, ayah-by-ayah recitation, selectable reciters, and adjustable typography</li>
@@ -66,11 +66,11 @@
     <category>Education</category>
   </categories>
   <keywords>
+    <keyword>adhan</keyword>
+    <keyword>quran</keyword>
+    <keyword>adkar</keyword>
     <keyword>prayer</keyword>
     <keyword>salah</keyword>
-    <keyword>adhan</keyword>
-    <keyword>adkar</keyword>
-    <keyword>quran</keyword>
     <keyword>recitation</keyword>
     <keyword>qibla</keyword>
     <keyword>muslim</keyword>
@@ -82,6 +82,17 @@
   </branding>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.3.2" date="2026-08-03">
+      <description>
+        <ul>
+          <li>Added native Adkar translations in French, Spanish, Turkish, and Indonesian, verified against authentic sources</li>
+          <li>Added font settings for the interface, Arabic text, and Quran</li>
+          <li>Daily Adkar reminders now prioritize favorited Adkar over random selection</li>
+          <li>Fixed the Indonesian UI selection not persisting after restart</li>
+          <li>Fixed the invalid adhan file toast never showing</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3.1" date="2026-07-29">
       <description>
         <ul>

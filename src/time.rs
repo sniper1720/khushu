@@ -4,7 +4,7 @@ use mawaqit::{Configuration, Coordinates, Madhab, Method, Parameters, Prayer, Pr
 
 use crate::config::{
     AppConfig, CalculationMethod, HighLatitudeChoice, MadhabChoice, PolarEstimationMethod,
-    PrayerTimesSource, TimezoneMode,
+    PrayerTimesSource, TimeFormat, TimezoneMode,
 };
 use crate::i18n::tr;
 
@@ -350,6 +350,25 @@ pub fn effective_today(config: &AppConfig) -> NaiveDate {
     effective_now(config).date_naive()
 }
 
+pub fn format_prayer_time(dt: DateTime<Local>, format: TimeFormat) -> String {
+    match format {
+        TimeFormat::H24 => dt.format("%H:%M").to_string(),
+        TimeFormat::H12 => {
+            if false {
+                tr("AM");
+                tr("PM");
+            }
+            let formatted = dt.format("%I:%M %p").to_string();
+            let trimmed = if formatted.starts_with('0') {
+                &formatted[1..]
+            } else {
+                &formatted
+            };
+            trimmed.replace("AM", &tr("AM")).replace("PM", &tr("PM"))
+        }
+    }
+}
+
 pub fn format_hijri_date(dt: DateTime<Local>, hijri_offset: i64) -> String {
     // HIJRI_MONTH_NAMES: Islamic month names — expose to xgettext
     if false {
@@ -612,5 +631,19 @@ mod tests {
             egypt_t.fajr.format("%H:%M").to_string(),
             "MWL and Egypt Fajr should differ"
         );
+    }
+
+    #[test]
+    fn test_format_prayer_time_12h_and_24h() {
+        let dt = Local
+            .with_ymd_and_hms(2026, 8, 16, 17, 42, 0)
+            .single()
+            .unwrap();
+
+        let s24 = format_prayer_time(dt, TimeFormat::H24);
+        let s12 = format_prayer_time(dt, TimeFormat::H12);
+
+        assert_eq!(s24, "17:42");
+        assert!(s12.contains("5:42"));
     }
 }

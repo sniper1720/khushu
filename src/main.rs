@@ -5,16 +5,21 @@ mod background;
 mod calendar;
 mod config;
 mod home_ui;
+mod islamic_content;
 mod location;
 mod mawaqit;
 mod nav_ui;
 mod notifications;
 mod pages;
 mod platform;
+mod prayer_tracker;
 mod qibla;
 mod qibla_ui;
 mod quran;
+mod quran_planner;
+mod quran_planner_ui;
 mod reciter_ui;
+mod reminder_presenter;
 mod settings_ui;
 mod time;
 mod timer_controller;
@@ -413,6 +418,40 @@ fn build_main_ui(app: &Application, config: AppConfig) {
             child = row.next_sibling();
         }
     });
+    let view_stack_action = view_stack_rc.clone();
+    let config_action = config.clone();
+    let lang_action = current_lang.clone();
+    let sidebar_action = sidebar_list.clone();
+
+    let open_quran_action = gtk::gio::SimpleAction::new(
+        "open-quran-page",
+        Some(&gtk::glib::VariantType::new("u").unwrap()),
+    );
+    open_quran_action.connect_activate(move |_, param| {
+        let page = param
+            .and_then(|p| p.get::<u32>())
+            .or_else(crate::quran::take_requested_quran_page);
+
+        if let Some(target_page) = page {
+            view_stack_action.set_visible_child_name("quran");
+            nav_ui::select_sidebar_row(&sidebar_action, "quran");
+            let lang = lang_action.borrow();
+            crate::quran::open_surah_at_page(
+                &view_stack_action,
+                &lang,
+                config_action.clone(),
+                target_page,
+            );
+        }
+    });
+    app.add_action(&open_quran_action);
+
+    if let Some(requested_page) = crate::quran::take_requested_quran_page() {
+        view_stack_rc.set_visible_child_name("quran");
+        nav_ui::select_sidebar_row(&sidebar_list, "quran");
+        let lang = current_lang.borrow();
+        crate::quran::open_surah_at_page(&view_stack_rc, &lang, config.clone(), requested_page);
+    }
 
     window.present();
 }

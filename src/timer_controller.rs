@@ -26,6 +26,17 @@ pub struct PrayerState {
 
 type IqamahCountdown = Rc<RefCell<Option<(String, chrono::DateTime<chrono::Local>)>>>;
 
+pub fn get_iqamah_delay_mins(config: &AppConfig, prayer_name: &str) -> u32 {
+    match config.iqamah_mode() {
+        crate::config::IqamahMode::Global => config.iqamah_global_minutes(),
+        crate::config::IqamahMode::PerPrayer => config
+            .iqamah_minutes()
+            .get(prayer_name)
+            .copied()
+            .unwrap_or(10),
+    }
+}
+
 struct DailyState {
     today_schedule: Option<PrayerSchedule>,
     tomorrow_schedule: Option<PrayerSchedule>,
@@ -184,11 +195,11 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
     let is_core_timer = !HAS_CORE_TIMER.swap(true, Ordering::SeqCst);
 
     let prayers_handled: Rc<RefCell<HashSet<String>>> = Rc::new(RefCell::new(HashSet::new()));
-    let upcoming_notified_at: Rc<RefCell<Option<chrono::DateTime<Local>>>> =
+    let _upcoming_notified_at: Rc<RefCell<Option<chrono::DateTime<Local>>>> =
         Rc::new(RefCell::new(None));
     let adhan_for_prayer: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
     let iqamah_countdown: IqamahCountdown = Rc::new(RefCell::new(None));
-    let iqamah_notified_at: Rc<RefCell<Option<chrono::DateTime<Local>>>> =
+    let _iqamah_notified_at: Rc<RefCell<Option<chrono::DateTime<Local>>>> =
         Rc::new(RefCell::new(None));
     let adhan_ended_at: Rc<RefCell<Option<chrono::DateTime<Local>>>> = Rc::new(RefCell::new(None));
 
@@ -379,35 +390,7 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
             .borrow()
             .is_none_or(|ended_at| now.signed_duration_since(ended_at) >= ADHAN_END_QUIET_PERIOD);
 
-        if let Some((name, time)) = next.as_ref() {
-            let total_seconds = time.signed_duration_since(now).num_seconds();
-
-            if is_core_timer
-                && config.pre_prayer_notify()
-                && !config.adhan_only_mode()
-                && total_seconds > 0
-                && total_seconds <= config.pre_prayer_minutes() as i64 * SECONDS_PER_MINUTE
-                && name != "Sunrise"
-                && upcoming_notified_at
-                    .borrow()
-                    .is_none_or(|notified_time| notified_time < *time)
-            {
-                show_notification(
-                    &format!("{} {}", tr("Upcoming Prayer:"), tr(name)),
-                    &format!(
-                        "{} {} {} {}",
-                        tr(name),
-                        tr("is in"),
-                        config.pre_prayer_minutes(),
-                        tr("minutes")
-                    ),
-                    false,
-                    &tr("Open Khushu"),
-                    &tr("Stop Adhan"),
-                );
-                *upcoming_notified_at.borrow_mut() = Some(*time);
-            }
-
+        if let Some((_name, _time)) = next.as_ref() {
             if is_core_timer {
                 let mut handled = prayers_handled.borrow_mut();
                 if let Some(ref scan_schedule) = today_schedule {
@@ -418,29 +401,64 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                         ("Maghrib", scan_schedule.maghrib),
                         ("Isha", scan_schedule.isha),
                     ] {
-                        if now >= scan_time && !handled.contains(scan_name) {
-                            let iqamah_mins = config
-                                .iqamah_minutes()
-                                .get(scan_name)
-                                .copied()
-                                .unwrap_or(10) as i64;
-                            let iqamah_end = scan_time + Duration::minutes(iqamah_mins);
-                            if now < iqamah_end {
-                                *iqamah_countdown.borrow_mut() =
-                                    Some((scan_name.to_string(), iqamah_end));
-                                *iqamah_notified_at.borrow_mut() = None;
+                        let pre_mins = config.pre_prayer_reminder_minutes();
+                        let pre_key = format!("{}:{}:pre", today, scan_name);
+                        let time_key = format!("{}:{}:time", today, scan_name);
+                        let iqamah_key = format!("{}:{}:iqamah", today, scan_name);
+
+                        let pre_time = scan_time - Duration::minutes(pre_mins as i64);
+                        let iqamah_delay = get_iqamah_delay_mins(&config, scan_name) as i64;
+                        let iqamah_end = scan_time + Duration::minutes(iqamah_delay);
+
+                        if schedule_changed {
+                            if now >= scan_time {
+                                handled.insert(pre_key.clone());
                             }
+                            if now >= scan_time + Duration::minutes(15) {
+                                handled.insert(time_key.clone());
+                            }
+                            if now >= iqamah_end + Duration::minutes(15) {
+                                handled.insert(iqamah_key.clone());
+                            }
+                        }
 
-                            let adhan_window = Duration::minutes(iqamah_mins).max(MIN_ADHAN_WINDOW);
-                            if now.signed_duration_since(scan_time) < adhan_window {
-                                show_notification(
-                                    &format!("{} {}", tr("It's time for"), tr(scan_name)),
-                                    &format!("{} {}.", tr("It is now time for"), tr(scan_name)),
-                                    true,
-                                    &tr("Open Khushu"),
-                                    &tr("Stop Adhan"),
+                        if now >= scan_time && now < iqamah_end {
+                            *iqamah_countdown.borrow_mut() =
+                                Some((scan_name.to_string(), iqamah_end));
+                        }
+
+                        if config.pre_prayer_reminder_enabled()
+                            && !config.adhan_only_mode()
+                            && now >= pre_time
+                            && now < scan_time
+                            && !handled.contains(&pre_key)
+                        {
+                            handled.insert(pre_key.clone());
+                            let prev_check = if config.check_previous_prayer() {
+                                crate::prayer_tracker::get_previous_prayer(today, scan_name)
+                                    .filter(|(_, prev_d)| !crate::prayer_tracker::is_previous_prayer_completed_or_dismissed(&config, *prev_d, scan_name))
+                            } else {
+                                None
+                            };
+                            crate::reminder_presenter::present_reminder(
+                                &config,
+                                crate::reminder_presenter::ReminderEvent::PrePrayer {
+                                    prayer_name: scan_name.to_string(),
+                                    minutes_left: pre_mins,
+                                    prev_check,
+                                },
+                            );
+                        }
+
+                        if now >= scan_time && !handled.contains(&time_key) {
+                            handled.insert(time_key.clone());
+                            if now.signed_duration_since(scan_time) < MIN_ADHAN_WINDOW {
+                                crate::reminder_presenter::present_reminder(
+                                    &config,
+                                    crate::reminder_presenter::ReminderEvent::PrayerTime {
+                                        prayer_name: scan_name.to_string(),
+                                    },
                                 );
-
                                 let adhan_path = config
                                     .adhan_sound_path()
                                     .unwrap_or_else(|| "assets/audio/Madinah.mp3".to_string());
@@ -449,7 +467,103 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                                     *adhan_for_prayer.borrow_mut() = Some(scan_name.to_string());
                                 }
                             }
-                            handled.insert(scan_name.to_string());
+                        }
+
+                        if config.iqamah_reminder_enabled()
+                            && !config.adhan_only_mode()
+                            && adhan_ended
+                            && now >= iqamah_end
+                            && !handled.contains(&iqamah_key)
+                        {
+                            handled.insert(iqamah_key.clone());
+                            if now.signed_duration_since(iqamah_end) < Duration::minutes(15) {
+                                crate::reminder_presenter::present_reminder(
+                                    &config,
+                                    crate::reminder_presenter::ReminderEvent::Iqamah {
+                                        prayer_name: scan_name.to_string(),
+                                        delay_mins: iqamah_delay as u32,
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+
+            if is_core_timer && config.quran_reminder_enabled() && !config.adhan_only_mode() {
+                static STARTUP_WIRD_SENT: std::sync::atomic::AtomicBool =
+                    std::sync::atomic::AtomicBool::new(false);
+                let later_key = format!("{}:quran_later", today);
+
+                if config.quran_startup_reminder_enabled()
+                    && !STARTUP_WIRD_SENT.swap(true, std::sync::atomic::Ordering::SeqCst)
+                {
+                    // If application started at or past later reminder time, seed later_key so startup and later reminders never fire together on startup
+                    let time_str = config.quran_later_reminder_time();
+                    if let Ok(target_naive_time) =
+                        chrono::NaiveTime::parse_from_str(&time_str, "%H:%M")
+                    {
+                        let target_dt = today
+                            .and_time(target_naive_time)
+                            .and_local_timezone(now.timezone());
+                        if let chrono::LocalResult::Single(target_datetime) = target_dt {
+                            if now >= target_datetime {
+                                prayers_handled.borrow_mut().insert(later_key.clone());
+                            }
+                        }
+                    }
+
+                    if let Some(wird) = crate::quran_planner::get_today_wird_info(&config) {
+                        if !wird.is_completed {
+                            crate::reminder_presenter::present_reminder(
+                                &config,
+                                crate::reminder_presenter::ReminderEvent::QuranWird {
+                                    start_page: wird.start_page,
+                                    end_page: wird.end_page,
+                                    total_pages: wird.total_pages,
+                                    completed_pages: wird.completed_pages,
+                                    remaining_pages: wird.remaining_pages,
+                                    target_page: wird.target_page,
+                                    is_startup: true,
+                                },
+                            );
+                        }
+                    }
+                }
+
+                if config.quran_later_reminder_enabled() {
+                    let later_key = format!("{}:quran_later", today);
+                    if !prayers_handled.borrow().contains(&later_key) {
+                        let time_str = config.quran_later_reminder_time();
+                        if let Ok(target_naive_time) =
+                            chrono::NaiveTime::parse_from_str(&time_str, "%H:%M")
+                        {
+                            let target_dt = today
+                                .and_time(target_naive_time)
+                                .and_local_timezone(now.timezone());
+                            if let chrono::LocalResult::Single(target_datetime) = target_dt {
+                                if now >= target_datetime {
+                                    prayers_handled.borrow_mut().insert(later_key);
+                                    if let Some(wird) =
+                                        crate::quran_planner::get_today_wird_info(&config)
+                                    {
+                                        if !wird.is_completed {
+                                            crate::reminder_presenter::present_reminder(
+                                                &config,
+                                                crate::reminder_presenter::ReminderEvent::QuranWird {
+                                                    start_page: wird.start_page,
+                                                    end_page: wird.end_page,
+                                                    total_pages: wird.total_pages,
+                                                    completed_pages: wird.completed_pages,
+                                                    remaining_pages: wird.remaining_pages,
+                                                    target_page: wird.target_page,
+                                                    is_startup: false,
+                                                },
+                                            );
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -604,33 +718,6 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                             &tr("Stop Adhan"),
                         );
                     }
-                }
-            }
-
-            if is_core_timer && adhan_ended {
-                let should_notify = {
-                    let state = iqamah_countdown.borrow();
-                    state.as_ref().is_some_and(|(_iq_name, iq_end)| {
-                        let remaining = iq_end.signed_duration_since(now).num_seconds();
-                        remaining <= 0
-                            && iqamah_notified_at
-                                .borrow()
-                                .is_none_or(|notified_time| notified_time < *iq_end)
-                    })
-                };
-                if should_notify
-                    && config.iqamah_notify()
-                    && !config.adhan_only_mode()
-                    && let Some((iq_name, iq_end)) = iqamah_countdown.borrow().as_ref().cloned()
-                {
-                    show_notification(
-                        &format!("{} {}", tr("Iqamah"), tr(&iq_name)),
-                        &format!("{} {}.", tr("It is time for Iqamah of"), tr(&iq_name)),
-                        false,
-                        &tr("Open Khushu"),
-                        &tr("Stop Adhan"),
-                    );
-                    *iqamah_notified_at.borrow_mut() = Some(iq_end);
                 }
             }
         }

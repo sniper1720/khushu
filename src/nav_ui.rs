@@ -94,6 +94,10 @@ pub fn navigate_to(
     }
 
     window_title.set_title(&page_title(name));
+    select_sidebar_row(sidebar_list, name);
+}
+
+pub fn select_sidebar_row(sidebar_list: &ListBox, name: &str) {
     if let Some(row) = sidebar_list.row_at_index(0) {
         let mut child = Some(row.upcast::<gtk::Widget>());
         while let Some(widget) = child {

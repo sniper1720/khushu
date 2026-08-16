@@ -6,6 +6,7 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
+use crate::quran_planner::{HifzPlanData, ReadingPlanData};
 use gtk4::glib;
 use gtk4::glib::prelude::*;
 use gtk4::glib::subclass::prelude::*;
@@ -93,6 +94,33 @@ pub enum TimezoneMode {
     UtcOffset(i32),
 }
 
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimeFormat {
+    #[serde(rename = "24h")]
+    #[default]
+    H24,
+    #[serde(rename = "12h")]
+    H12,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq)]
+pub enum ReminderPresentation {
+    #[serde(rename = "popup")]
+    #[default]
+    Popup,
+    #[serde(rename = "notification")]
+    Notification,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq)]
+pub enum IqamahMode {
+    #[serde(rename = "global")]
+    Global,
+    #[serde(rename = "per_prayer")]
+    #[default]
+    PerPrayer,
+}
+
 fn default_volume() -> f32 {
     1.0
 }
@@ -107,6 +135,22 @@ fn default_adkar_notification_enabled() -> bool {
 
 fn default_iqamah_notify() -> bool {
     true
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_quran_later_reminder_time() -> String {
+    "14:00".to_string()
+}
+
+fn default_pre_prayer_reminder_minutes() -> u32 {
+    10
+}
+
+fn default_iqamah_global_minutes() -> u32 {
+    10
 }
 
 fn default_language() -> String {
@@ -206,6 +250,14 @@ pub struct AppConfigData {
     pub quran_last_surah_num: Option<u32>,
     #[serde(default)]
     pub quran_last_page: Option<u32>,
+    #[serde(default = "default_true")]
+    pub quran_reminder_enabled: bool,
+    #[serde(default = "default_true")]
+    pub quran_startup_reminder_enabled: bool,
+    #[serde(default = "default_true")]
+    pub quran_later_reminder_enabled: bool,
+    #[serde(default = "default_quran_later_reminder_time")]
+    pub quran_later_reminder_time: String,
     #[serde(default)]
     pub prayer_times_source: PrayerTimesSource,
     #[serde(default)]
@@ -244,6 +296,28 @@ pub struct AppConfigData {
     pub fallback_was_active: bool,
     #[serde(default)]
     pub lre_was_blocked: bool,
+    #[serde(default)]
+    pub prayer_reminder_presentation: ReminderPresentation,
+    #[serde(default = "default_true")]
+    pub pre_prayer_reminder_enabled: bool,
+    #[serde(default = "default_pre_prayer_reminder_minutes")]
+    pub pre_prayer_reminder_minutes: u32,
+    #[serde(default = "default_true")]
+    pub check_previous_prayer: bool,
+    #[serde(default = "default_true")]
+    pub iqamah_reminder_enabled: bool,
+    #[serde(default)]
+    pub iqamah_mode: IqamahMode,
+    #[serde(default = "default_iqamah_global_minutes")]
+    pub iqamah_global_minutes: u32,
+    #[serde(default)]
+    pub prayer_logs: HashMap<String, HashMap<String, String>>,
+    #[serde(default)]
+    pub time_format: TimeFormat,
+    #[serde(default)]
+    pub quran_reading_plans: Vec<ReadingPlanData>,
+    #[serde(default)]
+    pub quran_hifz_plans: Vec<HifzPlanData>,
 }
 
 impl Default for AppConfigData {
@@ -275,6 +349,10 @@ impl Default for AppConfigData {
             quran_bookmarks: Vec::new(),
             quran_last_surah_num: None,
             quran_last_page: None,
+            quran_reminder_enabled: true,
+            quran_startup_reminder_enabled: true,
+            quran_later_reminder_enabled: true,
+            quran_later_reminder_time: default_quran_later_reminder_time(),
             prayer_times_source: PrayerTimesSource::Calculated,
             mawaqit_url: None,
             mawaqit_auto_refresh_daily: false,
@@ -294,6 +372,17 @@ impl Default for AppConfigData {
             polar_estimation_method: PolarEstimationMethod::default(),
             fallback_was_active: false,
             lre_was_blocked: false,
+            prayer_reminder_presentation: ReminderPresentation::default(),
+            pre_prayer_reminder_enabled: true,
+            pre_prayer_reminder_minutes: 10,
+            check_previous_prayer: true,
+            iqamah_reminder_enabled: true,
+            iqamah_mode: IqamahMode::default(),
+            iqamah_global_minutes: 10,
+            prayer_logs: HashMap::new(),
+            time_format: TimeFormat::default(),
+            quran_reading_plans: Vec::new(),
+            quran_hifz_plans: Vec::new(),
         }
     }
 }
@@ -635,6 +724,34 @@ impl AppConfig {
         self.imp().data.borrow_mut().quran_last_page = val;
     }
 
+    pub fn quran_reminder_enabled(&self) -> bool {
+        self.imp().data.borrow().quran_reminder_enabled
+    }
+    pub fn set_quran_reminder_enabled(&self, val: bool) {
+        self.imp().data.borrow_mut().quran_reminder_enabled = val;
+    }
+
+    pub fn quran_startup_reminder_enabled(&self) -> bool {
+        self.imp().data.borrow().quran_startup_reminder_enabled
+    }
+    pub fn set_quran_startup_reminder_enabled(&self, val: bool) {
+        self.imp().data.borrow_mut().quran_startup_reminder_enabled = val;
+    }
+
+    pub fn quran_later_reminder_enabled(&self) -> bool {
+        self.imp().data.borrow().quran_later_reminder_enabled
+    }
+    pub fn set_quran_later_reminder_enabled(&self, val: bool) {
+        self.imp().data.borrow_mut().quran_later_reminder_enabled = val;
+    }
+
+    pub fn quran_later_reminder_time(&self) -> String {
+        self.imp().data.borrow().quran_later_reminder_time.clone()
+    }
+    pub fn set_quran_later_reminder_time(&self, val: String) {
+        self.imp().data.borrow_mut().quran_later_reminder_time = val;
+    }
+
     pub fn prayer_times_source(&self) -> PrayerTimesSource {
         self.imp().data.borrow().prayer_times_source.clone()
     }
@@ -781,6 +898,87 @@ impl AppConfig {
     }
     pub fn set_lre_was_blocked(&self, val: bool) {
         self.imp().data.borrow_mut().lre_was_blocked = val;
+    }
+
+    pub fn prayer_reminder_presentation(&self) -> ReminderPresentation {
+        self.imp()
+            .data
+            .borrow()
+            .prayer_reminder_presentation
+            .clone()
+    }
+    pub fn set_prayer_reminder_presentation(&self, val: ReminderPresentation) {
+        self.imp().data.borrow_mut().prayer_reminder_presentation = val;
+    }
+
+    pub fn pre_prayer_reminder_enabled(&self) -> bool {
+        self.imp().data.borrow().pre_prayer_reminder_enabled
+    }
+    pub fn set_pre_prayer_reminder_enabled(&self, val: bool) {
+        self.imp().data.borrow_mut().pre_prayer_reminder_enabled = val;
+    }
+
+    pub fn pre_prayer_reminder_minutes(&self) -> u32 {
+        self.imp().data.borrow().pre_prayer_reminder_minutes
+    }
+    pub fn set_pre_prayer_reminder_minutes(&self, val: u32) {
+        self.imp().data.borrow_mut().pre_prayer_reminder_minutes = val;
+    }
+
+    pub fn check_previous_prayer(&self) -> bool {
+        self.imp().data.borrow().check_previous_prayer
+    }
+    pub fn set_check_previous_prayer(&self, val: bool) {
+        self.imp().data.borrow_mut().check_previous_prayer = val;
+    }
+
+    pub fn iqamah_reminder_enabled(&self) -> bool {
+        self.imp().data.borrow().iqamah_reminder_enabled
+    }
+    pub fn set_iqamah_reminder_enabled(&self, val: bool) {
+        self.imp().data.borrow_mut().iqamah_reminder_enabled = val;
+    }
+
+    pub fn iqamah_mode(&self) -> IqamahMode {
+        self.imp().data.borrow().iqamah_mode.clone()
+    }
+    pub fn set_iqamah_mode(&self, val: IqamahMode) {
+        self.imp().data.borrow_mut().iqamah_mode = val;
+    }
+
+    pub fn iqamah_global_minutes(&self) -> u32 {
+        self.imp().data.borrow().iqamah_global_minutes
+    }
+    pub fn set_iqamah_global_minutes(&self, val: u32) {
+        self.imp().data.borrow_mut().iqamah_global_minutes = val;
+    }
+
+    pub fn prayer_logs(&self) -> HashMap<String, HashMap<String, String>> {
+        self.imp().data.borrow().prayer_logs.clone()
+    }
+    pub fn set_prayer_logs(&self, val: HashMap<String, HashMap<String, String>>) {
+        self.imp().data.borrow_mut().prayer_logs = val;
+    }
+
+    pub fn time_format(&self) -> TimeFormat {
+        self.imp().data.borrow().time_format
+    }
+    pub fn set_time_format(&self, val: TimeFormat) {
+        self.imp().data.borrow_mut().time_format = val;
+    }
+
+    pub fn quran_reading_plans(&self) -> Vec<ReadingPlanData> {
+        self.imp().data.borrow().quran_reading_plans.clone()
+    }
+    pub fn set_quran_reading_plans(&self, val: Vec<ReadingPlanData>) {
+        self.imp().data.borrow_mut().quran_reading_plans = val;
+    }
+
+    pub fn quran_hifz_plans(&self) -> Vec<HifzPlanData> {
+        self.imp().data.borrow().quran_hifz_plans.clone()
+    }
+    pub fn set_quran_hifz_plans(&self, val: Vec<HifzPlanData>) {
+        self.imp().data.borrow_mut().quran_hifz_plans = val;
     }
 
     pub fn latitude_zone(&self) -> u8 {

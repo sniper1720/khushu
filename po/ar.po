@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Khushu 1.3.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-03-04 20:21+0100\n"
-"PO-Revision-Date: 2026-08-11 10:53+0000\n"
+"PO-Revision-Date: 2026-08-16 11:49+0000\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Arabic\n"
 "Language: ar\n"
@@ -696,26 +696,34 @@ msgstr "الجمعة"
 msgid "Saturday"
 msgstr "السبت"
 
+#: src/time.rs
+msgid "AM"
+msgstr "ص"
+
+#: src/time.rs
+msgid "PM"
+msgstr "م"
+
 # =============================================================================
 # SECTION 3: PRAYER
 # =============================================================================
-#: src/timer_controller.rs
+#: src/reminder_presenter.rs
 msgid "in"
 msgstr "خلال"
 
-#: src/timer_controller.rs
+#: src/reminder_presenter.rs
 msgid "Upcoming Prayer:"
 msgstr "الصلاة القادمة:"
 
-#: src/timer_controller.rs
+#: src/reminder_presenter.rs
 msgid "is in"
 msgstr "بعد"
 
-#: src/timer_controller.rs
+#: src/reminder_presenter.rs
 msgid "minutes"
 msgstr "دقائق"
 
-#: src/timer_controller.rs
+#: src/reminder_presenter.rs
 msgid "It is now time for"
 msgstr "حان الآن وقت"
 
@@ -731,11 +739,11 @@ msgstr "أذكار المساء"
 msgid "Night Adkar"
 msgstr "أذكار النوم"
 
-#: src/timer_controller.rs
+#: src/reminder_presenter.rs
 msgid "Iqamah"
 msgstr "الإقامة"
 
-#: src/timer_controller.rs
+#: src/reminder_presenter.rs
 msgid "It is time for Iqamah of"
 msgstr "حان وقت إقامة صلاة"
 
@@ -989,6 +997,14 @@ msgstr "افتح إعدادات الخطوط"
 #: src/quran.rs
 msgid "Choose the font family used for the Quran text."
 msgstr "اختر عائلة الخط لنص القرآن الكريم."
+
+#: src/quran.rs
+msgid "Reader"
+msgstr ""
+
+#: src/quran.rs
+msgid "Plans"
+msgstr ""
 
 # =============================================================================
 # SECTION 6: ADKAR
@@ -1417,7 +1433,7 @@ msgstr "دقائق قبل الصلاة"
 msgid "Test Notification"
 msgstr "إشعار تجريبي"
 
-#: src/settings_ui.rs src/timer_controller.rs
+#: src/reminder_presenter.rs
 msgid "It's time for"
 msgstr "حان وقت"
 
@@ -1647,10 +1663,50 @@ msgstr ""
 msgid "File not usable or unsupported format"
 msgstr "تعذر استخدام الملف أو أن تنسيقه غير مدعوم."
 
+#: src/settings_ui.rs
+msgid "Popup Window"
+msgstr "نافذة منبثقة"
+
+#: src/settings_ui.rs
+msgid "Desktop Notification"
+msgstr "إشعار النظام"
+
+#: src/settings_ui.rs
+msgid "Reminder Style"
+msgstr "نمط التذكير"
+
+#: src/settings_ui.rs
+msgid "Choose how prayer reminders are presented."
+msgstr "اختر طريقة عرض تذكيرات الصلاة."
+
+#: src/settings_ui.rs
+msgid "Verify Previous Prayer"
+msgstr "التحقق من الصلاة السابقة"
+
+#: src/settings_ui.rs
+msgid "Prompt to check if the previous prayer was performed."
+msgstr "التذكير بالتحقق مما إذا كانت الصلاة السابقة قد أُديت."
+
+#: src/settings_ui.rs
+msgid "24-hour"
+msgstr "24 ساعة"
+
+#: src/settings_ui.rs
+msgid "12-hour"
+msgstr "12 ساعة"
+
+#: src/settings_ui.rs
+msgid "Time Format"
+msgstr "تنسيق الوقت"
+
+#: src/settings_ui.rs
+msgid "Format used for prayer times across Khushu."
+msgstr "التنسيق المستخدم لعرض أوقات الصلاة في تطبيق خشوع."
+
 # =============================================================================
 # SECTION 8: APP UI & SYSTEM ACTIONS
 # =============================================================================
-#: src/background.rs src/settings_ui.rs src/timer_controller.rs
+#: src/background.rs src/timer_controller.rs
 msgid "Open Khushu"
 msgstr "فتح خشوع"
 
@@ -1666,7 +1722,7 @@ msgstr "أوقات الصلاة"
 msgid "Toggle Sidebar"
 msgstr "إظهار/إخفاء الشريط الجانبي"
 
-#: src/main.rs src/settings_ui.rs src/timer_controller.rs
+#: src/main.rs src/timer_controller.rs
 msgid "Stop Adhan"
 msgstr "إيقاف الأذان"
 
@@ -1822,3 +1878,415 @@ msgstr "متابعة"
 #: src/mawaqit.rs
 msgid "Mawaqit fetch failed"
 msgstr ""
+
+msgid "Maintain your prayers consistently."
+msgstr "حافظوا على الصلوات والصلاة الوسطى."
+
+#: src/reminder_presenter.rs
+msgid "Previous prayer"
+msgstr "الصلاة السابقة"
+
+#: src/reminder_presenter.rs
+msgid "Prayer Reminder"
+msgstr "تذكير بالصلاة"
+
+#: src/reminder_presenter.rs
+msgid "Prayer Time"
+msgstr "حان وقت الصلاة"
+
+#: src/reminder_presenter.rs
+msgid "Iqamah Reminder"
+msgstr "تذكير بإقامة الصلاة"
+
+#: src/reminder_presenter.rs
+msgid "Approaching Iqamah for"
+msgstr "اقتربت إقامة صلاة"
+
+#: src/reminder_presenter.rs
+msgid "Did you pray"
+msgstr "هل صليت"
+
+#: src/reminder_presenter.rs
+msgid "Prayed"
+msgstr "صليت"
+
+#: src/reminder_presenter.rs
+msgid "Missed"
+msgstr "فاتتني"
+
+#: src/reminder_presenter.rs
+msgid "Later"
+msgstr "تذكير لاحقًا"
+
+#: src/reminder_presenter.rs
+msgid "Mark Prayed"
+msgstr "تمت الصلاة"
+
+#: src/reminder_presenter.rs
+msgid "Dismiss"
+msgstr "إغلاق"
+
+#: src/quran_planner_ui.rs
+msgid "Reading Khatma"
+msgstr "ختمة القراءة"
+
+#: src/quran_planner_ui.rs
+msgid "Hifz Planner"
+msgstr "مخطط الحفظ"
+
+#: src/quran_planner_ui.rs
+msgid "Today's Range:"
+msgstr "مقرر اليوم:"
+
+#: src/quran_planner_ui.rs
+msgid "Day"
+msgstr "اليوم"
+
+#: src/quran_planner_ui.rs
+msgid "days"
+msgstr "أيام"
+
+msgid "Continue Today's Reading"
+msgstr "متابعة قراءة اليوم"
+
+#: src/quran_planner_ui.rs
+msgid "Mark Completed"
+msgstr "تم إنجاز القراءة"
+
+#: src/quran_planner_ui.rs
+msgid "Create a Reading Khatma"
+msgstr "إنشاء ختمة قراءة"
+
+msgid ""
+"Set up a flexible daily Quran reading plan tailored to your target duration "
+"or daily reading pace."
+msgstr ""
+"أنشئ خطة قراءة قرآنية يومية مرنة تناسب المدة المستهدفة أو معدل القراءة "
+"اليومي."
+
+msgid "Start 30-Day Khatma Plan"
+msgstr "بدء خطة ختمة في 30 يوماً"
+
+msgid "30-Day Reading Khatma"
+msgstr "ختمة قراءة في 30 يوماً"
+
+msgid "Sabaq — New Memorization"
+msgstr "السَّبَق — الحفظ الجديد"
+
+#: src/quran_planner_ui.rs
+msgid "Today's new lesson"
+msgstr "درس الحفظ الجديد اليومي"
+
+#: src/quran_planner_ui.rs
+msgid "New memorization portion"
+msgstr "مقطع الحفظ الجديد"
+
+msgid "Sabqi — Recent Revision"
+msgstr "سبقي / المراجعة القريبة"
+
+#: src/quran_planner_ui.rs
+msgid "Review of lessons from recent days"
+msgstr "مراجعة حفظ الأيام الأربعة إلى السبعة الأخيرة"
+
+#: src/quran_planner_ui.rs
+msgid "Recent review window"
+msgstr "نطاق المراجعة القريبة"
+
+msgid "Manzil — Long-Term Revision"
+msgstr "منزل / المراجعة القديمة"
+
+#: src/quran_planner_ui.rs
+msgid "Cycle review of older memorization"
+msgstr "مراجعة الحفظ القديم مقسمة على دورة أسبوعية"
+
+#: src/quran_planner_ui.rs
+msgid "Older revision cycle"
+msgstr "دورة المراجعة القديمة"
+
+#: src/quran_planner_ui.rs
+msgid "Create a Hifz Plan"
+msgstr "إنشاء خطة حفظ القرآن"
+
+msgid ""
+"Structured memorization framework incorporating Sabaq (new lesson), Sabqi "
+"(recent review), and Manzil (older review)."
+msgstr ""
+"إطار عمل منهجي للحفظ يتضمن السبق (درس جديد)، والسبقي (مراجعة قريبة)، والمنزل "
+"(مراجعة قديمة)."
+
+msgid "Start Full Quran Hifz Plan"
+msgstr "بدء خطة حفظ القرآن كاملاً"
+
+msgid "Full Quran Hifz Plan"
+msgstr "خطة حفظ القرآن كاملاً"
+
+#: src/quran_planner_ui.rs
+msgid "No active Reading Khatma"
+msgstr "لا توجد ختمة قراءة نشطة"
+
+#: src/quran_planner_ui.rs
+msgid ""
+"Start your Quran reading journey by creating a customized daily reading plan."
+msgstr "ابدأ رحلتك مع القرآن الكريم بإنشاء خطة قراءة يومية مخصصة."
+
+#: src/quran_planner_ui.rs
+msgid "Reading Khatma Goal"
+msgstr "هدف ختمة القراءة"
+
+#: src/quran_planner_ui.rs
+msgid "How would you like to set up your plan?"
+msgstr "كيف ترغب في إعداد خطتك؟"
+
+#: src/quran_planner_ui.rs
+msgid "Finish by target date"
+msgstr "الإنهاء في تاريخ مستهدف"
+
+#: src/quran_planner_ui.rs
+msgid "Calculate daily reading required to finish by a specific date."
+msgstr "حساب المقدار اليومي المطلوب للإنهاء في تاريخ محدد."
+
+#: src/quran_planner_ui.rs
+msgid "Read a fixed amount each day"
+msgstr "قراءة مقدار ثابت كل يوم"
+
+#: src/quran_planner_ui.rs
+msgid "Set a fixed daily target (Pages, Hizb, or Juz) and calculate end date."
+msgstr "تحديد هدف يومي ثابت (صفحات أو أجزاء) وحساب تاريخ الإنهاء."
+
+#: src/quran_planner_ui.rs
+msgid "Configure Plan Parameters"
+msgstr "إعداد خيارات الخطة"
+
+#: src/quran_planner_ui.rs
+msgid "Target Duration (Days)"
+msgstr "المدة المستهدفة (بالأيام)"
+
+#: src/quran_planner_ui.rs
+msgid "Daily Reading Unit"
+msgstr "وحدة القراءة اليومية"
+
+#: src/quran_planner_ui.rs
+msgid "Pages"
+msgstr "صفحات"
+
+#: src/quran_planner_ui.rs
+msgid "Daily Target Amount"
+msgstr "المقدار المستهدف يومياً"
+
+#: src/quran_planner_ui.rs
+msgid "Start Position"
+msgstr "موضع البداية"
+
+#: src/quran_planner_ui.rs
+msgid "Beginning of Quran (Page 1)"
+msgstr "بداية المصحف (الصفحة 1)"
+
+#: src/quran_planner_ui.rs
+msgid "Current Reading Position"
+msgstr "موضع القراءة الحالي"
+
+#: src/quran_planner_ui.rs
+msgid "Review Plan"
+msgstr "مراجعة الخطة"
+
+#: src/quran_planner_ui.rs
+msgid "Review Your Reading Plan"
+msgstr "مراجعة خطة القراءة الخاصة بك"
+
+#: src/quran_planner_ui.rs
+msgid "Planned Duration"
+msgstr "المدة المخططة"
+
+#: src/quran_planner_ui.rs
+msgid "Daily Target"
+msgstr "الهدف اليومي"
+
+#: src/quran_planner_ui.rs
+msgid "pages/day"
+msgstr "صفحة/يوم"
+
+#: src/quran_planner_ui.rs
+msgid "Start Page"
+msgstr "صفحة البداية"
+
+#: src/quran_planner_ui.rs
+msgid "Page"
+msgstr "الصفحة"
+
+#: src/quran_planner_ui.rs
+msgid "Expected Completion"
+msgstr "تاريخ الإنهاء المتوقع"
+
+#: src/quran_planner_ui.rs
+msgid "Create Plan"
+msgstr "إنشاء الخطة"
+
+#: src/quran_planner_ui.rs
+msgid "Reading Khatma Plan"
+msgstr "خطة ختمة القراءة"
+
+#: src/quran_planner_ui.rs
+msgid "Start Today's Reading"
+msgstr "بدء قراءة اليوم"
+
+#: src/quran_planner_ui.rs
+msgid "Archive Plan"
+msgstr "أرشفة الخطة"
+
+#: src/quran_planner_ui.rs
+msgid "No active Hifz Plan"
+msgstr "لا توجد خطة حفظ نشطة"
+
+#: src/quran_planner_ui.rs
+msgid ""
+"Create a structured memorization and revision plan incorporating Sabaq, "
+"Sabqi, and Manzil."
+msgstr "أنشئ خطة حفظ ومراجعة منهجية تتضمن السبق والسبقي والمنزل."
+
+#: src/quran_planner_ui.rs
+msgid "Hifz Memorization Goal"
+msgstr "هدف حفظ القرآن"
+
+#: src/quran_planner_ui.rs
+msgid "Select your memorization scope"
+msgstr "اختر نطاق الحفظ"
+
+#: src/quran_planner_ui.rs
+msgid "Full Quran"
+msgstr "القرآن كاملاً"
+
+#: src/quran_planner_ui.rs
+msgid "Memorize the entire Quran (Pages 1–604)"
+msgstr "حفظ القرآن الكريم كاملاً (الصفحات 1–604)"
+
+#: src/quran_planner_ui.rs
+msgid "Juz Amma (Juz 30)"
+msgstr "جزء عمّ (الجزء 30)"
+
+#: src/quran_planner_ui.rs
+msgid "Memorize Juz 30 (Pages 582–604)"
+msgstr "حفظ الجزء الثلاثين (الصفحات 582–604)"
+
+#: src/quran_planner_ui.rs
+msgid "Configure Hifz Framework"
+msgstr "إعداد منهجية الحفظ"
+
+#: src/quran_planner_ui.rs
+msgid "Sabaq — New Lesson Target"
+msgstr "السَّبَق — هدف الحفظ الجديد"
+
+#: src/quran_planner_ui.rs
+msgid "3 Lines"
+msgstr "3 أسطر"
+
+#: src/quran_planner_ui.rs
+msgid "5 Lines"
+msgstr "5 أسطر"
+
+#: src/quran_planner_ui.rs
+msgid "Half Page (1/2 page)"
+msgstr "نصف صفحة"
+
+#: src/quran_planner_ui.rs
+msgid "1 Page"
+msgstr "صفحة واحدة"
+
+#: src/quran_planner_ui.rs
+msgid "Sabqi — Recent Review Window"
+msgstr "سبقي — نطاق المراجعة القريبة"
+
+#: src/quran_planner_ui.rs
+msgid "3 Days"
+msgstr "3 أيام"
+
+#: src/quran_planner_ui.rs
+msgid "5 Days"
+msgstr "5 أيام"
+
+#: src/quran_planner_ui.rs
+msgid "7 Days"
+msgstr "7 أيام"
+
+#: src/quran_planner_ui.rs
+msgid "10 Days"
+msgstr "10 أيام"
+
+#: src/quran_planner_ui.rs
+msgid "14 Days"
+msgstr "14 يوماً"
+
+#: src/quran_planner_ui.rs
+msgid "Manzil — Older Revision Cycle"
+msgstr "منزل — دورة المراجعة القديمة"
+
+#: src/quran_planner_ui.rs
+msgid "7 Days Cycle"
+msgstr "دورة 7 أيام"
+
+#: src/quran_planner_ui.rs
+msgid "10 Days Cycle"
+msgstr "دورة 10 أيام"
+
+#: src/quran_planner_ui.rs
+msgid "14 Days Cycle"
+msgstr "دورة 14 يوماً"
+
+#: src/quran_planner_ui.rs
+msgid "Review Hifz Plan"
+msgstr "مراجعة خطة الحفظ"
+
+#: src/quran_planner_ui.rs
+msgid "Review Your Hifz Plan"
+msgstr "مراجعة خطة الحفظ الخاصة بك"
+
+#: src/quran_planner_ui.rs
+msgid "Goal Scope"
+msgstr "نطاق الهدف"
+
+#: src/quran_planner_ui.rs
+msgid "Sabaq — New Lesson"
+msgstr "السَّبَق — الحفظ الجديد"
+
+#: src/quran_planner_ui.rs
+msgid "Configured daily portion"
+msgstr "المقدار اليومي المخصص"
+
+#: src/quran_planner_ui.rs
+msgid "Sabqi — Recent Review"
+msgstr "سبقي — المراجعة القريبة"
+
+#: src/quran_planner_ui.rs
+msgid "days window"
+msgstr "أيام نطاق المراجعة"
+
+#: src/quran_planner_ui.rs
+msgid "Manzil — Long-Term Cycle"
+msgstr "منزل — الدورة القديمة"
+
+#: src/quran_planner_ui.rs
+msgid "days cycle"
+msgstr "أيام الدورة"
+
+#: src/quran_planner_ui.rs
+msgid "Estimated Completion"
+msgstr "الإنهاء المتوقع"
+
+#: src/quran_planner_ui.rs
+msgid "Create Hifz Plan"
+msgstr "إنشاء خطة الحفظ"
+
+#: src/quran_planner_ui.rs
+msgid "Hifz Plan"
+msgstr "خطة الحفظ"
+
+#: src/quran_planner_ui.rs
+msgid "السَّبَق — الحفظ الجديد"
+msgstr "السَّبَق — الحفظ الجديد"
+
+#: src/quran_planner_ui.rs
+msgid "سبقي / المراجعة القريبة"
+msgstr "سبقي / المراجعة القريبة"
+
+#: src/quran_planner_ui.rs
+msgid "منزل / المراجعة القديمة"
+msgstr "منزل / المراجعة القديمة"

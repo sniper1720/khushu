@@ -666,6 +666,11 @@ pub fn create_quran_page(
     view_stack: &adw::ViewStack,
     config: AppConfig,
 ) -> gtk::Widget {
+    let top_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
+
+    let switcher = adw::ViewSwitcher::new();
+    let quran_view_stack = adw::ViewStack::new();
+
     let container = gtk::Box::new(gtk::Orientation::Vertical, 0);
 
     let search_entry = gtk::SearchEntry::new();
@@ -862,13 +867,32 @@ pub fn create_quran_page(
                         &view_stack_for_search,
                         config_for_search.clone(),
                     );
-                    search_results.prepend(&row);
+                    search_results.append(&row);
                 }
             }
         }
     });
 
-    container.upcast()
+    let reader_page = quran_view_stack.add_named(&container, Some("reader"));
+    reader_page.set_title(Some(&tr("Reader")));
+    reader_page.set_icon_name(Some("document-open-symbolic"));
+
+    let planner_widget =
+        crate::quran_planner_ui::create_planner_page(view_stack, config.clone(), current_lang);
+    let planner_page = quran_view_stack.add_named(&planner_widget, Some("planner"));
+    planner_page.set_title(Some(&tr("Plans")));
+    planner_page.set_icon_name(Some("bookmarks-symbolic"));
+
+    switcher.set_stack(Some(&quran_view_stack));
+    switcher.set_margin_top(10);
+    switcher.set_margin_bottom(10);
+    switcher.set_margin_start(16);
+    switcher.set_margin_end(16);
+
+    top_box.append(&switcher);
+    top_box.append(&quran_view_stack);
+
+    top_box.upcast()
 }
 
 fn populate_quran_list(
@@ -1107,6 +1131,68 @@ pub fn refresh_quran_ui(view_stack: &adw::ViewStack, lang: &str, config: AppConf
             view_stack.set_visible_child_name("quran");
         }
     }
+}
+
+pub fn get_surah_for_page(page: u32) -> u32 {
+    if let Some(verses) = get_page_verses(page) {
+        if let Some(first) = verses.first() {
+            return first.surah_num;
+        }
+    }
+    1
+}
+
+static REQUESTED_QURAN_PAGE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+pub fn request_quran_page_navigation(target_page: u32) {
+    log::info!("Quran navigation requested: page={target_page}");
+    REQUESTED_QURAN_PAGE.store(target_page, std::sync::atomic::Ordering::SeqCst);
+
+    if let Some(app) =
+        gtk::gio::Application::default().and_then(|a| a.downcast::<adw::Application>().ok())
+    {
+        app.activate_action("open-quran-page", Some(&target_page.to_variant()));
+        app.activate();
+    }
+}
+
+pub fn take_requested_quran_page() -> Option<u32> {
+    let val = REQUESTED_QURAN_PAGE.swap(0, std::sync::atomic::Ordering::SeqCst);
+    if (1..=604).contains(&val) {
+        Some(val)
+    } else {
+        None
+    }
+}
+
+pub fn get_surah_display_list(lang: &str) -> Vec<String> {
+    if let Some(info) = get_surah_info() {
+        let is_ar = crate::i18n::is_arabic(lang);
+        info.into_iter()
+            .map(|s| {
+                if is_ar {
+                    format!("{}. {}", s.id, s.name)
+                } else {
+                    format!("{}. {}", s.id, s.transliteration)
+                }
+            })
+            .collect()
+    } else {
+        (1..=114).map(|i| format!("Surah {}", i)).collect()
+    }
+}
+
+pub fn open_surah_at_page(
+    view_stack: &adw::ViewStack,
+    lang: &str,
+    config: AppConfig,
+    target_page: u32,
+) {
+    let surah_num = get_surah_for_page(target_page);
+    config.set_quran_last_surah_num(Some(surah_num));
+    config.set_quran_last_page(Some(target_page));
+    config.save();
+    open_last_read_or_list(view_stack, lang, config);
 }
 
 pub fn open_last_read_or_list(view_stack: &adw::ViewStack, lang: &str, config: AppConfig) {

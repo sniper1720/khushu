@@ -1430,7 +1430,31 @@ pub fn setup_settings_ui<'a>(
             update_fallback_toast(&config_pf, &result, &window_pf);
         }
     });
-    calc_group.add(&polar_row);
+    let time_format_list = StringList::new(&[&tr("24-hour"), &tr("12-hour")]);
+    let time_format_row = ComboRow::builder()
+        .title(tr("Time Format"))
+        .subtitle(tr("Format used for prayer times across Khushu."))
+        .model(&time_format_list)
+        .build();
+    let initial_tf = match config.time_format() {
+        crate::config::TimeFormat::H24 => 0,
+        crate::config::TimeFormat::H12 => 1,
+    };
+    time_format_row.set_selected(initial_tf);
+
+    let config_tf = config.clone();
+    let list_box_tf = list_box_rc.clone();
+    time_format_row.connect_selected_notify(move |combo| {
+        let fmt = if combo.selected() == 0 {
+            crate::config::TimeFormat::H24
+        } else {
+            crate::config::TimeFormat::H12
+        };
+        config_tf.set_time_format(fmt);
+        config_tf.save();
+        refresh_prayers(&config_tf, &list_box_tf);
+    });
+    calc_group.add(&time_format_row);
 
     let latitude_zone = config.latitude_zone();
     high_latitude_row.set_visible(latitude_zone >= 2);
@@ -1469,11 +1493,48 @@ pub fn setup_settings_ui<'a>(
     notif_group.set_margin_bottom(12);
     settings_box.append(&notif_group);
 
+    let presentation_list = StringList::new(&[&tr("Popup Window"), &tr("Desktop Notification")]);
+    let presentation_row = ComboRow::builder()
+        .title(tr("Reminder Style"))
+        .subtitle(tr("Choose how prayer reminders are presented."))
+        .model(&presentation_list)
+        .build();
+    let initial_presentation = match config.prayer_reminder_presentation() {
+        crate::config::ReminderPresentation::Popup => 0,
+        crate::config::ReminderPresentation::Notification => 1,
+    };
+    presentation_row.set_selected(initial_presentation);
+
+    let config_pres = config.clone();
+    presentation_row.connect_selected_notify(move |combo| {
+        let choice = if combo.selected() == 0 {
+            crate::config::ReminderPresentation::Popup
+        } else {
+            crate::config::ReminderPresentation::Notification
+        };
+        config_pres.set_prayer_reminder_presentation(choice);
+        config_pres.save();
+    });
+    notif_group.add(&presentation_row);
+
+    let prev_check_toggle = adw::SwitchRow::builder()
+        .title(tr("Verify Previous Prayer"))
+        .subtitle(tr("Prompt to check if the previous prayer was performed."))
+        .build();
+    prev_check_toggle.set_active(config.check_previous_prayer());
+
+    let config_prev_chk = config.clone();
+    prev_check_toggle.connect_active_notify(move |row| {
+        config_prev_chk.set_check_previous_prayer(row.is_active());
+        config_prev_chk.save();
+    });
+    notif_group.add(&prev_check_toggle);
+
     let notify_toggle = adw::SwitchRow::builder()
         .title(tr("Pre-Prayer Alert"))
         .subtitle(tr("Get notified before the prayer time."))
         .build();
-    notify_toggle.set_active(config.pre_prayer_notify());
+    notify_toggle.set_active(config.pre_prayer_reminder_enabled());
 
     let iqamah_notify_toggle = adw::SwitchRow::builder()
         .title(tr("Iqamah Alert"))
@@ -1484,7 +1545,7 @@ pub fn setup_settings_ui<'a>(
         .subtitle(tr("Morning, evening, and night invocation reminders."))
         .build();
 
-    iqamah_notify_toggle.set_active(config.iqamah_notify());
+    iqamah_notify_toggle.set_active(config.iqamah_reminder_enabled());
     adkar_toggle.set_active(config.adkar_notification_enabled());
 
     let notify_toggle_for_sync = notify_toggle.clone();
@@ -1523,12 +1584,12 @@ pub fn setup_settings_ui<'a>(
         let enabled = row.is_active();
         config_only.set_adhan_only_mode(enabled);
         if enabled {
-            config_only.set_pre_prayer_notify(false);
-            config_only.set_iqamah_notify(false);
+            config_only.set_pre_prayer_reminder_enabled(false);
+            config_only.set_iqamah_reminder_enabled(false);
             config_only.set_adkar_notification_enabled(false);
         } else {
-            config_only.set_pre_prayer_notify(true);
-            config_only.set_iqamah_notify(true);
+            config_only.set_pre_prayer_reminder_enabled(true);
+            config_only.set_iqamah_reminder_enabled(true);
             config_only.set_adkar_notification_enabled(true);
         }
         config_only.save();
@@ -1541,8 +1602,8 @@ pub fn setup_settings_ui<'a>(
         .title(tr("Alert Time"))
         .subtitle(tr("Minutes before prayer"))
         .adjustment(&gtk::Adjustment::new(
-            config.pre_prayer_minutes() as f64,
-            1.0,
+            config.pre_prayer_reminder_minutes() as f64,
+            0.0,
             60.0,
             1.0,
             5.0,
@@ -1554,7 +1615,7 @@ pub fn setup_settings_ui<'a>(
     let config_time = config.clone();
     notify_time.adjustment().connect_value_changed(move |adj| {
         let new_minutes = adj.value() as u32;
-        config_time.set_pre_prayer_minutes(new_minutes);
+        config_time.set_pre_prayer_reminder_minutes(new_minutes);
         config_time.save();
     });
     notif_group.add(&notify_time);
@@ -1563,7 +1624,7 @@ pub fn setup_settings_ui<'a>(
     notify_toggle.connect_active_notify(move |row| {
         time_row_clone.set_visible(row.is_active());
     });
-    notify_time.set_visible(config.pre_prayer_notify());
+    notify_time.set_visible(config.pre_prayer_reminder_enabled());
 
     notif_group.add(&iqamah_notify_toggle);
     notif_group.add(&adkar_toggle);
@@ -1571,12 +1632,14 @@ pub fn setup_settings_ui<'a>(
 
     let config_notify = config.clone();
     notify_toggle.connect_active_notify(move |row| {
+        config_notify.set_pre_prayer_reminder_enabled(row.is_active());
         config_notify.set_pre_prayer_notify(row.is_active());
         config_notify.save();
     });
 
     let config_iq = config.clone();
     iqamah_notify_toggle.connect_active_notify(move |row| {
+        config_iq.set_iqamah_reminder_enabled(row.is_active());
         config_iq.set_iqamah_notify(row.is_active());
         config_iq.save();
     });
@@ -1617,6 +1680,98 @@ pub fn setup_settings_ui<'a>(
     });
 
     notif_group.add(&test_notify_btn);
+
+    let (_quran_rem_heading, _quran_rem_desc) = append_settings_section_heading(
+        settings_box,
+        &tr("Quran Wird Reminders"),
+        Some(&tr(
+            "Configure daily reminders for your active Quran Reading Khatma plan.",
+        )),
+        24,
+    );
+
+    let quran_rem_group = PreferencesGroup::new();
+    quran_rem_group.set_margin_top(0);
+    quran_rem_group.set_margin_bottom(24);
+    settings_box.append(&quran_rem_group);
+
+    let quran_rem_toggle = adw::SwitchRow::builder()
+        .title(tr("Enable Quran Reminders"))
+        .subtitle(tr("Receive reminders for today's assigned Wird."))
+        .build();
+    quran_rem_toggle.set_active(config.quran_reminder_enabled());
+
+    let quran_startup_toggle = adw::SwitchRow::builder()
+        .title(tr("Startup Reminder"))
+        .subtitle(tr("Remind about today's Wird when Khushu starts."))
+        .build();
+    quran_startup_toggle.set_active(config.quran_startup_reminder_enabled());
+
+    let quran_later_toggle = adw::SwitchRow::builder()
+        .title(tr("Later Reminder"))
+        .subtitle(tr("Remind about unread pages later in the day."))
+        .build();
+    quran_later_toggle.set_active(config.quran_later_reminder_enabled());
+
+    let quran_later_time_entry = adw::ComboRow::builder()
+        .title(tr("Later Reminder Time"))
+        .model(&gtk::StringList::new(&[
+            "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00",
+            "21:00",
+        ]))
+        .build();
+
+    let cur_time = config.quran_later_reminder_time();
+    let initial_idx = match cur_time.as_str() {
+        "12:00" => 0,
+        "13:00" => 1,
+        "14:00" => 2,
+        "15:00" => 3,
+        "16:00" => 4,
+        "17:00" => 5,
+        "18:00" => 6,
+        "19:00" => 7,
+        "20:00" => 8,
+        "21:00" => 9,
+        _ => 2,
+    };
+    quran_later_time_entry.set_selected(initial_idx);
+
+    let cfg_q_rem = config.clone();
+    quran_rem_toggle.connect_active_notify(move |row| {
+        cfg_q_rem.set_quran_reminder_enabled(row.is_active());
+        cfg_q_rem.save();
+    });
+
+    let cfg_q_start = config.clone();
+    quran_startup_toggle.connect_active_notify(move |row| {
+        cfg_q_start.set_quran_startup_reminder_enabled(row.is_active());
+        cfg_q_start.save();
+    });
+
+    let cfg_q_later = config.clone();
+    quran_later_toggle.connect_active_notify(move |row| {
+        cfg_q_later.set_quran_later_reminder_enabled(row.is_active());
+        cfg_q_later.save();
+    });
+
+    let cfg_q_time = config.clone();
+    quran_later_time_entry.connect_selected_notify(move |row| {
+        let times = [
+            "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00",
+            "21:00",
+        ];
+        let idx = row.selected() as usize;
+        if idx < times.len() {
+            cfg_q_time.set_quran_later_reminder_time(times[idx].to_string());
+            cfg_q_time.save();
+        }
+    });
+
+    quran_rem_group.add(&quran_rem_toggle);
+    quran_rem_group.add(&quran_startup_toggle);
+    quran_rem_group.add(&quran_later_toggle);
+    quran_rem_group.add(&quran_later_time_entry);
 
     let mut iqamah_rows = Vec::new();
     for (prayer_name, default_mins) in crate::config::DEFAULT_IQAMAH_MINUTES {
@@ -2224,9 +2379,10 @@ pub fn refresh_prayers(
         ];
 
         for (name, time) in prayers {
+            let formatted_time = crate::time::format_prayer_time(time, config.time_format());
             let row = adw::ActionRow::builder()
                 .title(tr(name))
-                .subtitle(time.format("%H:%M").to_string())
+                .subtitle(&formatted_time)
                 .name(name)
                 .build();
             list_box.append(&row);

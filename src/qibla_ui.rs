@@ -424,7 +424,7 @@ pub fn create_qibla_page(config: AppConfig, compass_manager: Rc<CompassManager>)
     });
 
     let refresh = Rc::new({
-        let config_c = config.clone();
+        let config_for_compass_refresh = config.clone();
         let cached_bearing_c = cached_bearing.clone();
         let current_rotation_c = current_rotation.clone();
         let target_rotation_c = target_rotation.clone();
@@ -435,7 +435,7 @@ pub fn create_qibla_page(config: AppConfig, compass_manager: Rc<CompassManager>)
         let anim = anim_source_id.clone();
         move || {
             *cached_bearing_c.borrow_mut() = None;
-            let bearing = compute_bearing(&config_c, &cached_bearing_c);
+            let bearing = compute_bearing(&config_for_compass_refresh, &cached_bearing_c);
             let target_value = if compass.is_available() {
                 let heading = compass.get_heading();
                 (bearing - heading + 360.0) % 360.0

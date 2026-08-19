@@ -264,9 +264,9 @@ where
     });
 
     let app_clone = app.clone();
-    let config_close = config.clone();
+    let config_for_auto_detect_updatelose = config.clone();
     window.connect_close_request(move |_| {
-        if !config_close.is_configured() {
+        if !config_for_auto_detect_updatelose.is_configured() {
             app_clone.quit();
         }
         gtk::glib::Propagation::Proceed
@@ -492,16 +492,16 @@ where
         city_row_for_search.remove_css_class("success");
 
         let city_row_for_update = city_row_for_search.clone();
-        let config_clone = config_for_city_search.clone();
+        let config_for_city_update = config_for_city_search.clone();
 
         gtk::glib::spawn_future_local(async move {
             let lang = current_lang_clone_search.borrow().clone();
             let result = location::search_city(&query, &lang).await;
             if let Ok((latitude, longitude, name, _detected_tz)) = result {
-                config_clone.set_latitude(latitude);
-                config_clone.set_longitude(longitude);
-                config_clone.set_city_name(Some(name.clone()));
-                config_clone.set_location_mode(LocationMode::City);
+                config_for_city_update.set_latitude(latitude);
+                config_for_city_update.set_longitude(longitude);
+                config_for_city_update.set_city_name(Some(name.clone()));
+                config_for_city_update.set_location_mode(LocationMode::City);
 
                 city_row_for_update.set_text(&location::short_city_with_country(&name));
                 city_row_for_update.add_css_class("success");
@@ -523,7 +523,7 @@ where
     });
 
     let auto_status_label = Rc::new(RefCell::new(auto_status_row.clone()));
-    let config_clone = config.clone();
+    let config_for_auto_detect = config.clone();
     let current_lang_for_detect = current_lang.clone();
     let location_state_for_detect = location_state.clone();
     detect_btn.connect_clicked(move |_| {
@@ -534,7 +534,7 @@ where
         label_row.set_subtitle(&tr("Detecting..."));
         *location_state_for_detect.borrow_mut() = LocationState::Searching;
 
-        let config_c = config_clone.clone();
+        let config_for_auto_detect_update = config_for_auto_detect.clone();
         let current_lang_for_status = current_lang_for_detect.clone();
         let state_clone = location_state_for_detect.clone();
         gtk::glib::spawn_future_local(async move {
@@ -542,10 +542,10 @@ where
             let result = location::fetch_auto_location(&lang).await;
             match result {
                 Ok((latitude, longitude, city)) => {
-                    config_c.set_latitude(latitude);
-                    config_c.set_longitude(longitude);
-                    config_c.set_city_name(Some(city.clone()));
-                    config_c.set_location_mode(LocationMode::Auto);
+                    config_for_auto_detect_update.set_latitude(latitude);
+                    config_for_auto_detect_update.set_longitude(longitude);
+                    config_for_auto_detect_update.set_city_name(Some(city.clone()));
+                    config_for_auto_detect_update.set_location_mode(LocationMode::Auto);
 
                     label_row.set_subtitle(&format!(
                         "{}: {} ({:.2}, {:.2})",

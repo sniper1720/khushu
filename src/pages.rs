@@ -79,7 +79,7 @@ fn handle_lang_change(
 
     crate::i18n::update_locale(&detected_lang);
 
-    cfg.set_language(&detected_lang);
+    cfg.set_language(&selected_lang);
     cfg.save();
 
     if crate::i18n::is_rtl(&detected_lang) {
@@ -248,16 +248,16 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let hijri_label_ref = hijri_label.clone();
     let location_label_ref = location_label.clone();
     let list_box_home = list_box_rc.clone();
-    let config_home_ref = config.clone();
+    let config_for_home = config.clone();
     let refresh_home: Rc<dyn Fn()> = Rc::new(move || {
-        let lang = config_home_ref.language();
+        let lang = config_for_home.language();
         refresh_home_ui(
             &hijri_label_ref,
             &location_label_ref,
             &lang,
-            &config_home_ref,
+            &config_for_home,
         );
-        settings_ui::refresh_prayers(&config_home_ref, &list_box_home);
+        settings_ui::refresh_prayers(&config_for_home, &list_box_home);
     });
     let refresh_home_initial = refresh_home.clone();
     refresh_home_initial();
@@ -285,7 +285,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
         });
     }
 
-    let config_loc = config.clone();
+    let config_for_location = config.clone();
     let list_box_loc = list_box_rc.clone();
     let hijri_label_loc = hijri_label.clone();
     let location_label_loc = location_label.clone();
@@ -293,15 +293,16 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
 
     gtk::glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
         while let Ok((latitude, longitude, city)) = loc_rx.try_recv() {
-            config_loc.set_latitude(latitude);
-            config_loc.set_longitude(longitude);
+            config_for_location.set_latitude(latitude);
+            config_for_location.set_longitude(longitude);
             if let Some(name) = city {
-                config_loc.set_city_name(Some(name));
+                config_for_location.set_city_name(Some(name));
             }
+            config_for_location.save();
 
             let lang = current_lang_loc.borrow();
-            refresh_home_ui(&hijri_label_loc, &location_label_loc, &lang, &config_loc);
-            settings_ui::refresh_prayers(&config_loc, &list_box_loc);
+            refresh_home_ui(&hijri_label_loc, &location_label_loc, &lang, &config_for_location);
+            settings_ui::refresh_prayers(&config_for_location, &list_box_loc);
         }
         gtk::glib::ControlFlow::Continue
     });

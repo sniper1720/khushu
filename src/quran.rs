@@ -930,7 +930,7 @@ fn build_bookmark_row(
     let lang_row = lang.to_string();
     let surah_row = bookmark.surah_num;
     let verse_row = bookmark.verse;
-    let config_bm = config.clone();
+    let config_for_bookmark = config.clone();
     let popover_opt = popover.cloned();
     row.connect_activated(move |_| {
         let page_name = format!("surah_{}", surah_row);
@@ -944,7 +944,7 @@ fn build_bookmark_row(
             None,
             Some(verse_row),
             None,
-            config_bm.clone(),
+            config_for_bookmark.clone(),
         );
         surah_view.set_vexpand(true);
         view_stack_row.add_named(&surah_view, Some(&page_name));
@@ -2242,7 +2242,7 @@ pub fn create_surah_view(
     let current_page = Rc::new(RefCell::new(initial_page));
     let surah_translation_rc = Rc::new(surah_translation);
     let quran_lang_rc = Rc::new(quran_lang.to_string());
-    let config_rc = config.clone();
+    let config_for_recitation = config.clone();
 
     let rec_state = Rc::new(RefCell::new(RecitationState {
         selected_verse: Cell::new(None),
@@ -2858,7 +2858,7 @@ pub fn create_surah_view(
     container.append(&content_area);
 
     let (toolbar, rec_play_btn, rec_prev_btn, rec_next_btn) =
-        build_recitation_toolbar(rec_state.clone(), &config_rc, play_fn.clone(), surah_num);
+        build_recitation_toolbar(rec_state.clone(), &config_for_recitation, play_fn.clone(), surah_num);
     content_stack.insert_child_after(&toolbar, Some(&scrolled));
 
     rec_play_btn.set_icon_name(if crate::audio::is_reciting() {
@@ -2897,7 +2897,7 @@ pub fn create_surah_view(
     let rebuild_entry = page_entry.clone();
     let rebuild_prev_btn = prev_btn.clone();
     let rebuild_next_btn = next_btn.clone();
-    let rebuild_config = config_rc.clone();
+    let rebuild_config = config_for_recitation.clone();
     let rebuild_current_page = current_page.clone();
     let rebuild_rec_state = rec_state.clone();
     let rebuild_bounds = verse_boundaries.clone();
@@ -3052,7 +3052,7 @@ pub fn create_surah_view(
     }));
 
     let play_rec_state = rec_state.clone();
-    let play_config = config_rc.clone();
+    let play_config = config_for_recitation.clone();
     let play_rebuild = rebuild_follow_fn.clone();
     *play_fn.borrow_mut() = Some(Box::new(move |play_surah_num, verse| {
         log::info!("Play fn called: surah={}, verse={}", play_surah_num, verse);
@@ -3200,7 +3200,7 @@ pub fn create_surah_view(
     let current_page_for_prev = current_page.clone();
     let lang_for_prev = quran_lang_rc.clone();
     let view_stack_for_prev = view_stack.clone();
-    let config_for_prev = config_rc.clone();
+    let config_for_prev = config_for_recitation.clone();
     let rebuild_fn_for_prev = rebuild_fn.clone();
 
     fn navigate_to_surah(
@@ -3292,7 +3292,7 @@ pub fn create_surah_view(
     let total_pages_for_next = total_pages;
     let lang_for_next = quran_lang_rc.clone();
     let view_stack_for_next = view_stack.clone();
-    let config_for_next = config_rc.clone();
+    let config_for_next = config_for_recitation.clone();
     let rebuild_fn_for_next = rebuild_fn.clone();
 
     next_btn.connect_clicked(move |_| {
@@ -3329,7 +3329,7 @@ pub fn create_surah_view(
 
     let view_stack_back = view_stack.clone();
     let lang_for_back = quran_lang.to_string();
-    let config_for_back = config_rc.clone();
+    let config_for_back = config_for_recitation.clone();
     back_btn.connect_clicked(move |_| {
         {
             let pages = view_stack_back.pages();
@@ -3377,7 +3377,7 @@ pub fn create_surah_view(
     let lang_for_bookmarks = quran_lang_rc.clone();
     let total_pages_for_bookmarks = total_pages;
     let toast_overlay_for_toggle = toast_overlay.clone();
-    let config_for_bm_toggle = config_rc.clone();
+    let config_for_bm_toggle = config_for_recitation.clone();
 
     let bookmarks_popover = gtk::Popover::builder().has_arrow(true).build();
     bookmarks_popover.set_parent(&bookmarks_btn_for_popover);
@@ -3450,8 +3450,8 @@ pub fn create_surah_view(
     });
 
     let current_page_for_popover = current_page.clone();
-    let config_for_popover = config_rc.clone();
-    let config_for_popover_row = config_rc.clone();
+    let config_for_popover = config_for_recitation.clone();
+    let config_for_popover_row = config_for_recitation.clone();
     gtk::prelude::ButtonExt::connect_clicked(&bookmarks_btn, move |_| {
         while let Some(child) = bookmarks_list.first_child() {
             bookmarks_list.remove(&child);
@@ -3495,7 +3495,7 @@ pub fn create_surah_view(
     let lang_for_input = quran_lang_rc.clone();
     let toast_overlay_for_input = toast_overlay.clone();
     let view_stack_for_input = view_stack.clone();
-    let config_for_input = config_rc.clone();
+    let config_for_input = config_for_recitation.clone();
     gtk::prelude::EntryExt::connect_activate(&page_entry, move |entry| {
         let text = gtk::prelude::EditableExt::text(entry).trim().to_string();
         let Ok(page) = text.parse::<u32>() else {

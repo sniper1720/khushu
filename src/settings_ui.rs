@@ -1414,7 +1414,7 @@ pub fn setup_settings_ui<'a>(
         PolarEstimationMethod::Reference45 => polar_row.set_selected(1),
     }
 
-    let config_pf = config.clone();
+    let config_for_polar_estimation = config.clone();
     let list_box_pf = list_box_rc.clone();
     let window_pf = window.clone();
     polar_row.connect_selected_notify(move |combo| {
@@ -1423,11 +1423,11 @@ pub fn setup_settings_ui<'a>(
         } else {
             PolarEstimationMethod::Reference45
         };
-        config_pf.set_polar_estimation_method(choice);
-        config_pf.save();
-        if let Some(result) = refresh_prayers(&config_pf, &list_box_pf) {
-            update_lre_toast(&config_pf, &result, &window_pf);
-            update_fallback_toast(&config_pf, &result, &window_pf);
+        config_for_polar_estimation.set_polar_estimation_method(choice);
+        config_for_polar_estimation.save();
+        if let Some(result) = refresh_prayers(&config_for_polar_estimation, &list_box_pf) {
+            update_lre_toast(&config_for_polar_estimation, &result, &window_pf);
+            update_fallback_toast(&config_for_polar_estimation, &result, &window_pf);
         }
     });
     calc_group.add(&polar_row);

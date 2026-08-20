@@ -1046,7 +1046,7 @@ pub fn setup_settings_ui<'a>(
     tz_named_row.add_suffix(&tz_named_arrow);
     travel_group.add(&tz_named_row);
 
-    let config_tz_named = config.clone();
+    let config_for_timezone_named = config.clone();
     let list_box_tz_named = list_box_rc.clone();
     let tz_mode_row_for_apply = tz_mode_row.clone();
     let tz_gesture_click = gtk::GestureClick::builder()
@@ -1054,7 +1054,7 @@ pub fn setup_settings_ui<'a>(
         .build();
     let tz_named_row_for_gesture = tz_named_row.clone();
     let window_tz_gesture = window.clone();
-    let config_tz_gesture = config_tz_named.clone();
+    let config_for_timezone_dialog = config_for_timezone_named.clone();
     let list_box_tz_gesture = list_box_tz_named.clone();
     let current_lang_tz_gesture = current_lang.clone();
     tz_gesture_click.connect_pressed(move |_, _, _, _| {
@@ -1062,7 +1062,7 @@ pub fn setup_settings_ui<'a>(
             return;
         }
         let on_select = {
-            let cfg = config_tz_gesture.clone();
+            let cfg = config_for_timezone_dialog.clone();
             let list_box_tz_gesture_c = list_box_tz_gesture.clone();
             let win = window_tz_gesture.clone();
             let row = tz_named_row_for_gesture.clone();
@@ -1109,7 +1109,7 @@ pub fn setup_settings_ui<'a>(
 
     let tz_named_vis = tz_named_row.clone();
     let tz_offset_vis = tz_offset_row.clone();
-    let config_tz_mode = config.clone();
+    let config_for_timezone_mode = config.clone();
     let list_box_tz = list_box_rc.clone();
     let tz_adj_for_mode = tz_adj.clone();
     let window_tz = window.clone();
@@ -1119,7 +1119,7 @@ pub fn setup_settings_ui<'a>(
         tz_offset_vis.set_visible(sel == 2);
         let new_mode = match sel {
             1 => {
-                let existing = match config_tz_mode.timezone_mode() {
+                let existing = match config_for_timezone_mode.timezone_mode() {
                     TimezoneMode::Named(name) if !name.trim().is_empty() => Some(name),
                     _ => None,
                 };
@@ -1134,26 +1134,26 @@ pub fn setup_settings_ui<'a>(
             2 => TimezoneMode::UtcOffset((tz_adj_for_mode.value() * 60.0) as i32),
             _ => TimezoneMode::Auto,
         };
-        config_tz_mode.set_timezone_mode(new_mode);
-        config_tz_mode.save();
-        if let Some(result) = refresh_prayers(&config_tz_mode, &list_box_tz) {
-            update_lre_toast(&config_tz_mode, &result, &window_tz);
-            update_fallback_toast(&config_tz_mode, &result, &window_tz);
+        config_for_timezone_mode.set_timezone_mode(new_mode);
+        config_for_timezone_mode.save();
+        if let Some(result) = refresh_prayers(&config_for_timezone_mode, &list_box_tz) {
+            update_lre_toast(&config_for_timezone_mode, &result, &window_tz);
+            update_fallback_toast(&config_for_timezone_mode, &result, &window_tz);
         }
     });
 
-    let config_tz_offset = config.clone();
+    let config_for_timezone_offset = config.clone();
     let list_box_tz_offset = list_box_rc.clone();
     let window_tz_offset = window.clone();
     tz_adj.connect_value_changed(move |adj| {
-        if let TimezoneMode::UtcOffset(_) = config_tz_offset.timezone_mode() {
-            config_tz_offset.set_timezone_mode(crate::config::TimezoneMode::UtcOffset(
+        if let TimezoneMode::UtcOffset(_) = config_for_timezone_offset.timezone_mode() {
+            config_for_timezone_offset.set_timezone_mode(crate::config::TimezoneMode::UtcOffset(
                 (adj.value() * 60.0) as i32,
             ));
-            config_tz_offset.save();
-            if let Some(result) = refresh_prayers(&config_tz_offset, &list_box_tz_offset) {
-                update_lre_toast(&config_tz_offset, &result, &window_tz_offset);
-                update_fallback_toast(&config_tz_offset, &result, &window_tz_offset);
+            config_for_timezone_offset.save();
+            if let Some(result) = refresh_prayers(&config_for_timezone_offset, &list_box_tz_offset) {
+                update_lre_toast(&config_for_timezone_offset, &result, &window_tz_offset);
+                update_fallback_toast(&config_for_timezone_offset, &result, &window_tz_offset);
             }
         }
     });
@@ -1518,20 +1518,20 @@ pub fn setup_settings_ui<'a>(
     iqamah_notify_toggle.set_sensitive(!config.adhan_only_mode());
     adkar_toggle.set_sensitive(!config.adhan_only_mode());
 
-    let config_only = config.clone();
+    let config_for_adhan_only = config.clone();
     adhan_only_toggle.connect_active_notify(move |row| {
         let enabled = row.is_active();
-        config_only.set_adhan_only_mode(enabled);
+        config_for_adhan_only.set_adhan_only_mode(enabled);
         if enabled {
-            config_only.set_pre_prayer_notify(false);
-            config_only.set_iqamah_notify(false);
-            config_only.set_adkar_notification_enabled(false);
+            config_for_adhan_only.set_pre_prayer_notify(false);
+            config_for_adhan_only.set_iqamah_notify(false);
+            config_for_adhan_only.set_adkar_notification_enabled(false);
         } else {
-            config_only.set_pre_prayer_notify(true);
-            config_only.set_iqamah_notify(true);
-            config_only.set_adkar_notification_enabled(true);
+            config_for_adhan_only.set_pre_prayer_notify(true);
+            config_for_adhan_only.set_iqamah_notify(true);
+            config_for_adhan_only.set_adkar_notification_enabled(true);
         }
-        config_only.save();
+        config_for_adhan_only.save();
         sync_ui(enabled);
     });
 
@@ -1551,11 +1551,11 @@ pub fn setup_settings_ui<'a>(
         .digits(0)
         .build();
 
-    let config_time = config.clone();
+    let config_for_pre_prayer_minutes = config.clone();
     notify_time.adjustment().connect_value_changed(move |adj| {
         let new_minutes = adj.value() as u32;
-        config_time.set_pre_prayer_minutes(new_minutes);
-        config_time.save();
+        config_for_pre_prayer_minutes.set_pre_prayer_minutes(new_minutes);
+        config_for_pre_prayer_minutes.save();
     });
     notif_group.add(&notify_time);
 
@@ -1575,10 +1575,10 @@ pub fn setup_settings_ui<'a>(
         config_notify.save();
     });
 
-    let config_iq = config.clone();
+    let config_for_iqamah_notify = config.clone();
     iqamah_notify_toggle.connect_active_notify(move |row| {
-        config_iq.set_iqamah_notify(row.is_active());
-        config_iq.save();
+        config_for_iqamah_notify.set_iqamah_notify(row.is_active());
+        config_for_iqamah_notify.save();
     });
 
     let config_adkar = config.clone();
@@ -1592,7 +1592,7 @@ pub fn setup_settings_ui<'a>(
         .margin_top(12)
         .build();
 
-    let config_test_notif = config.clone();
+    let config_for_test_notification = config.clone();
     bind_audio_toggle_button_sync(&test_notify_btn, "Test Notification");
     test_notify_btn.connect_clicked(move |btn| {
         if crate::audio::is_adhan() {
@@ -1606,11 +1606,11 @@ pub fn setup_settings_ui<'a>(
                 &tr("Open Khushu"),
                 &tr("Stop Adhan"),
             );
-            if !config_test_notif.adhan_muted() {
-                let path = config_test_notif
+            if !config_for_test_notification.adhan_muted() {
+                let path = config_for_test_notification
                     .adhan_sound_path()
                     .unwrap_or_else(|| "assets/audio/Madinah.mp3".to_string());
-                crate::audio::play_adhan(&path, config_test_notif.adhan_volume());
+                crate::audio::play_adhan(&path, config_for_test_notification.adhan_volume());
                 set_audio_toggle_button_label(btn, "Test Notification", true);
             }
         }
@@ -1635,13 +1635,13 @@ pub fn setup_settings_ui<'a>(
         iqamah_rows.push(iq_row.clone());
         iqamah_group.add(&iq_row);
 
-        let config_iq_row = config.clone();
+        let config_for_iqamah_minutes = config.clone();
         let prayer_key = prayer_name.to_string();
         iq_adj.connect_value_changed(move |adj| {
-            let mut mins = config_iq_row.iqamah_minutes();
+            let mut mins = config_for_iqamah_minutes.iqamah_minutes();
             mins.insert(prayer_key.clone(), adj.value() as u32);
-            config_iq_row.set_iqamah_minutes(mins);
-            config_iq_row.save();
+            config_for_iqamah_minutes.set_iqamah_minutes(mins);
+            config_for_iqamah_minutes.save();
         });
     }
 

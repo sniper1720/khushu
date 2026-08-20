@@ -220,7 +220,7 @@ impl QiblaPage {
         self.notify_ids.borrow_mut().push(longitude_notify_id);
 
         let compass_poll = self.compass.clone();
-        let config_poll = self.config.clone();
+        let config_for_compass_poll = self.config.clone();
         let cached_bearing_poll = self.cached_bearing.clone();
         let current_rotation_poll = self.current_rotation.clone();
         let target_rotation_poll = self.target_rotation.clone();
@@ -235,7 +235,7 @@ impl QiblaPage {
                 let prev = *last_heading.borrow();
                 if (heading - prev).abs() > 0.5 {
                     *last_heading.borrow_mut() = heading;
-                    let bearing_now = compute_bearing(&config_poll, &cached_bearing_poll);
+                    let bearing_now = compute_bearing(&config_for_compass_poll, &cached_bearing_poll);
                     let compass_rotation = if compass_poll.is_available() {
                         (bearing_now - heading + 360.0) % 360.0
                     } else {

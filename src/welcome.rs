@@ -618,7 +618,7 @@ where
         config_final.save();
 
         if should_autostart && is_flatpak_runtime {
-            let config_ref = config_final.clone();
+            let config_for_welcome_continue = config_final.clone();
             let window_ref = window_final.clone();
             let on_done_ref = on_done_rc.clone();
             let window_close_ref = window_final.clone();
@@ -630,8 +630,8 @@ where
                         window_close_ref.close();
                         on_done_ref();
                     } else {
-                        config_ref.set_autostart(false);
-                        config_ref.save();
+                        config_for_welcome_continue.set_autostart(false);
+                        config_for_welcome_continue.save();
                         row_ref.set_active(false);
                         if let Some(overlay) = crate::settings_ui::find_toast_overlay(&window_ref) {
                             overlay.add_toast(adw::Toast::new(&tr(

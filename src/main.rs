@@ -169,8 +169,8 @@ async fn main() {
             app.activate();
         } else {
             *app_hold_cmd.borrow_mut() = Some(app.hold());
-            let config_bg = _config_clone.clone();
-            crate::timer_controller::start_prayer_timer(config_bg, |_| {});
+            let config_for_background = _config_clone.clone();
+            crate::timer_controller::start_prayer_timer(config_for_background, |_| {});
             crate::background::setup_background();
         }
 

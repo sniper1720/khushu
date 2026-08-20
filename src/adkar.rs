@@ -310,7 +310,7 @@ pub fn create_adkar_page(config: AppConfig) -> (gtk::Box, Rc<dyn Fn()>) {
     let evening_box_clone = evening_box_rc.clone();
     let night_box_clone = night_box_rc.clone();
 
-    let rebuild_lists = Rc::new(move |config_ref: AppConfig| {
+    let rebuild_lists = Rc::new(move |config_for_adkar_lists: AppConfig| {
         let morning_box_ref = &*morning_box_clone;
         let evening_box_ref = &*evening_box_clone;
         let night_box_ref = &*night_box_clone;
@@ -325,8 +325,8 @@ pub fn create_adkar_page(config: AppConfig) -> (gtk::Box, Rc<dyn Fn()>) {
             night_box_ref.remove(&child);
         }
 
-        let favorites = config_ref.favorites();
-        let lang = crate::i18n::supported_language_code(&config_ref.language());
+        let favorites = config_for_adkar_lists.favorites();
+        let lang = crate::i18n::supported_language_code(&config_for_adkar_lists.language());
         let adkar_set = get_adkar(&lang);
         let show_translation = lang != "ar";
 
@@ -334,7 +334,7 @@ pub fn create_adkar_page(config: AppConfig) -> (gtk::Box, Rc<dyn Fn()>) {
             morning_box_ref.append(&create_dikr_row(
                 dikr,
                 favorites.contains(&dikr.id),
-                &config_ref,
+                &config_for_adkar_lists,
                 show_translation,
             ));
         }
@@ -342,7 +342,7 @@ pub fn create_adkar_page(config: AppConfig) -> (gtk::Box, Rc<dyn Fn()>) {
             evening_box_ref.append(&create_dikr_row(
                 dikr,
                 favorites.contains(&dikr.id),
-                &config_ref,
+                &config_for_adkar_lists,
                 show_translation,
             ));
         }
@@ -350,7 +350,7 @@ pub fn create_adkar_page(config: AppConfig) -> (gtk::Box, Rc<dyn Fn()>) {
             night_box_ref.append(&create_dikr_row(
                 dikr,
                 favorites.contains(&dikr.id),
-                &config_ref,
+                &config_for_adkar_lists,
                 show_translation,
             ));
         }
@@ -370,12 +370,12 @@ pub fn create_adkar_page(config: AppConfig) -> (gtk::Box, Rc<dyn Fn()>) {
     container.append(&stack);
 
     let rebuild_lists_refresh = rebuild_lists.clone();
-    let config_refresh = config.clone();
+    let config_for_adkar_refresh = config.clone();
     let refresh_ui = Rc::new(move || {
         morning_page.set_title(Some(&tr("Morning")));
         evening_page.set_title(Some(&tr("Evening")));
         night_page.set_title(Some(&tr("Night")));
-        rebuild_lists_refresh(config_refresh.clone());
+        rebuild_lists_refresh(config_for_adkar_refresh.clone());
     });
 
     (container, refresh_ui)
@@ -408,21 +408,21 @@ fn create_dikr_row(
         fav_btn.add_css_class("accent");
     }
 
-    let config_fav = config.clone();
+    let config_for_favorites = config.clone();
     let dikr_id_signal = dikr.id.clone();
 
     fav_btn.connect_clicked(move |btn| {
-        let currently_fav = config_fav.favorites().contains(&dikr_id_signal);
+        let currently_fav = config_for_favorites.favorites().contains(&dikr_id_signal);
         if currently_fav {
-            let mut favorites = config_fav.favorites();
+            let mut favorites = config_for_favorites.favorites();
             favorites.retain(|fav_id| fav_id != &dikr_id_signal);
-            config_fav.set_favorites(favorites);
+            config_for_favorites.set_favorites(favorites);
         } else {
-            let mut favorites = config_fav.favorites();
+            let mut favorites = config_for_favorites.favorites();
             favorites.push(dikr_id_signal.clone());
-            config_fav.set_favorites(favorites);
+            config_for_favorites.set_favorites(favorites);
         }
-        config_fav.save();
+        config_for_favorites.save();
 
         if currently_fav {
             btn.remove_css_class("accent");

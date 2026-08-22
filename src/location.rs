@@ -1,12 +1,13 @@
-use crate::config::MawaqitCache;
+use crate::config::{MawaqitCache, TimeFormat};
 use crate::i18n::{icu_locale_key, tr};
 use chrono::{Datelike, Timelike};
 use icu::calendar::{Date, Gregorian};
 use icu::datetime::options::TimePrecision;
+use icu::datetime::preferences::HourCycle;
 use icu::datetime::{
-    FixedCalendarDateTimeFormatter, NoCalendarFormatter,
+    DateTimeFormatterPreferences, FixedCalendarDateTimeFormatter, NoCalendarFormatter,
     fieldsets::{
-        ET,
+        ET, T,
         zone::{ExemplarCity, LocalizedOffsetLong, Location as TimeZoneLocation},
     },
 };
@@ -62,16 +63,16 @@ fn non_empty_text(value: &str) -> Option<String> {
 
 pub fn validated_time_zone_id(timezone: &str) -> Option<String> {
     let trimmed = non_empty_text(timezone)?;
-    if let Ok(tz) = trimmed.parse::<chrono_tz::Tz>() {
-        return Some(tz.to_string());
+    if let Ok(timezone) = trimmed.parse::<chrono_tz::Tz>() {
+        return Some(timezone.to_string());
     }
 
     TIME_ZONE_LOOKUP
         .get_or_init(|| {
             chrono_tz::TZ_VARIANTS
                 .iter()
-                .map(|tz| {
-                    let canonical = tz.to_string();
+                .map(|timezone_variant| {
+                    let canonical = timezone_variant.to_string();
                     (canonical.to_ascii_lowercase(), canonical)
                 })
                 .collect()
@@ -83,11 +84,11 @@ pub fn validated_time_zone_id(timezone: &str) -> Option<String> {
 pub fn system_time_zone_id() -> Option<String> {
     std::env::var("TZ")
         .ok()
-        .and_then(|tz| validated_time_zone_id(&tz))
+        .and_then(|timezone_value| validated_time_zone_id(&timezone_value))
         .or_else(|| {
             std::fs::read_to_string("/etc/timezone")
                 .ok()
-                .and_then(|tz| validated_time_zone_id(&tz))
+                .and_then(|timezone_value| validated_time_zone_id(&timezone_value))
         })
         .or_else(|| {
             std::fs::read_link("/etc/localtime")
@@ -97,7 +98,7 @@ pub fn system_time_zone_id() -> Option<String> {
                     path.split_once("/zoneinfo/")
                         .map(|(_, timezone)| timezone.to_string())
                 })
-                .and_then(|tz| validated_time_zone_id(&tz))
+                .and_then(|timezone_value| validated_time_zone_id(&timezone_value))
         })
 }
 
@@ -116,7 +117,7 @@ pub fn short_city_with_country(display_name: &str) -> String {
     }
 }
 
-pub fn country_name_from_code(code: &str, lang: &str) -> Option<String> {
+pub fn country_name_from_code(code: &str, language: &str) -> Option<String> {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
@@ -124,7 +125,7 @@ pub fn country_name_from_code(code: &str, lang: &str) -> Option<String> {
         static CACHE: RefCell<HashMap<String, RegionDisplayNames>> = RefCell::new(HashMap::new());
     }
 
-    let locale_str = icu_locale_key(lang);
+    let locale_str = icu_locale_key(language);
 
     let actual_code = if code.eq_ignore_ascii_case("IL") {
         "PS"
@@ -153,7 +154,7 @@ pub fn country_name_from_code(code: &str, lang: &str) -> Option<String> {
     })
 }
 
-pub fn city_name_from_time_zone(timezone: &str, lang: &str) -> Option<String> {
+pub fn city_name_from_time_zone(timezone: &str, language: &str) -> Option<String> {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
@@ -162,7 +163,7 @@ pub fn city_name_from_time_zone(timezone: &str, lang: &str) -> Option<String> {
             RefCell::new(HashMap::new());
     }
 
-    let locale_str = icu_locale_key(lang);
+    let locale_str = icu_locale_key(language);
     let time_zone = TimeZone::from_iana_id(timezone.trim());
     if time_zone == TimeZone::UNKNOWN {
         return None;
@@ -180,7 +181,7 @@ pub fn city_name_from_time_zone(timezone: &str, lang: &str) -> Option<String> {
     })
 }
 
-pub fn time_zone_location_name(timezone: &str, lang: &str) -> Option<String> {
+pub fn time_zone_location_name(timezone: &str, language: &str) -> Option<String> {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
@@ -189,7 +190,7 @@ pub fn time_zone_location_name(timezone: &str, lang: &str) -> Option<String> {
             RefCell::new(HashMap::new());
     }
 
-    let locale_str = icu_locale_key(lang);
+    let locale_str = icu_locale_key(language);
     let time_zone = TimeZone::from_iana_id(timezone.trim());
     if time_zone == TimeZone::UNKNOWN {
         return None;
@@ -207,14 +208,14 @@ pub fn time_zone_location_name(timezone: &str, lang: &str) -> Option<String> {
     })
 }
 
-pub fn localized_time_zone_label(timezone: &str, lang: &str) -> String {
-    time_zone_location_name(timezone, lang)
-        .or_else(|| city_name_from_time_zone(timezone, lang))
+pub fn localized_time_zone_label(timezone: &str, language: &str) -> String {
+    time_zone_location_name(timezone, language)
+        .or_else(|| city_name_from_time_zone(timezone, language))
         .or_else(|| non_empty_text(timezone))
         .unwrap_or_else(|| timezone.to_string())
 }
 
-fn localize_iana_root(root: &str, lang: &str) -> Option<String> {
+fn localize_iana_root(root: &str, language: &str) -> Option<String> {
     // IANA roots without UN M.49 region codes — expose to xgettext
     if false {
         tr("Atlantic Ocean");
@@ -236,21 +237,21 @@ fn localize_iana_root(root: &str, lang: &str) -> Option<String> {
         "Arctic" => return Some(tr("Arctic")),
         _ => return None,
     };
-    country_name_from_code(m49, lang)
+    country_name_from_code(m49, language)
 }
 
-pub fn localized_zone(zone: &str, lang: &str) -> String {
+pub fn localized_zone(zone: &str, language: &str) -> String {
     let mut parts = zone.splitn(2, '/');
     let root = parts.next().unwrap_or(zone);
     let Some(city) = parts.next() else {
         return zone.to_string();
     };
 
-    let localized_root = localize_iana_root(root, lang).unwrap_or_else(|| root.to_string());
+    let localized_root = localize_iana_root(root, language).unwrap_or_else(|| root.to_string());
     let localized_city = if root == "Etc" {
         city.to_string()
     } else {
-        city_name_from_time_zone(zone, lang).unwrap_or_else(|| city.to_string())
+        city_name_from_time_zone(zone, language).unwrap_or_else(|| city.to_string())
     };
     format!("{}/{}", localized_root, localized_city)
 }
@@ -267,7 +268,7 @@ fn fallback_offset(offset_secs: i32) -> String {
     }
 }
 
-pub fn localized_offset(offset_secs: i32, lang: &str) -> String {
+pub fn localized_offset(offset_secs: i32, language: &str) -> String {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
@@ -276,7 +277,7 @@ pub fn localized_offset(offset_secs: i32, lang: &str) -> String {
             RefCell::new(HashMap::new());
     }
 
-    let locale_str = icu_locale_key(lang);
+    let locale_str = icu_locale_key(language);
     let offset = match UtcOffset::try_from_seconds(offset_secs) {
         Ok(offset) => offset,
         Err(_) => return fallback_offset(offset_secs),
@@ -303,11 +304,76 @@ pub fn localized_offset(offset_secs: i32, lang: &str) -> String {
     })
 }
 
-fn fallback_time(dt: chrono::DateTime<chrono_tz::Tz>) -> String {
-    dt.format("%a %H:%M").to_string()
+fn fallback_time(datetime: chrono::DateTime<chrono_tz::Tz>) -> String {
+    datetime.format("%a %H:%M").to_string()
 }
 
-pub fn localized_time(dt: chrono::DateTime<chrono_tz::Tz>, lang: &str) -> String {
+fn fallback_time_only(
+    datetime: chrono::DateTime<chrono::Local>,
+    time_format: TimeFormat,
+) -> String {
+    match time_format {
+        TimeFormat::Auto | TimeFormat::Hours24 => datetime.format("%H:%M").to_string(),
+        TimeFormat::Hours12 => datetime.format("%I:%M %p").to_string(),
+    }
+}
+
+pub fn localized_time_only(
+    datetime: chrono::DateTime<chrono::Local>,
+    language: &str,
+    time_format: TimeFormat,
+) -> String {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    thread_local! {
+        static CACHE: RefCell<HashMap<String, NoCalendarFormatter<T>>> =
+            RefCell::new(HashMap::new());
+    }
+
+    let time = match Time::try_new(
+        datetime.hour() as u8,
+        datetime.minute() as u8,
+        datetime.second() as u8,
+        0,
+    ) {
+        Ok(t) => t,
+        Err(_) => return fallback_time_only(datetime, time_format),
+    };
+
+    let locale_str = icu_locale_key(language);
+    let cache_key = format!("{}:{:?}", locale_str, time_format);
+
+    CACHE.with(|cache| {
+        let mut map = cache.borrow_mut();
+        if !map.contains_key(&cache_key) {
+            let locale: Locale = locale_str
+                .parse()
+                .unwrap_or_else(|_| "en".parse().expect("en is valid"));
+
+            let mut prefs = DateTimeFormatterPreferences::from(locale);
+            match time_format {
+                TimeFormat::Auto => {} // Use locale default hour cycle
+                TimeFormat::Hours24 => prefs.hour_cycle = Some(HourCycle::Clock24),
+                TimeFormat::Hours12 => prefs.hour_cycle = Some(HourCycle::Clock12),
+            }
+
+            match NoCalendarFormatter::try_new(prefs, T::hm()) {
+                Ok(fmt) => {
+                    map.insert(cache_key.clone(), fmt);
+                }
+                Err(_) => {
+                    return fallback_time_only(datetime, time_format);
+                }
+            }
+        }
+        map.get(&cache_key)
+            .map(|fmt| fmt.format(&time).to_string())
+            .unwrap_or_else(|| fallback_time_only(datetime, time_format))
+    })
+}
+
+pub fn localized_time(datetime: chrono::DateTime<chrono_tz::Tz>, language: &str) -> String {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
@@ -316,14 +382,23 @@ pub fn localized_time(dt: chrono::DateTime<chrono_tz::Tz>, lang: &str) -> String
             RefCell::new(HashMap::new());
     }
 
-    let locale_str = icu_locale_key(lang);
-    let date = match Date::try_new_gregorian(dt.year(), dt.month() as u8, dt.day() as u8) {
+    let locale_str = icu_locale_key(language);
+    let date = match Date::try_new_gregorian(
+        datetime.year(),
+        datetime.month() as u8,
+        datetime.day() as u8,
+    ) {
         Ok(gregorian_date) => gregorian_date,
-        Err(_) => return fallback_time(dt),
+        Err(_) => return fallback_time(datetime),
     };
-    let time = match Time::try_new(dt.hour() as u8, dt.minute() as u8, dt.second() as u8, 0) {
+    let time = match Time::try_new(
+        datetime.hour() as u8,
+        datetime.minute() as u8,
+        datetime.second() as u8,
+        0,
+    ) {
         Ok(time_of_day) => time_of_day,
-        Err(_) => return fallback_time(dt),
+        Err(_) => return fallback_time(datetime),
     };
     let input = icu::time::DateTime { date, time };
 
@@ -341,13 +416,13 @@ pub fn localized_time(dt: chrono::DateTime<chrono_tz::Tz>, lang: &str) -> String
                     map.insert(locale_str.clone(), fmt);
                 }
                 Err(_) => {
-                    return fallback_time(dt);
+                    return fallback_time(datetime);
                 }
             }
         }
         map.get(&locale_str)
             .map(|fmt| fmt.format(&input).to_string())
-            .unwrap_or_else(|| fallback_time(dt))
+            .unwrap_or_else(|| fallback_time(datetime))
     })
 }
 
@@ -360,7 +435,11 @@ pub fn mawaqit_fallback_city_name(
         .and_then(non_empty_text)
         .or_else(|| {
             timezone
-                .and_then(|tz| tz.rsplit_once('/').map(|(_, city)| city.replace('_', " ")))
+                .and_then(|timezone_value| {
+                    timezone_value
+                        .rsplit_once('/')
+                        .map(|(_, city)| city.replace('_', " "))
+                })
                 .and_then(|city| non_empty_text(&city))
         })
 }
@@ -369,10 +448,10 @@ pub fn localized_mawaqit_city_name(
     current_city_name: Option<&str>,
     timezone: Option<&str>,
     mosque_name: Option<&str>,
-    lang: &str,
+    language: &str,
 ) -> Option<String> {
     timezone
-        .and_then(|tz| city_name_from_time_zone(tz, lang))
+        .and_then(|timezone_value| city_name_from_time_zone(timezone_value, language))
         .or_else(|| current_city_name.and_then(non_empty_text))
         .or_else(|| mawaqit_fallback_city_name(mosque_name, timezone))
 }
@@ -380,14 +459,14 @@ pub fn localized_mawaqit_city_name(
 pub fn display_city_label(
     city_name: Option<&str>,
     mawaqit_cache: Option<&MawaqitCache>,
-    lang: &str,
+    language: &str,
 ) -> Option<String> {
     let city = if let Some(cache) = mawaqit_cache {
         localized_mawaqit_city_name(
             city_name,
             cache.timezone.as_deref(),
             cache.mosque_name.as_deref(),
-            lang,
+            language,
         )
     } else {
         city_name.and_then(non_empty_text)
@@ -397,7 +476,7 @@ pub fn display_city_label(
     if let Some(cache) = mawaqit_cache
         && let Some(code) = cache.country_code.as_deref()
         && !text.contains(',')
-        && let Some(country) = country_name_from_code(code, lang)
+        && let Some(country) = country_name_from_code(code, language)
         && !country.is_empty()
     {
         text = format!("{}, {}", text, country);
@@ -409,21 +488,21 @@ pub fn display_city_label(
 use ashpd::desktop::location::{Accuracy, CreateSessionOptions, LocationProxy};
 use futures_util::StreamExt;
 
-pub async fn fetch_auto_location(lang: &str) -> Result<(f64, f64, String), String> {
-    fetch_portal_location(lang).await
+pub async fn fetch_auto_location(language: &str) -> Result<(f64, f64, String), String> {
+    fetch_portal_location(language).await
 }
 
 pub async fn resolve_city_name(
     latitude: f64,
     longitude: f64,
-    lang: &str,
+    language: &str,
 ) -> Result<String, String> {
-    reverse_geocode(latitude, longitude, lang)
+    reverse_geocode(latitude, longitude, language)
         .await
         .map(|name| short_city_with_country(&name))
 }
 
-async fn fetch_portal_location(lang: &str) -> Result<(f64, f64, String), String> {
+async fn fetch_portal_location(language: &str) -> Result<(f64, f64, String), String> {
     log::info!("Attempting to fetch location via ASHPD Portal...");
 
     let proxy = LocationProxy::new().await.map_err(|err| {
@@ -478,7 +557,7 @@ async fn fetch_portal_location(lang: &str) -> Result<(f64, f64, String), String>
 
     log::info!("Portal location fetched: {}, {}", latitude, longitude);
 
-    let city = match reverse_geocode(latitude, longitude, lang).await {
+    let city = match reverse_geocode(latitude, longitude, language).await {
         Ok(name) => {
             log::info!("Reverse geocoded to: {}", name);
             short_city_with_country(&name)
@@ -492,9 +571,9 @@ async fn fetch_portal_location(lang: &str) -> Result<(f64, f64, String), String>
     Ok((latitude, longitude, city))
 }
 
-async fn reverse_geocode(latitude: f64, longitude: f64, lang: &str) -> Result<String, String> {
+async fn reverse_geocode(latitude: f64, longitude: f64, language: &str) -> Result<String, String> {
     let http = client();
-    let normalized_lang = icu_locale_key(lang);
+    let normalized_lang = icu_locale_key(language);
 
     let url = format!(
         "https://nominatim.openstreetmap.org/reverse?lat={}&lon={}&format=json&zoom=10&accept-language={}&addressdetails=1",
@@ -530,7 +609,7 @@ async fn reverse_geocode(latitude: f64, longitude: f64, lang: &str) -> Result<St
             .or(addr.suburb.as_deref())
             .unwrap_or("City");
 
-        if let Some(country) = country_name_from_code("PS", lang) {
+        if let Some(country) = country_name_from_code("PS", language) {
             return Ok(format!("{}, {}", city, country));
         }
     }
@@ -552,11 +631,11 @@ fn format_coordinates(latitude: f64, longitude: f64) -> String {
 
 pub async fn search_city(
     query: &str,
-    lang: &str,
+    language: &str,
 ) -> Result<(f64, f64, String, Option<String>), String> {
     log::info!("Searching for city: {}", query);
     let http = client();
-    let normalized_lang = icu_locale_key(lang);
+    let normalized_lang = icu_locale_key(language);
 
     let url = format!(
         "https://nominatim.openstreetmap.org/search?q={}&format=json&limit=1&accept-language={}&addressdetails=1",
@@ -600,7 +679,7 @@ pub async fn search_city(
                 .or(addr.suburb.as_deref())
                 .unwrap_or("City");
 
-            if let Some(country) = country_name_from_code("PS", lang) {
+            if let Some(country) = country_name_from_code("PS", language) {
                 display_name = format!("{}, {}", city, country);
             }
         }
@@ -683,19 +762,20 @@ mod tests {
     #[test]
     fn localizes_time_with_weekday_without_seconds() {
         use chrono::TimeZone;
-        let tz: chrono_tz::Tz = "Europe/Oslo".parse().unwrap();
+        let timezone: chrono_tz::Tz = "Europe/Oslo".parse().unwrap();
         let naive = chrono::NaiveDate::from_ymd_opt(2026, 1, 30)
             .unwrap()
             .and_hms_opt(15, 47, 42)
             .unwrap();
-        let dt: chrono::DateTime<chrono_tz::Tz> = tz.from_local_datetime(&naive).unwrap();
+        let datetime: chrono::DateTime<chrono_tz::Tz> =
+            timezone.from_local_datetime(&naive).unwrap();
 
-        let en = localized_time(dt, "en");
+        let en = localized_time(datetime, "en");
         assert!(en.contains("Fri"), "weekday should be localized: {en}");
         assert!(en.contains("3:47"), "hour:minute should be shown: {en}");
         assert!(!en.contains("42"), "seconds must not be rendered: {en}");
 
-        let ar = localized_time(dt, "ar");
+        let ar = localized_time(datetime, "ar");
         assert!(!ar.trim().is_empty());
         assert!(!ar.contains("Fri"), "weekday must be localized, got: {ar}");
     }

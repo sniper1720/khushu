@@ -108,10 +108,10 @@ impl AdkarCache {
         }
     }
 
-    fn get(&self, lang: &str) -> &Arc<AdkarSet> {
+    fn get(&self, language: &str) -> &Arc<AdkarSet> {
         if let Some(idx) = crate::i18n::SUPPORTED_LANGUAGES
             .iter()
-            .position(|code| *code == lang)
+            .position(|code| *code == language)
         {
             let code = crate::i18n::SUPPORTED_LANGUAGES[idx];
             self.slots[idx].get_or_init(|| Arc::new(load_adkar_set(code)))
@@ -125,13 +125,13 @@ impl AdkarCache {
 
 static ADKAR_CACHE: AdkarCache = AdkarCache::new();
 
-pub fn get_adkar(lang: &str) -> Arc<AdkarSet> {
-    Arc::clone(ADKAR_CACHE.get(lang))
+pub fn get_adkar(language: &str) -> Arc<AdkarSet> {
+    Arc::clone(ADKAR_CACHE.get(language))
 }
 
-fn load_adkar_set(lang: &str) -> AdkarSet {
-    let all_adkar = load_adkar(lang);
-    let all_adkar = if all_adkar.is_empty() && lang != "en" {
+fn load_adkar_set(language: &str) -> AdkarSet {
+    let all_adkar = load_adkar(language);
+    let all_adkar = if all_adkar.is_empty() && language != "en" {
         load_adkar("en")
     } else {
         all_adkar
@@ -154,13 +154,13 @@ fn load_adkar_set(lang: &str) -> AdkarSet {
     }
 }
 
-fn load_adkar(lang: &str) -> Vec<Dikr> {
-    let resource_path = if lang == "ar" {
+fn load_adkar(language: &str) -> Vec<Dikr> {
+    let resource_path = if language == "ar" {
         String::from("/io/github/sniper1720/khushu/adkar/ar.json")
     } else {
         format!(
             "/io/github/sniper1720/khushu/adkar/translations/{}.json",
-            lang
+            language
         )
     };
 
@@ -171,15 +171,15 @@ fn load_adkar(lang: &str) -> Vec<Dikr> {
             if let Ok(adkar) = serde_json::from_str::<Vec<Dikr>>(content) {
                 return adkar;
             } else {
-                log::error!("Failed to deserialize Adkar JSON for lang: {}", lang);
+                log::error!("Failed to deserialize Adkar JSON for lang: {}", language);
             }
         } else {
-            log::error!("Adkar GResource was not valid UTF-8 for lang: {}", lang);
+            log::error!("Adkar GResource was not valid UTF-8 for lang: {}", language);
         }
     } else {
         log::error!(
             "Failed to locate Adkar data for lang: {} in GResource",
-            lang
+            language
         );
     }
     vec![]
@@ -326,9 +326,9 @@ pub fn create_adkar_page(config: AppConfig) -> (gtk::Box, Rc<dyn Fn()>) {
         }
 
         let favorites = config_for_adkar_lists.favorites();
-        let lang = crate::i18n::supported_language_code(&config_for_adkar_lists.language());
-        let adkar_set = get_adkar(&lang);
-        let show_translation = lang != "ar";
+        let language = crate::i18n::supported_language_code(&config_for_adkar_lists.language());
+        let adkar_set = get_adkar(&language);
+        let show_translation = language != "ar";
 
         for dikr in adkar_set.category(DikrCategory::Morning) {
             morning_box_ref.append(&create_dikr_row(
@@ -411,7 +411,7 @@ fn create_dikr_row(
     let config_for_favorites = config.clone();
     let dikr_id_signal = dikr.id.clone();
 
-    fav_btn.connect_clicked(move |btn| {
+    fav_btn.connect_clicked(move |button| {
         let currently_fav = config_for_favorites.favorites().contains(&dikr_id_signal);
         if currently_fav {
             let mut favorites = config_for_favorites.favorites();
@@ -425,9 +425,9 @@ fn create_dikr_row(
         config_for_favorites.save();
 
         if currently_fav {
-            btn.remove_css_class("accent");
+            button.remove_css_class("accent");
         } else {
-            btn.add_css_class("accent");
+            button.add_css_class("accent");
         }
     });
 
@@ -498,8 +498,8 @@ mod tests {
     #[test]
     fn morning_adkar_have_correct_category() {
         ensure_resources();
-        for lang in ["en", "ar"] {
-            let adkar_set = get_adkar(lang);
+        for language in ["en", "ar"] {
+            let adkar_set = get_adkar(language);
             let dhikr_list = adkar_set.category(DikrCategory::Morning);
             if dhikr_list.is_empty() {
                 continue;
@@ -518,8 +518,8 @@ mod tests {
     #[test]
     fn evening_adkar_have_correct_category() {
         ensure_resources();
-        for lang in ["en", "ar"] {
-            let adkar_set = get_adkar(lang);
+        for language in ["en", "ar"] {
+            let adkar_set = get_adkar(language);
             let dhikr_list = adkar_set.category(DikrCategory::Evening);
             if dhikr_list.is_empty() {
                 continue;
@@ -533,8 +533,8 @@ mod tests {
     #[test]
     fn night_adkar_have_correct_category() {
         ensure_resources();
-        for lang in ["en", "ar"] {
-            let adkar_set = get_adkar(lang);
+        for language in ["en", "ar"] {
+            let adkar_set = get_adkar(language);
             let dhikr_list = adkar_set.category(DikrCategory::Night);
             if dhikr_list.is_empty() {
                 continue;
@@ -674,8 +674,8 @@ mod tests {
     #[test]
     fn adkar_entries_have_non_empty_fields() {
         ensure_resources();
-        for lang in ["ar", "en"] {
-            let all_adkar = load_adkar(lang);
+        for language in ["ar", "en"] {
+            let all_adkar = load_adkar(language);
             if all_adkar.is_empty() {
                 continue;
             }
@@ -690,7 +690,7 @@ mod tests {
                     "Reference must not be empty"
                 );
                 assert!(dikr.count > 0, "Count must be positive");
-                if lang == "ar" {
+                if language == "ar" {
                     assert!(
                         dikr.translation.trim().is_empty(),
                         "Arabic source must not carry a translation"
@@ -708,15 +708,15 @@ mod tests {
     #[test]
     fn ids_are_unique_per_language() {
         ensure_resources();
-        for lang in ["ar", "en"] {
-            let all_adkar = load_adkar(lang);
+        for language in ["ar", "en"] {
+            let all_adkar = load_adkar(language);
             let mut seen = std::collections::HashSet::new();
             for dikr in &all_adkar {
                 assert!(
                     seen.insert(dikr.id.as_str()),
                     "duplicate id '{}' in {}",
                     dikr.id,
-                    lang
+                    language
                 );
             }
         }
@@ -735,8 +735,8 @@ mod tests {
                 acc
             });
 
-        for lang in ["en", "fr", "es", "tr", "id"] {
-            let translations = load_adkar(lang);
+        for language in ["en", "fr", "es", "tr", "id"] {
+            let translations = load_adkar(language);
             if translations.is_empty() {
                 continue;
             }
@@ -747,7 +747,7 @@ mod tests {
             assert_eq!(
                 translation_multiset, source_multiset,
                 "lang {} must have the exact same (id, category) multiset as ar.json (no missing or duplicate entries)",
-                lang
+                language
             );
             for dikr in &translations {
                 let source_dikr = source
@@ -759,23 +759,23 @@ mod tests {
                 assert_eq!(
                     dikr.count, source_dikr.count,
                     "lang {} id '{}' count",
-                    lang, dikr.id
+                    language, dikr.id
                 );
                 assert_eq!(
                     dikr.arabic, source_dikr.arabic,
                     "lang {} id '{}' arabic",
-                    lang, dikr.id
+                    language, dikr.id
                 );
                 assert!(
                     !dikr.reference.trim().is_empty(),
                     "lang {} id '{}' reference must not be empty",
-                    lang,
+                    language,
                     dikr.id
                 );
                 assert!(
                     !dikr.translation.trim().is_empty(),
                     "lang {} id '{}' translation must not be empty",
-                    lang,
+                    language,
                     dikr.id
                 );
             }

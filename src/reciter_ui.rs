@@ -65,8 +65,8 @@ fn count_downloaded_verses(reciter_slug: &str) -> usize {
 
 fn total_quran_verses() -> u32 {
     let mut total = 0;
-    for surah_num in 1..=114 {
-        total += crate::quran::surah_total_verses(surah_num).unwrap_or(0);
+    for surah_number in 1..=114 {
+        total += crate::quran::surah_total_verses(surah_number).unwrap_or(0);
     }
     total
 }
@@ -151,7 +151,7 @@ pub(crate) fn open_reciter_dialog(
     let download_tooltip = tr("Download for offline use");
     let downloading_label = tr("Downloading...");
 
-    let btn_map: Rc<RefCell<HashMap<String, gtk::Button>>> = Rc::new(RefCell::new(HashMap::new()));
+    let button_map: Rc<RefCell<HashMap<String, gtk::Button>>> = Rc::new(RefCell::new(HashMap::new()));
     let (dl_tx, dl_rx) = std::sync::mpsc::channel::<(String, i32)>();
 
     for (reciter_index, reciter) in RECITERS.iter().enumerate() {
@@ -183,7 +183,7 @@ pub(crate) fn open_reciter_dialog(
 
         let slug = reciter.slug.to_string();
         let row_index = reciter_index as i32;
-        btn_map
+        button_map
             .borrow_mut()
             .insert(slug.clone(), action_btn.clone());
 
@@ -193,23 +193,23 @@ pub(crate) fn open_reciter_dialog(
         let not_downloaded_c = not_downloaded.clone();
         let download_label_c = download_label.clone();
         let downloading_label_c = downloading_label.clone();
-        action_btn.connect_clicked(move |btn| {
+        action_btn.connect_clicked(move |button| {
             let downloaded_now = count_downloaded_verses(&slug_c);
             if downloaded_now > 0 {
                 delete_downloaded_reciter(&slug_c);
-                btn.set_label(&download_label_c);
+                button.set_label(&download_label_c);
                 row_c.set_subtitle(&not_downloaded_c);
             } else {
-                btn.set_label(&downloading_label_c);
-                btn.set_sensitive(false);
+                button.set_label(&downloading_label_c);
+                button.set_sensitive(false);
                 let sender_c = sender.clone();
                 let row_index_c = row_index;
                 let slug_for_thread = slug_c.clone();
                 std::thread::spawn(move || {
-                    for surah_num in 1..=114 {
-                        let verses = crate::quran::surah_total_verses(surah_num).unwrap_or(0);
+                    for surah_number in 1..=114 {
+                        let verses = crate::quran::surah_total_verses(surah_number).unwrap_or(0);
                         for verse in 1..=verses {
-                            crate::audio::download_verse(&slug_for_thread, surah_num, verse);
+                            crate::audio::download_verse(&slug_for_thread, surah_number, verse);
                         }
                     }
                     let _ = sender_c.send((slug_for_thread, row_index_c));
@@ -218,14 +218,14 @@ pub(crate) fn open_reciter_dialog(
         });
 
         row.connect_activated({
-            let cfg = config.clone();
+            let config_for_reciter = config.clone();
             let selected_slug = slug.clone();
             let label_c = label.clone();
             let dialog_c = dialog.clone();
             let display = reciter.display;
             move |_| {
-                cfg.set_reciter_slug(&selected_slug);
-                cfg.save();
+                config_for_reciter.set_reciter_slug(&selected_slug);
+                config_for_reciter.save();
                 label_c.set_label(&tr(display));
                 dialog_c.close();
             }
@@ -251,7 +251,7 @@ pub(crate) fn open_reciter_dialog(
 
     let total_c = total;
     let dl_rx = std::sync::Mutex::new(dl_rx);
-    let btn_map_c = btn_map.clone();
+    let button_map_c = button_map.clone();
     let list_box_poll_c = list_box.clone();
     let verses_template_c = verses_template.clone();
     let delete_label_c = delete_label.clone();
@@ -266,9 +266,9 @@ pub(crate) fn open_reciter_dialog(
 
     let download_poll_id = glib::timeout_add_local(Duration::from_millis(200), move || {
         while let Ok((slug, index)) = dl_rx.lock().unwrap().try_recv() {
-            if let Some(btn) = btn_map_c.borrow().get(&slug) {
-                btn.set_label(&delete_label_c);
-                btn.set_sensitive(true);
+            if let Some(button) = button_map_c.borrow().get(&slug) {
+                button.set_label(&delete_label_c);
+                button.set_sensitive(true);
             }
             if let Some(row) = list_box_poll_c.row_at_index(index)
                 && let Some(action_row) = row.downcast_ref::<adw::ActionRow>()

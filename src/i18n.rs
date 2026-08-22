@@ -10,24 +10,24 @@ pub fn save_original_locale() {
     ORIGINAL_LANGUAGE.get_or_init(|| std::env::var("LANGUAGE").unwrap_or_default());
 }
 
-fn bind_domains(lang: &str) {
+fn bind_domains(language: &str) {
     let locale_dir = get_locale_dir();
     let pkg = option_env!("GETTEXT_PACKAGE").unwrap_or("khushu");
     let _ = bindtextdomain(pkg, &locale_dir);
     let _ = bind_textdomain_codeset(pkg, "UTF-8");
-    bind_library_domains(&locale_dir, lang);
+    bind_library_domains(&locale_dir, language);
 }
 
-fn set_locale_env(lang: &str) {
+fn set_locale_env(language: &str) {
     let _guard = LOCALE_MODIFY.lock().expect("LOCALE_MODIFY poisoned");
 
-    if lang == "auto" || lang.is_empty() {
+    if language == "auto" || language.is_empty() {
         match ORIGINAL_LANGUAGE.get() {
             Some(orig) if !orig.is_empty() => unsafe { std::env::set_var("LANGUAGE", orig) },
             _ => unsafe { std::env::remove_var("LANGUAGE") },
         }
     } else {
-        unsafe { std::env::set_var("LANGUAGE", lang) };
+        unsafe { std::env::set_var("LANGUAGE", language) };
     }
 
     setlocale(LocaleCategory::LcAll, "");
@@ -75,8 +75,8 @@ fn current_language_hint() -> String {
     detect_system_locale()
 }
 
-fn locale_candidates(lang: &str) -> Vec<String> {
-    let normalized = lang
+fn locale_candidates(language: &str) -> Vec<String> {
+    let normalized = language
         .split(':')
         .next()
         .unwrap_or_default()
@@ -107,9 +107,9 @@ fn locale_candidates(lang: &str) -> Vec<String> {
     candidates
 }
 
-fn domain_catalog_exists(dir: &str, lang: &str, domain: &str) -> bool {
-    for candidate in locale_candidates(lang) {
-        let mo_path = format!("{}/{}/LC_MESSAGES/{}.mo", dir, candidate, domain);
+fn domain_catalog_exists(locale_dir: &str, language: &str, domain: &str) -> bool {
+    for candidate in locale_candidates(language) {
+        let mo_path = format!("{}/{}/LC_MESSAGES/{}.mo", locale_dir, candidate, domain);
         if std::path::Path::new(&mo_path).exists() {
             return true;
         }
@@ -117,14 +117,14 @@ fn domain_catalog_exists(dir: &str, lang: &str, domain: &str) -> bool {
     false
 }
 
-fn library_locale_dir_for_domain(domain: &str, lang: &str, locale_dir: &str) -> String {
+fn library_locale_dir_for_domain(domain: &str, language: &str, locale_dir: &str) -> String {
     let bundled = ["gtk40", "libadwaita"];
     if bundled.contains(&domain) {
         let our_dir = std::path::Path::new(locale_dir)
             .parent()
             .map(|path| path.join("khushu/locale").to_string_lossy().to_string())
             .unwrap_or_else(|| locale_dir.to_string());
-        if domain_catalog_exists(&our_dir, lang, domain) {
+        if domain_catalog_exists(&our_dir, language, domain) {
             return our_dir;
         }
     }
@@ -141,16 +141,16 @@ fn library_locale_dir_for_domain(domain: &str, lang: &str, locale_dir: &str) -> 
 
     candidates
         .into_iter()
-        .find(|dir| domain_catalog_exists(dir, lang, domain))
+        .find(|candidate| domain_catalog_exists(candidate, language, domain))
         .unwrap_or_else(|| locale_dir.to_string())
 }
 
-fn bind_library_domains(locale_dir: &str, lang: &str) {
-    let gtk_dir = library_locale_dir_for_domain("gtk40", lang, locale_dir);
+fn bind_library_domains(locale_dir: &str, language: &str) {
+    let gtk_dir = library_locale_dir_for_domain("gtk40", language, locale_dir);
     let _ = bindtextdomain("gtk40", &gtk_dir);
     let _ = bind_textdomain_codeset("gtk40", "UTF-8");
 
-    let adw_dir = library_locale_dir_for_domain("libadwaita", lang, locale_dir);
+    let adw_dir = library_locale_dir_for_domain("libadwaita", language, locale_dir);
     let _ = bindtextdomain("libadwaita", &adw_dir);
     let _ = bind_textdomain_codeset("libadwaita", "UTF-8");
 }
@@ -175,11 +175,11 @@ pub(crate) const SUPPORTED_LANGUAGES: [&str; 6] = ["ar", "en", "fr", "es", "tr",
 /// falls back to the detected system locale, and POSIX charset (`.UTF-8`), Unicode
 /// modifier (`@latin`), and `":…"` path suffixes are stripped. Region and underscores
 /// are preserved on purpose — ICU region-aware lookups (country/timezone names) rely on them.
-pub fn resolved_locale(lang: &str) -> String {
-    let raw = if lang == "auto" || lang.is_empty() {
+pub fn resolved_locale(language: &str) -> String {
+    let raw = if language == "auto" || language.is_empty() {
         detect_system_locale()
     } else {
-        lang.to_string()
+        language.to_string()
     };
 
     raw.trim()
@@ -195,8 +195,8 @@ pub fn resolved_locale(lang: &str) -> String {
         .to_string()
 }
 
-pub fn supported_language_code(lang: &str) -> String {
-    let resolved = resolved_locale(lang);
+pub fn supported_language_code(language: &str) -> String {
+    let resolved = resolved_locale(language);
 
     // ICU4X only accepts '-', not '_', as the subtag separator.
     let normalized = resolved.replace('_', "-");
@@ -238,8 +238,8 @@ pub fn language_index_from_code(code: &str) -> u32 {
     }
 }
 
-pub fn icu_locale_key(lang: &str) -> String {
-    let normalized = resolved_locale(lang).replace('_', "-");
+pub fn icu_locale_key(language: &str) -> String {
+    let normalized = resolved_locale(language).replace('_', "-");
 
     normalized
         .parse::<icu_locale::Locale>()
@@ -255,34 +255,34 @@ pub fn icu_locale_key(lang: &str) -> String {
         .unwrap_or_else(|_| "en".to_string())
 }
 
-pub fn is_rtl(lang: &str) -> bool {
-    supported_language_code(lang) == "ar"
+pub fn is_rtl(language: &str) -> bool {
+    supported_language_code(language) == "ar"
 }
 
-pub fn is_arabic(lang: &str) -> bool {
-    supported_language_code(lang) == "ar"
+pub fn is_arabic(language: &str) -> bool {
+    supported_language_code(language) == "ar"
 }
 
-pub fn update_locale(lang: &str) {
-    if lang == "auto" || lang.is_empty() {
-        set_locale_env(lang);
+pub fn update_locale(language: &str) {
+    if language == "auto" || language.is_empty() {
+        set_locale_env(language);
         let system_lang = detect_system_locale();
         update_locale_internal(&system_lang);
     } else {
-        set_locale_env(lang);
-        update_locale_internal(lang);
+        set_locale_env(language);
+        update_locale_internal(language);
     }
 }
 
-fn update_locale_internal(lang: &str) {
-    CURRENT_APP_LOCALE.get_or_init(|| RwLock::new(lang.to_string()));
+fn update_locale_internal(language: &str) {
+    CURRENT_APP_LOCALE.get_or_init(|| RwLock::new(language.to_string()));
 
-    bind_domains(lang);
+    bind_domains(language);
 
     if let Some(lock) = CURRENT_APP_LOCALE.get()
         && let Ok(mut cur) = lock.write()
     {
-        *cur = lang.to_string();
+        *cur = language.to_string();
     }
 
     crate::background::update_tray_labels();

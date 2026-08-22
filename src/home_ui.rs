@@ -19,7 +19,7 @@ fn contains_arabic(text: &str) -> bool {
 pub fn refresh_home_ui(
     hijri_label: &Label,
     location_label: &Label,
-    lang: &str,
+    language: &str,
     config: &AppConfig,
 ) {
     let now = crate::time::effective_now(config);
@@ -34,7 +34,7 @@ pub fn refresh_home_ui(
     };
 
     if let Some(text) =
-        location::display_city_label(config.city_name().as_deref(), mawaqit_cache.as_ref(), lang)
+        location::display_city_label(config.city_name().as_deref(), mawaqit_cache.as_ref(), language)
     {
         location_label.set_label(&text);
         if contains_arabic(&text) {

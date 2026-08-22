@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Khushu 1.3.2\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-03-04 20:21+0100\n"
-"PO-Revision-Date: 2026-08-11 10:53+0000\n"
+"PO-Revision-Date: 2026-08-22 02:30+0000\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Turkish\n"
 "Language: tr\n"
@@ -777,7 +777,7 @@ msgstr "Kamet vakti geldi:"
 
 #: src/timer_controller.rs
 msgid "Prayer times unavailable — retrying"
-msgstr ""
+msgstr "Namaz vakitleri kullanılamıyor — tekrar deneniyor"
 
 # =============================================================================
 # SECTION 4: QIBLA COMPASS
@@ -1686,6 +1686,26 @@ msgstr ""
 msgid "File not usable or unsupported format"
 msgstr "Dosya kullanılamıyor veya biçimi desteklenmiyor."
 
+#: src/settings_ui.rs
+msgid "Auto"
+msgstr "Otomatik"
+
+#: src/settings_ui.rs
+msgid "24-hour"
+msgstr "24 saat"
+
+#: src/settings_ui.rs
+msgid "12-hour"
+msgstr "12 saat"
+
+#: src/settings_ui.rs
+msgid "Time Format"
+msgstr "Zaman Biçimi"
+
+#: src/settings_ui.rs
+msgid "Auto follows the time convention of your selected language."
+msgstr "Otomatik seçeneği, seçilen dilin zaman biçimini izler."
+
 # =============================================================================
 # SECTION 8: APP UI & SYSTEM ACTIONS
 # =============================================================================
@@ -1861,4 +1881,4 @@ msgstr "Devam"
 
 #: src/mawaqit.rs
 msgid "Mawaqit fetch failed"
-msgstr ""
+msgstr "Mawaqit veri alımı başarısız oldu"

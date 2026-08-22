@@ -161,8 +161,8 @@ impl PrayerEngine {
     }
 }
 
-fn parse_hm(s: &str) -> Option<(u32, u32)> {
-    let mut it = s.split(':');
+fn parse_hm(text: &str) -> Option<(u32, u32)> {
+    let mut it = text.split(':');
     let hours = it.next()?.parse::<u32>().ok()?;
     let minutes = it.next()?.parse::<u32>().ok()?;
     if hours > 23 || minutes > 59 {
@@ -318,18 +318,18 @@ pub fn next_prayer_from_schedule(
 pub fn effective_now(config: &AppConfig) -> DateTime<Local> {
     match config.timezone_mode() {
         TimezoneMode::Auto => Local::now(),
-        TimezoneMode::Named(tz_str) => {
-            if let Ok(tz) = tz_str.parse::<Tz>() {
+        TimezoneMode::Named(timezone_str) => {
+            if let Ok(timezone) = timezone_str.parse::<Tz>() {
                 let utc_now = Utc::now();
-                let in_tz = utc_now.with_timezone(&tz);
+                let in_timezone = utc_now.with_timezone(&timezone);
                 Local
                     .with_ymd_and_hms(
-                        in_tz.year(),
-                        in_tz.month(),
-                        in_tz.day(),
-                        in_tz.hour(),
-                        in_tz.minute(),
-                        in_tz.second(),
+                        in_timezone.year(),
+                        in_timezone.month(),
+                        in_timezone.day(),
+                        in_timezone.hour(),
+                        in_timezone.minute(),
+                        in_timezone.second(),
                     )
                     .single()
                     .unwrap_or_else(Local::now)
@@ -350,7 +350,7 @@ pub fn effective_today(config: &AppConfig) -> NaiveDate {
     effective_now(config).date_naive()
 }
 
-pub fn format_hijri_date(dt: DateTime<Local>, hijri_offset: i64) -> String {
+pub fn format_hijri_date(datetime: DateTime<Local>, hijri_offset: i64) -> String {
     // HIJRI_MONTH_NAMES: Islamic month names — expose to xgettext
     if false {
         tr("Muharram");
@@ -370,7 +370,7 @@ pub fn format_hijri_date(dt: DateTime<Local>, hijri_offset: i64) -> String {
     use chrono::Duration;
     use hijri_date::HijriDate;
 
-    let adjusted = dt + Duration::days(hijri_offset);
+    let adjusted = datetime + Duration::days(hijri_offset);
     match HijriDate::from_gr(
         adjusted.year() as usize,
         adjusted.month() as usize,
@@ -390,10 +390,10 @@ pub fn format_hijri_date(dt: DateTime<Local>, hijri_offset: i64) -> String {
 pub fn apply_timezone_override(config: &AppConfig, schedule: PrayerSchedule) -> PrayerSchedule {
     match config.timezone_mode() {
         TimezoneMode::Auto => schedule,
-        TimezoneMode::Named(tz_str) => {
-            if let Ok(tz) = tz_str.parse::<Tz>() {
-                let shift_time = |dt: DateTime<Local>| -> DateTime<Local> {
-                    let in_target = dt.with_timezone(&tz);
+        TimezoneMode::Named(timezone_str) => {
+            if let Ok(timezone) = timezone_str.parse::<Tz>() {
+                let shift_time = |datetime: DateTime<Local>| -> DateTime<Local> {
+                    let in_target = datetime.with_timezone(&timezone);
                     Local
                         .with_ymd_and_hms(
                             in_target.year(),
@@ -404,7 +404,7 @@ pub fn apply_timezone_override(config: &AppConfig, schedule: PrayerSchedule) -> 
                             in_target.second(),
                         )
                         .single()
-                        .unwrap_or(dt)
+                        .unwrap_or(datetime)
                 };
                 PrayerSchedule {
                     fajr: shift_time(schedule.fajr),

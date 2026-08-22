@@ -79,12 +79,12 @@ pub fn navigate_to(
     sidebar_list: &ListBox,
     view_stack: &adw::ViewStack,
     window_title: &adw::WindowTitle,
-    current_lang: &str,
+    current_language: &str,
     split_view: &adw::OverlaySplitView,
     config: &crate::config::AppConfig,
 ) {
     if name == "quran" {
-        crate::quran::open_last_read_or_list(view_stack, current_lang, config.clone());
+        crate::quran::open_last_read_or_list(view_stack, current_language, config.clone());
     } else {
         view_stack.set_visible_child_name(name);
     }
@@ -112,7 +112,7 @@ pub fn connect_sidebar_navigation(
     sidebar_list: &ListBox,
     view_stack: Rc<adw::ViewStack>,
     window_title: &adw::WindowTitle,
-    current_lang: Rc<RefCell<String>>,
+    current_language: Rc<RefCell<String>>,
     split_view: &adw::OverlaySplitView,
     window: &adw::ApplicationWindow,
     config: crate::config::AppConfig,
@@ -122,7 +122,7 @@ pub fn connect_sidebar_navigation(
 
     let split_view_hide = split_view.clone();
     let last_valid_row_act = last_valid_row.clone();
-    let current_lang_sidebar = current_lang.clone();
+    let current_language_sidebar = current_language.clone();
     let window_sidebar = window.clone();
     let window_title_sidebar = window_title.clone();
 
@@ -141,7 +141,7 @@ pub fn connect_sidebar_navigation(
                 list,
                 &view_stack_clone,
                 &window_title_sidebar,
-                &current_lang_sidebar.borrow(),
+                &current_language_sidebar.borrow(),
                 &split_view_hide,
                 &config,
             );

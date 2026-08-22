@@ -61,25 +61,25 @@ enum AudioCommand {
     Stop,
 }
 
-struct DlRequest {
+struct DownloadRequest {
     reciter: String,
-    surah_num: u32,
+    surah_number: u32,
     verse: u32,
 }
 
-struct DlResult {
-    surah_num: u32,
+struct DownloadResult {
+    surah_number: u32,
     verse: u32,
     ok: bool,
 }
 
-fn spawn_downloader(res_tx: Sender<DlResult>) -> Sender<DlRequest> {
-    let (req_tx, req_rx) = channel::<DlRequest>();
+fn spawn_downloader(result_tx: Sender<DownloadResult>) -> Sender<DownloadRequest> {
+    let (req_tx, req_rx) = channel::<DownloadRequest>();
     thread::spawn(move || {
         while let Ok(req) = req_rx.recv() {
-            let ok = download_verse(&req.reciter, req.surah_num, req.verse);
-            let _ = res_tx.send(DlResult {
-                surah_num: req.surah_num,
+            let ok = download_verse(&req.reciter, req.surah_number, req.verse);
+            let _ = result_tx.send(DownloadResult {
+                surah_number: req.surah_number,
                 verse: req.verse,
                 ok,
             });
@@ -127,18 +127,18 @@ pub fn stop() {
     let _ = ensure_audio_thread().send(AudioCommand::Stop);
 }
 
-pub fn play_verse(reciter: &str, surah_num: u32, verse: u32) {
+pub fn play_verse(reciter: &str, surah_number: u32, verse: u32) {
     let _ = ensure_audio_thread().send(AudioCommand::PlayVerse(
         reciter.to_string(),
-        surah_num,
+        surah_number,
         verse,
     ));
 }
 
-pub fn play_surah(reciter: &str, surah_num: u32, start_verse: u32, end_verse: u32) {
+pub fn play_surah(reciter: &str, surah_number: u32, start_verse: u32, end_verse: u32) {
     let _ = ensure_audio_thread().send(AudioCommand::PlaySurah(
         reciter.to_string(),
-        surah_num,
+        surah_number,
         start_verse,
         end_verse,
     ));
@@ -172,14 +172,14 @@ fn notify_recitation_state(is_reciting: bool) {
     });
 }
 
-fn notify_verse_finished(surah_num: u32, verse: u32) {
+fn notify_verse_finished(surah_number: u32, verse: u32) {
     glib::MainContext::default().invoke(move || {
         VERSE_FINISHED_CALLBACKS.with(|registry| {
             let mut callbacks = registry.borrow_mut();
             callbacks.retain(|callback| callback.upgrade().is_some());
             for callback in callbacks.iter() {
                 if let Some(callback) = callback.upgrade() {
-                    callback(surah_num, verse);
+                    callback(surah_number, verse);
                 }
             }
         });
@@ -247,24 +247,24 @@ fn try_play_builtin(path_str: &str, player: &Player) -> bool {
     false
 }
 
-pub(crate) fn cache_path(reciter: &str, surah_num: u32, verse: u32) -> String {
+pub(crate) fn cache_path(reciter: &str, surah_number: u32, verse: u32) -> String {
     format!(
         "{}/khushu/recitations/{}/{:03}{:03}.mp3",
         glib::user_cache_dir().to_string_lossy(),
         reciter,
-        surah_num,
+        surah_number,
         verse
     )
 }
 
-pub(crate) fn download_verse(reciter: &str, surah_num: u32, verse: u32) -> bool {
-    let path = cache_path(reciter, surah_num, verse);
+pub(crate) fn download_verse(reciter: &str, surah_number: u32, verse: u32) -> bool {
+    let path = cache_path(reciter, surah_number, verse);
     if Path::new(&path).exists() {
         return true;
     }
     let url = format!(
         "https://everyayah.com/data/{}/{:03}{:03}.mp3",
-        reciter, surah_num, verse
+        reciter, surah_number, verse
     );
     log::info!("Downloading: {}", url);
     match reqwest::blocking::get(&url) {
@@ -288,8 +288,8 @@ pub(crate) fn download_verse(reciter: &str, surah_num: u32, verse: u32) -> bool 
     }
 }
 
-fn load_verse_to_player(reciter: &str, surah_num: u32, verse: u32, player: &Player) -> bool {
-    let path = cache_path(reciter, surah_num, verse);
+fn load_verse_to_player(reciter: &str, surah_number: u32, verse: u32, player: &Player) -> bool {
+    let path = cache_path(reciter, surah_number, verse);
     if let Ok(file) = std::fs::File::open(&path) {
         if let Ok(decoder) = Decoder::new(std::io::BufReader::new(file)) {
             player.append(decoder);
@@ -310,13 +310,13 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
         }
     };
 
-    let (result_tx, result_rx) = channel::<DlResult>();
+    let (result_tx, result_rx) = channel::<DownloadResult>();
     let dl_tx = spawn_downloader(result_tx);
 
     let mut current_player: Option<Player> = None;
     let mut is_reciting = false;
     let mut current_reciter = String::new();
-    let mut current_verse_surah_num: u32 = 0;
+    let mut current_verse_surah_number: u32 = 0;
     let mut current_verse_num: u32 = 0;
     let mut end_verse: u32 = 0;
     let mut verse_queue: Vec<u32> = vec![];
@@ -328,7 +328,7 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
     loop {
         while let Ok(result) = result_rx.try_recv() {
             if result.ok {
-                downloaded.insert((result.surah_num, result.verse));
+                downloaded.insert((result.surah_number, result.verse));
             }
         }
 
@@ -368,17 +368,17 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
                     }
                     current_player = Some(player);
                 }
-                AudioCommand::PlayVerse(reciter, surah_num, verse) => {
+                AudioCommand::PlayVerse(reciter, surah_number, verse) => {
                     log::info!(
-                        "PlayVerse: reciter={}, surah_num={}, verse={}",
+                        "PlayVerse: reciter={}, surah_number={}, verse={}",
                         reciter,
-                        surah_num,
+                        surah_number,
                         verse,
                     );
                     verse_queue.clear();
                     is_reciting = true;
                     current_reciter = reciter.clone();
-                    current_verse_surah_num = surah_num;
+                    current_verse_surah_number = surah_number;
                     current_verse_num = verse;
                     downloaded.clear();
                     pending_first_verse = true;
@@ -388,19 +388,19 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
 
                     let player = Player::connect_new(device_sink.mixer());
 
-                    let _ = dl_tx.send(DlRequest {
+                    let _ = dl_tx.send(DownloadRequest {
                         reciter,
-                        surah_num,
+                        surah_number,
                         verse,
                     });
 
                     current_player = Some(player);
                 }
-                AudioCommand::PlaySurah(reciter, surah_num, start_verse, end_verse_val) => {
+                AudioCommand::PlaySurah(reciter, surah_number, start_verse, end_verse_val) => {
                     log::info!(
-                        "PlaySurah: reciter={}, surah_num={}, start_verse={}, end_verse={}",
+                        "PlaySurah: reciter={}, surah_number={}, start_verse={}, end_verse={}",
                         reciter,
-                        surah_num,
+                        surah_number,
                         start_verse,
                         end_verse_val,
                     );
@@ -408,7 +408,7 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
                     downloaded.clear();
                     is_reciting = true;
                     current_reciter = reciter.clone();
-                    current_verse_surah_num = surah_num;
+                    current_verse_surah_number = surah_number;
                     current_verse_num = start_verse;
                     end_verse = end_verse_val;
                     pending_first_verse = true;
@@ -418,9 +418,9 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
 
                     let player = Player::connect_new(device_sink.mixer());
 
-                    let _ = dl_tx.send(DlRequest {
+                    let _ = dl_tx.send(DownloadRequest {
                         reciter: reciter.clone(),
-                        surah_num,
+                        surah_number,
                         verse: start_verse,
                     });
 
@@ -428,9 +428,9 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
                         let preload_end = (start_verse + 10).min(end_verse_val);
                         let preload_reciter = reciter.clone();
                         for verse_number in (start_verse + 1)..=preload_end {
-                            let _ = dl_tx.send(DlRequest {
+                            let _ = dl_tx.send(DownloadRequest {
                                 reciter: preload_reciter.clone(),
-                                surah_num,
+                                surah_number,
                                 verse: verse_number,
                             });
                         }
@@ -464,15 +464,15 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
                     {
                         let finished = last_preloaded - 1;
                         if finished >= 1 {
-                            notify_verse_finished(current_verse_surah_num, finished);
+                            notify_verse_finished(current_verse_surah_number, finished);
                         }
                     }
 
                     if pending_first_verse {
-                        if downloaded.remove(&(current_verse_surah_num, current_verse_num))
+                        if downloaded.remove(&(current_verse_surah_number, current_verse_num))
                             && load_verse_to_player(
                                 &current_reciter,
-                                current_verse_surah_num,
+                                current_verse_surah_number,
                                 current_verse_num,
                                 player,
                             )
@@ -481,11 +481,11 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
                         }
                     } else if current_len <= 1 && !verse_queue.is_empty() {
                         let next = verse_queue[0];
-                        if downloaded.remove(&(current_verse_surah_num, next)) {
+                        if downloaded.remove(&(current_verse_surah_number, next)) {
                             verse_queue.remove(0);
                             if load_verse_to_player(
                                 &current_reciter,
-                                current_verse_surah_num,
+                                current_verse_surah_number,
                                 next,
                                 player,
                             ) {
@@ -495,11 +495,11 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
                                 let next_preload = next + 10;
                                 if next_preload <= end_verse
                                     && !downloaded
-                                        .contains(&(current_verse_surah_num, next_preload))
+                                        .contains(&(current_verse_surah_number, next_preload))
                                 {
-                                    let _ = dl_tx.send(DlRequest {
+                                    let _ = dl_tx.send(DownloadRequest {
                                         reciter: current_reciter.clone(),
-                                        surah_num: current_verse_surah_num,
+                                        surah_number: current_verse_surah_number,
                                         verse: next_preload,
                                     });
                                 }
@@ -508,7 +508,7 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
                     }
                     prev_player_len = current_len;
                     if player.empty() && !pending_first_verse && verse_queue.is_empty() {
-                        notify_verse_finished(current_verse_surah_num, current_verse_num);
+                        notify_verse_finished(current_verse_surah_number, current_verse_num);
                         is_reciting = false;
                         set_kind(PlaybackKind::Idle);
                         crate::settings_ui::on_audio_state_changed(false);

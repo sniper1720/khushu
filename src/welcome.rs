@@ -28,7 +28,7 @@ pub fn build_welcome_window<F>(app: &Application, config: AppConfig, on_done: F)
 where
     F: Fn() + 'static,
 {
-    let current_lang = Rc::new(RefCell::new(config.language()));
+    let current_language = Rc::new(RefCell::new(config.language()));
     let location_state = Rc::new(RefCell::new(LocationState::Initial));
 
     let window = ApplicationWindow::builder()
@@ -109,10 +109,10 @@ where
         config_theme.set_theme(theme);
     });
 
-    let lang_group = PreferencesGroup::builder().title("Language").build();
-    settings_container.append(&lang_group);
+    let language_group = PreferencesGroup::builder().title("Language").build();
+    settings_container.append(&language_group);
 
-    let lang_model = gtk::StringList::new(&[
+    let language_model = gtk::StringList::new(&[
         "System Default",
         "English",
         "Arabic",
@@ -122,16 +122,16 @@ where
         "Indonesian",
     ]);
 
-    let lang_row = ComboRow::builder()
+    let language_row = ComboRow::builder()
         .title("Language")
-        .model(&lang_model)
+        .model(&language_model)
         .build();
 
-    lang_row.set_selected(crate::i18n::language_index_from_code(
-        current_lang.borrow().as_str(),
+    language_row.set_selected(crate::i18n::language_index_from_code(
+        current_language.borrow().as_str(),
     ));
 
-    lang_group.add(&lang_row);
+    language_group.add(&language_row);
 
     let behavior_group = PreferencesGroup::builder().title("Autostart").build();
     settings_container.append(&behavior_group);
@@ -315,8 +315,8 @@ where
         let status_page_c = status_page.clone();
         let appearance_group_c = appearance_group.clone();
         let theme_row_c = theme_row.clone();
-        let lang_group_c = lang_group.clone();
-        let lang_row_c = lang_row.clone();
+        let language_group_c = language_group.clone();
+        let language_row_c = language_row.clone();
         let behavior_group_c = behavior_group.clone();
         let autostart_row_c = autostart_row.clone();
         let prayer_group_c = prayer_group.clone();
@@ -333,13 +333,13 @@ where
         let window_c = window.clone();
         let modes_c = modes.clone();
         let theme_model_c = theme_model.clone();
-        let lang_model_c = lang_model.clone();
+        let language_model_c = language_model.clone();
         let method_model_c = method_model.clone();
         let config_font = config.clone();
 
         let location_state_c = location_state.clone();
-        move |lang_code: &str| {
-            let detected = crate::i18n::resolved_locale(lang_code);
+        move |language_code: &str| {
+            let detected = crate::i18n::resolved_locale(language_code);
             let locale = &detected;
 
             if crate::i18n::is_rtl(locale) {
@@ -363,9 +363,9 @@ where
             theme_row_c.set_title(&tr("Theme"));
             theme_model_c.splice(0, 3, &[&tr("System Default"), &tr("Light"), &tr("Dark")]);
 
-            lang_group_c.set_title(&tr("Language"));
-            lang_row_c.set_title(&tr("Language"));
-            lang_model_c.splice(
+            language_group_c.set_title(&tr("Language"));
+            language_row_c.set_title(&tr("Language"));
+            language_model_c.splice(
                 0,
                 7,
                 &[
@@ -453,24 +453,24 @@ where
         }
     });
 
-    update_translations(&current_lang.borrow());
+    update_translations(&current_language.borrow());
 
     let update_translations_clone = update_translations.clone();
-    let current_lang_clone = current_lang.clone();
-    lang_row.connect_selected_notify(move |row| {
+    let current_language_clone = current_language.clone();
+    language_row.connect_selected_notify(move |row| {
         log::info!(
-            "selected-notify (welcome): selected={}, cur_lang={}",
+            "selected-notify (welcome): selected={}, current_language={}",
             row.selected(),
-            current_lang_clone.borrow(),
+            current_language_clone.borrow(),
         );
-        let next_lang = crate::i18n::language_code_from_index(row.selected()).to_string();
+        let next_language = crate::i18n::language_code_from_index(row.selected()).to_string();
 
-        let changed = { *current_lang_clone.borrow() != next_lang };
+        let changed = { *current_language_clone.borrow() != next_language };
         if changed {
             {
-                *current_lang_clone.borrow_mut() = next_lang.clone();
+                *current_language_clone.borrow_mut() = next_language.clone();
             }
-            let detected_for_locale = crate::i18n::resolved_locale(&next_lang);
+            let detected_for_locale = crate::i18n::resolved_locale(&next_language);
             crate::i18n::update_locale(&detected_for_locale);
             update_translations_clone(&detected_for_locale);
         }
@@ -479,14 +479,14 @@ where
     let city_row_for_search = city_row.clone();
     let city_search_btn_for_search = city_search_btn.clone();
     let config_for_city_search = config.clone();
-    let current_lang_for_search = current_lang.clone();
+    let current_language_for_search = current_language.clone();
     let perform_city_search = std::rc::Rc::new(move || {
         let query = city_row_for_search.text().to_string();
         if query.trim().is_empty() {
             return;
         }
 
-        let current_lang_clone_search = current_lang_for_search.clone();
+        let current_language_clone_search = current_language_for_search.clone();
 
         city_row_for_search.remove_css_class("error");
         city_row_for_search.remove_css_class("success");
@@ -495,9 +495,9 @@ where
         let config_for_city_update = config_for_city_search.clone();
 
         gtk::glib::spawn_future_local(async move {
-            let lang = current_lang_clone_search.borrow().clone();
-            let result = location::search_city(&query, &lang).await;
-            if let Ok((latitude, longitude, name, _detected_tz)) = result {
+            let language = current_language_clone_search.borrow().clone();
+            let result = location::search_city(&query, &language).await;
+            if let Ok((latitude, longitude, name, _detected_timezone)) = result {
                 config_for_city_update.set_latitude(latitude);
                 config_for_city_update.set_longitude(longitude);
                 config_for_city_update.set_city_name(Some(name.clone()));
@@ -524,7 +524,7 @@ where
 
     let auto_status_label = Rc::new(RefCell::new(auto_status_row.clone()));
     let config_for_auto_detect = config.clone();
-    let current_lang_for_detect = current_lang.clone();
+    let current_language_for_detect = current_language.clone();
     let location_state_for_detect = location_state.clone();
     detect_btn.connect_clicked(move |_| {
         let label_row = auto_status_label.borrow().clone();
@@ -535,11 +535,11 @@ where
         *location_state_for_detect.borrow_mut() = LocationState::Searching;
 
         let config_for_auto_detect_update = config_for_auto_detect.clone();
-        let current_lang_for_status = current_lang_for_detect.clone();
+        let current_language_for_status = current_language_for_detect.clone();
         let state_clone = location_state_for_detect.clone();
         gtk::glib::spawn_future_local(async move {
-            let lang = current_lang_for_status.borrow().clone();
-            let result = location::fetch_auto_location(&lang).await;
+            let language = current_language_for_status.borrow().clone();
+            let result = location::fetch_auto_location(&language).await;
             match result {
                 Ok((latitude, longitude, city)) => {
                     config_for_auto_detect_update.set_latitude(latitude);
@@ -602,8 +602,8 @@ where
             _ => {}
         }
 
-        let lang_idx = lang_row.selected();
-        let language = crate::i18n::language_code_from_index(lang_idx);
+        let language_index = language_row.selected();
+        let language = crate::i18n::language_code_from_index(language_index);
         config_final.set_language(language);
 
         let theme_idx = theme_row.selected();

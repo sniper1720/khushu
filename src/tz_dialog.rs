@@ -13,13 +13,13 @@ use libadwaita as adw;
 use crate::i18n::tr;
 use crate::location;
 
-mod tz_item_imp {
+mod timezone_item_imp {
     use super::*;
     use gtk::glib::Properties;
 
     #[derive(Properties, Default)]
-    #[properties(wrapper_type = super::TzItem)]
-    pub struct TzItem {
+    #[properties(wrapper_type = super::TimezoneItem)]
+    pub struct TimezoneItem {
         #[property(get, set)]
         pub name: RefCell<String>,
         #[property(get, set)]
@@ -35,20 +35,20 @@ mod tz_item_imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for TzItem {
-        const NAME: &'static str = "KhushuTzItem";
-        type Type = super::TzItem;
+    impl ObjectSubclass for TimezoneItem {
+        const NAME: &'static str = "KhushuTimezoneItem";
+        type Type = super::TimezoneItem;
     }
 
     #[glib::derived_properties]
-    impl ObjectImpl for TzItem {}
+    impl ObjectImpl for TimezoneItem {}
 }
 
 glib::wrapper! {
-    pub struct TzItem(ObjectSubclass<tz_item_imp::TzItem>);
+    pub struct TimezoneItem(ObjectSubclass<timezone_item_imp::TimezoneItem>);
 }
 
-impl TzItem {
+impl TimezoneItem {
     pub fn new(
         zone: &str,
         zone_label: &str,
@@ -68,9 +68,9 @@ impl TzItem {
     }
 }
 
-fn offset_secs(tz: chrono_tz::Tz) -> i32 {
+fn offset_secs(timezone: chrono_tz::Tz) -> i32 {
     let now = chrono::Utc::now();
-    let local = now.with_timezone(&tz);
+    let local = now.with_timezone(&timezone);
     (local.naive_local() - now.naive_utc()).num_seconds() as i32
 }
 
@@ -93,24 +93,25 @@ fn canonical_tz_set() -> &'static HashSet<String> {
     })
 }
 
-fn load_tz_items(lang: &str) -> Vec<TzItem> {
+fn load_tz_items(language: &str) -> Vec<TimezoneItem> {
     let canonical = canonical_tz_set();
-    let mut items: Vec<TzItem> = chrono_tz::TZ_VARIANTS
+    let mut items: Vec<TimezoneItem> = chrono_tz::TZ_VARIANTS
         .iter()
-        .filter(|tz| canonical.contains(tz.to_string().as_str()))
-        .map(|tz| {
-            let zone = tz.to_string();
-            let name = location::city_name_from_time_zone(&zone, lang).unwrap_or_else(|| {
+        .filter(|variant| canonical.contains(variant.to_string().as_str()))
+        .map(|variant| {
+            let zone = variant.to_string();
+            let name = location::city_name_from_time_zone(&zone, language).unwrap_or_else(|| {
                 zone.split('/')
                     .next_back()
                     .unwrap_or(&zone)
                     .replace('_', " ")
             });
-            let loc = location::time_zone_location_name(&zone, lang).unwrap_or_default();
-            let offset = location::localized_offset(offset_secs(*tz), lang);
-            let time = location::localized_time(chrono::Utc::now().with_timezone(tz), lang);
-            let zone_label = location::localized_zone(&zone, lang);
-            TzItem::new(&zone, &zone_label, &name, &loc, &offset, &time)
+            let loc = location::time_zone_location_name(&zone, language).unwrap_or_default();
+            let offset = location::localized_offset(offset_secs(*variant), language);
+            let time =
+                location::localized_time(chrono::Utc::now().with_timezone(variant), language);
+            let zone_label = location::localized_zone(&zone, language);
+            TimezoneItem::new(&zone, &zone_label, &name, &loc, &offset, &time)
         })
         .collect();
     items.sort_by_key(|item| item.name().to_lowercase());
@@ -184,41 +185,41 @@ fn create_factory() -> gtk::SignalListItemFactory {
         let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
         let item = list_item
             .item()
-            .and_then(|object| object.downcast::<TzItem>().ok());
+            .and_then(|object| object.downcast::<TimezoneItem>().ok());
         let grid = list_item
             .child()
             .and_then(|widget| widget.downcast::<gtk::Grid>().ok());
-        if let (Some(tz_item), Some(tz_grid)) = (item, grid) {
-            if let Some(widget) = tz_grid.child_at(0, 0)
+        if let (Some(timezone_item), Some(timezone_grid)) = (item, grid) {
+            if let Some(widget) = timezone_grid.child_at(0, 0)
                 && let Ok(label) = widget.downcast::<gtk::Label>()
             {
-                let escaped = glib::markup_escape_text(&tz_item.name());
+                let escaped = glib::markup_escape_text(&timezone_item.name());
                 label.set_label(&escaped);
             }
-            if let Some(widget) = tz_grid.child_at(1, 0)
+            if let Some(widget) = timezone_grid.child_at(1, 0)
                 && let Ok(label) = widget.downcast::<gtk::Label>()
             {
-                let escaped = glib::markup_escape_text(&tz_item.location());
+                let escaped = glib::markup_escape_text(&timezone_item.location());
                 label.set_label(&escaped);
             }
-            if let Some(widget) = tz_grid.child_at(2, 0)
+            if let Some(widget) = timezone_grid.child_at(2, 0)
                 && let Ok(label) = widget.downcast::<gtk::Label>()
             {
-                label.set_label(&tz_item.time());
+                label.set_label(&timezone_item.time());
             }
-            if let Some(widget) = tz_grid.child_at(0, 1)
+            if let Some(widget) = timezone_grid.child_at(0, 1)
                 && let Ok(box_) = widget.downcast::<gtk::Box>()
             {
                 if let Some(first) = box_.first_child()
                     && let Ok(label) = first.downcast::<gtk::Label>()
                 {
-                    let escaped = glib::markup_escape_text(&tz_item.zone_label());
+                    let escaped = glib::markup_escape_text(&timezone_item.zone_label());
                     label.set_label(&escaped);
                 }
                 if let Some(last) = box_.last_child()
                     && let Ok(label) = last.downcast::<gtk::Label>()
                 {
-                    label.set_label(&tz_item.offset());
+                    label.set_label(&timezone_item.offset());
                 }
             }
         }
@@ -227,15 +228,18 @@ fn create_factory() -> gtk::SignalListItemFactory {
     factory
 }
 
-pub fn open_tz_dialog(parent: &impl IsA<gtk::Widget>, on_select: Rc<dyn Fn(&str)>, lang: &str) {
-    let store = gio::ListStore::new::<TzItem>();
-    let items = load_tz_items(lang);
+pub fn open_tz_dialog(parent: &impl IsA<gtk::Widget>, on_select: Rc<dyn Fn(&str)>, language: &str) {
+    let store = gio::ListStore::new::<TimezoneItem>();
+    let items = load_tz_items(language);
     for item in &items {
         store.append(item);
     }
 
-    let sort_expression =
-        gtk::PropertyExpression::new(TzItem::static_type(), None::<&gtk::Expression>, "name");
+    let sort_expression = gtk::PropertyExpression::new(
+        TimezoneItem::static_type(),
+        None::<&gtk::Expression>,
+        "name",
+    );
     let sorter = gtk::StringSorter::new(Some(sort_expression));
     let sorted = gtk::SortListModel::new(Some(store), Some(sorter));
 
@@ -255,7 +259,7 @@ pub fn open_tz_dialog(parent: &impl IsA<gtk::Widget>, on_select: Rc<dyn Fn(&str)
             filter_ref.set_filter(Option::<gtk::CustomFilter>::None.as_ref());
         } else {
             let filter = gtk::CustomFilter::new(move |obj| {
-                let item = match obj.downcast_ref::<TzItem>() {
+                let item = match obj.downcast_ref::<TimezoneItem>() {
                     Some(item) => item,
                     None => return false,
                 };
@@ -288,9 +292,9 @@ pub fn open_tz_dialog(parent: &impl IsA<gtk::Widget>, on_select: Rc<dyn Fn(&str)
     let dialog_close_ref2 = dialog_close_ref.clone();
     list_view.connect_activate(move |_, position| {
         if let Some(item) = filter_for_activate.item(position)
-            && let Ok(tz_item) = item.downcast::<TzItem>()
+            && let Ok(timezone_item) = item.downcast::<TimezoneItem>()
         {
-            on_select_clone(&tz_item.zone());
+            on_select_clone(&timezone_item.zone());
             if let Some(dlg) = dialog_close_ref2.borrow().as_ref() {
                 dlg.close();
             }

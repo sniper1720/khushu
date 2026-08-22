@@ -36,7 +36,7 @@ struct DailyState {
 
 fn compute_daily_state(config: &AppConfig, engine: &PrayerEngine, today: NaiveDate) -> DailyState {
     let tomorrow = today.succ_opt().unwrap_or(today);
-    let lang = config.language();
+    let language = config.language();
     let now = crate::time::effective_now(config);
 
     let use_mawaqit = config.prayer_times_source() == crate::config::PrayerTimesSource::Mawaqit;
@@ -69,7 +69,7 @@ fn compute_daily_state(config: &AppConfig, engine: &PrayerEngine, today: NaiveDa
         None
     };
     let location_text =
-        location::display_city_label(config.city_name().as_deref(), mawaqit_cache.as_ref(), &lang)
+        location::display_city_label(config.city_name().as_deref(), mawaqit_cache.as_ref(), &language)
             .unwrap_or_else(|| format!("{:.2}, {:.2}", config.latitude(), config.longitude()));
 
     DailyState {
@@ -292,13 +292,13 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
         if mawaqit_cache_fetched_today(mawaqit_config.mawaqit_cache().as_ref(), today) {
             return;
         }
-        let cfg = mawaqit_config.clone();
+        let config_for_mawaqit = mawaqit_config.clone();
         let daily_state_rc = mawaqit_state.clone();
         gtk4::glib::spawn_future_local(async move {
             if let Ok(cache) = crate::mawaqit::fetch_mawaqit_cache(&url).await {
-                cfg.set_mawaqit_cache(Some(cache.clone()));
-                cfg.set_mawaqit_url(Some(cache.url.clone()));
-                cfg.save();
+                config_for_mawaqit.set_mawaqit_cache(Some(cache.clone()));
+                config_for_mawaqit.set_mawaqit_url(Some(cache.url.clone()));
+                config_for_mawaqit.save();
                 *daily_state_rc.borrow_mut() = None;
             }
         });
@@ -329,7 +329,7 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
             return gtk4::glib::ControlFlow::Continue;
         };
         let today = crate::time::effective_today(&config);
-        let lang = crate::i18n::supported_language_code(&config.language());
+        let language = crate::i18n::supported_language_code(&config.language());
 
         let mut state_guard = daily_state.borrow_mut();
         let schedule_changed = *schedule_stale.borrow()
@@ -458,7 +458,7 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
             if is_core_timer && config.adkar_notification_enabled() && !config.adhan_only_mode() {
                 let mut lists = today_adkar.borrow_mut();
                 if lists.date != today {
-                    let adkar_set = adkar::get_adkar(&lang);
+                    let adkar_set = adkar::get_adkar(&language);
                     let favorites = config.favorites();
                     lists.morning =
                         adkar_set.daily_picks(adkar::DikrCategory::Morning, 2, &favorites);
@@ -484,7 +484,7 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                         &mut morning_dikr_1_sent.borrow_mut(),
                         today,
                     ) {
-                        let body = if lang == "ar" {
+                        let body = if language == "ar" {
                             &dikr.arabic
                         } else {
                             &dikr.translation
@@ -505,7 +505,7 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                         &mut morning_dikr_2_sent.borrow_mut(),
                         today,
                     ) {
-                        let body = if lang == "ar" {
+                        let body = if language == "ar" {
                             &dikr.arabic
                         } else {
                             &dikr.translation
@@ -527,7 +527,7 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                         &mut evening_dikr_1_sent.borrow_mut(),
                         today,
                     ) {
-                        let body = if lang == "ar" {
+                        let body = if language == "ar" {
                             &dikr.arabic
                         } else {
                             &dikr.translation
@@ -548,7 +548,7 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                         &mut evening_dikr_2_sent.borrow_mut(),
                         today,
                     ) {
-                        let body = if lang == "ar" {
+                        let body = if language == "ar" {
                             &dikr.arabic
                         } else {
                             &dikr.translation
@@ -570,7 +570,7 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                         &mut night_dikr_1_sent.borrow_mut(),
                         today,
                     ) {
-                        let body = if lang == "ar" {
+                        let body = if language == "ar" {
                             &dikr.arabic
                         } else {
                             &dikr.translation
@@ -591,7 +591,7 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                         &mut night_dikr_2_sent.borrow_mut(),
                         today,
                     ) {
-                        let body = if lang == "ar" {
+                        let body = if language == "ar" {
                             &dikr.arabic
                         } else {
                             &dikr.translation

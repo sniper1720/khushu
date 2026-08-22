@@ -17,6 +17,20 @@ pub enum LocationMode {
     Auto,
 }
 
+#[derive(Serialize, Deserialize, Default, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TimeFormat {
+    /// Follow app language convention via ICU4X locale.
+    #[default]
+    Auto,
+    /// Force 24-hour format regardless of language.
+    #[serde(rename = "24h")]
+    Hours24,
+    /// Force 12-hour (AM/PM) format regardless of language.
+    #[serde(rename = "12h")]
+    Hours12,
+}
+
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
 pub enum PrayerTimesSource {
     #[default]
@@ -131,8 +145,8 @@ pub enum StopCondition {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct QuranBookmark {
     pub page: u32,
-    #[serde(default, alias = "surah")]
-    pub surah_num: u32,
+    #[serde(default, alias = "surah", alias = "surah_num")]
+    pub surah_number: u32,
     #[serde(default)]
     pub verse: u32,
 }
@@ -196,14 +210,21 @@ pub struct AppConfigData {
     pub adhan_muted: bool,
     #[serde(default = "default_autostart")]
     pub autostart: bool,
-    #[serde(default, alias = "quran_bookmark_surah", skip_serializing)]
-    pub quran_bookmark_surah_num: Option<u32>,
+    // Migrated from v0 single-bookmark fields — serde reads these via alias to migrate
+    // into quran_bookmarks. Can be removed once all users are on schema version >= 1.
+    #[serde(
+        default,
+        alias = "quran_bookmark_surah",
+        alias = "quran_bookmark_surah_num",
+        skip_serializing
+    )]
+    pub quran_bookmark_surah_number: Option<u32>,
     #[serde(default)]
     pub quran_bookmark_page: Option<u32>,
     #[serde(default)]
     pub quran_bookmarks: Vec<QuranBookmark>,
-    #[serde(default, alias = "quran_last_surah")]
-    pub quran_last_surah_num: Option<u32>,
+    #[serde(default, alias = "quran_last_surah", alias = "quran_last_surah_num")]
+    pub quran_last_surah_number: Option<u32>,
     #[serde(default)]
     pub quran_last_page: Option<u32>,
     #[serde(default)]
@@ -244,6 +265,8 @@ pub struct AppConfigData {
     pub fallback_was_active: bool,
     #[serde(default)]
     pub lre_was_blocked: bool,
+    #[serde(default)]
+    pub time_format: TimeFormat,
 }
 
 impl Default for AppConfigData {
@@ -270,10 +293,10 @@ impl Default for AppConfigData {
             adhan_volume: 1.0,
             adhan_muted: false,
             autostart: default_autostart(),
-            quran_bookmark_surah_num: None,
+            quran_bookmark_surah_number: None,
             quran_bookmark_page: None,
             quran_bookmarks: Vec::new(),
-            quran_last_surah_num: None,
+            quran_last_surah_number: None,
             quran_last_page: None,
             prayer_times_source: PrayerTimesSource::Calculated,
             mawaqit_url: None,
@@ -294,6 +317,7 @@ impl Default for AppConfigData {
             polar_estimation_method: PolarEstimationMethod::default(),
             fallback_was_active: false,
             lre_was_blocked: false,
+            time_format: TimeFormat::Auto,
         }
     }
 }
@@ -438,18 +462,20 @@ fn migrate(data: &mut AppConfigData) -> bool {
     }
 
     // v0 → v1: Arabic-text favorites become ids; the single bookmark joins the list.
+    // Can be removed once all users are on schema version >= 1.
     crate::adkar::migrate_favorites(data);
-    if let (Some(surah_num), Some(page)) = (data.quran_bookmark_surah_num, data.quran_bookmark_page)
+    if let (Some(surah_number), Some(page)) =
+        (data.quran_bookmark_surah_number, data.quran_bookmark_page)
     {
         data.quran_bookmarks.push(QuranBookmark {
             page,
-            surah_num,
+            surah_number,
             verse: 1,
         });
     }
     data.quran_bookmarks.sort_by_key(|bookmark| bookmark.page);
     data.quran_bookmarks.dedup_by_key(|bookmark| bookmark.page);
-    data.quran_bookmark_surah_num = None;
+    data.quran_bookmark_surah_number = None;
     data.quran_bookmark_page = None;
 
     data.schema_version = CONFIG_SCHEMA_VERSION;
@@ -464,24 +490,24 @@ impl AppConfig {
     pub fn language(&self) -> String {
         self.imp().data.borrow().language.clone()
     }
-    pub fn set_language(&self, val: &str) {
-        self.imp().data.borrow_mut().language = val.to_string();
+    pub fn set_language(&self, language: &str) {
+        self.imp().data.borrow_mut().language = language.to_string();
         self.notify("language");
     }
 
     pub fn theme(&self) -> ThemeMode {
         self.imp().data.borrow().theme.clone()
     }
-    pub fn set_theme(&self, val: ThemeMode) {
-        self.imp().data.borrow_mut().theme = val;
+    pub fn set_theme(&self, theme: ThemeMode) {
+        self.imp().data.borrow_mut().theme = theme;
     }
 
     pub fn latitude(&self) -> f64 {
         self.imp().data.borrow().latitude
     }
-    pub fn set_latitude(&self, val: f64) {
-        if (self.latitude() - val).abs() > 1e-10 {
-            self.imp().data.borrow_mut().latitude = val;
+    pub fn set_latitude(&self, latitude: f64) {
+        if (self.latitude() - latitude).abs() > 1e-10 {
+            self.imp().data.borrow_mut().latitude = latitude;
             self.notify("latitude");
         }
     }
@@ -489,9 +515,9 @@ impl AppConfig {
     pub fn longitude(&self) -> f64 {
         self.imp().data.borrow().longitude
     }
-    pub fn set_longitude(&self, val: f64) {
-        if (self.longitude() - val).abs() > 1e-10 {
-            self.imp().data.borrow_mut().longitude = val;
+    pub fn set_longitude(&self, longitude: f64) {
+        if (self.longitude() - longitude).abs() > 1e-10 {
+            self.imp().data.borrow_mut().longitude = longitude;
             self.notify("longitude");
         }
     }
@@ -499,33 +525,33 @@ impl AppConfig {
     pub fn city_name(&self) -> Option<String> {
         self.imp().data.borrow().city_name.clone()
     }
-    pub fn set_city_name(&self, val: Option<String>) {
-        self.imp().data.borrow_mut().city_name = val;
+    pub fn set_city_name(&self, city_name: Option<String>) {
+        self.imp().data.borrow_mut().city_name = city_name;
         self.notify("city-name");
     }
 
     pub fn method(&self) -> CalculationMethod {
         self.imp().data.borrow().method.clone()
     }
-    pub fn set_method(&self, val: CalculationMethod) {
-        self.imp().data.borrow_mut().method = val;
+    pub fn set_method(&self, method: CalculationMethod) {
+        self.imp().data.borrow_mut().method = method;
         self.notify("method");
     }
 
     pub fn madhab(&self) -> MadhabChoice {
         self.imp().data.borrow().madhab.clone()
     }
-    pub fn set_madhab(&self, val: MadhabChoice) {
-        self.imp().data.borrow_mut().madhab = val;
+    pub fn set_madhab(&self, madhab: MadhabChoice) {
+        self.imp().data.borrow_mut().madhab = madhab;
         self.notify("madhab");
     }
 
     pub fn location_mode(&self) -> LocationMode {
         self.imp().data.borrow().location_mode.clone()
     }
-    pub fn set_location_mode(&self, val: LocationMode) {
-        if self.location_mode() != val {
-            self.imp().data.borrow_mut().location_mode = val;
+    pub fn set_location_mode(&self, location_mode: LocationMode) {
+        if self.location_mode() != location_mode {
+            self.imp().data.borrow_mut().location_mode = location_mode;
             self.notify("location-mode");
         }
     }
@@ -533,213 +559,213 @@ impl AppConfig {
     pub fn adhan_sound_path(&self) -> Option<String> {
         self.imp().data.borrow().adhan_sound_path.clone()
     }
-    pub fn set_adhan_sound_path(&self, val: Option<String>) {
-        self.imp().data.borrow_mut().adhan_sound_path = val;
+    pub fn set_adhan_sound_path(&self, adhan_sound_path: Option<String>) {
+        self.imp().data.borrow_mut().adhan_sound_path = adhan_sound_path;
     }
 
     pub fn pre_prayer_notify(&self) -> bool {
         self.imp().data.borrow().pre_prayer_notify
     }
-    pub fn set_pre_prayer_notify(&self, val: bool) {
-        self.imp().data.borrow_mut().pre_prayer_notify = val;
+    pub fn set_pre_prayer_notify(&self, pre_prayer_notify: bool) {
+        self.imp().data.borrow_mut().pre_prayer_notify = pre_prayer_notify;
     }
 
     pub fn pre_prayer_minutes(&self) -> u32 {
         self.imp().data.borrow().pre_prayer_minutes
     }
-    pub fn set_pre_prayer_minutes(&self, val: u32) {
-        self.imp().data.borrow_mut().pre_prayer_minutes = val;
+    pub fn set_pre_prayer_minutes(&self, pre_prayer_minutes: u32) {
+        self.imp().data.borrow_mut().pre_prayer_minutes = pre_prayer_minutes;
     }
 
     pub fn hijri_offset(&self) -> i64 {
         self.imp().data.borrow().hijri_offset
     }
-    pub fn set_hijri_offset(&self, val: i64) {
-        self.imp().data.borrow_mut().hijri_offset = val;
+    pub fn set_hijri_offset(&self, hijri_offset: i64) {
+        self.imp().data.borrow_mut().hijri_offset = hijri_offset;
     }
 
     pub fn favorites(&self) -> Vec<String> {
         self.imp().data.borrow().favorites.clone()
     }
-    pub fn set_favorites(&self, val: Vec<String>) {
-        self.imp().data.borrow_mut().favorites = val;
+    pub fn set_favorites(&self, favorites: Vec<String>) {
+        self.imp().data.borrow_mut().favorites = favorites;
     }
 
     pub fn adkar_notification_enabled(&self) -> bool {
         self.imp().data.borrow().adkar_notification_enabled
     }
-    pub fn set_adkar_notification_enabled(&self, val: bool) {
-        self.imp().data.borrow_mut().adkar_notification_enabled = val;
+    pub fn set_adkar_notification_enabled(&self, adkar_notification_enabled: bool) {
+        self.imp().data.borrow_mut().adkar_notification_enabled = adkar_notification_enabled;
     }
 
     pub fn iqamah_notify(&self) -> bool {
         self.imp().data.borrow().iqamah_notify
     }
-    pub fn set_iqamah_notify(&self, val: bool) {
-        self.imp().data.borrow_mut().iqamah_notify = val;
+    pub fn set_iqamah_notify(&self, iqamah_notify: bool) {
+        self.imp().data.borrow_mut().iqamah_notify = iqamah_notify;
     }
 
     pub fn adhan_only_mode(&self) -> bool {
         self.imp().data.borrow().adhan_only_mode
     }
-    pub fn set_adhan_only_mode(&self, val: bool) {
-        self.imp().data.borrow_mut().adhan_only_mode = val;
+    pub fn set_adhan_only_mode(&self, adhan_only_mode: bool) {
+        self.imp().data.borrow_mut().adhan_only_mode = adhan_only_mode;
     }
 
     pub fn is_configured(&self) -> bool {
         self.imp().data.borrow().is_configured
     }
-    pub fn set_is_configured(&self, val: bool) {
-        self.imp().data.borrow_mut().is_configured = val;
+    pub fn set_is_configured(&self, is_configured: bool) {
+        self.imp().data.borrow_mut().is_configured = is_configured;
     }
 
     pub fn adhan_volume(&self) -> f32 {
         self.imp().data.borrow().adhan_volume
     }
-    pub fn set_adhan_volume(&self, val: f32) {
-        self.imp().data.borrow_mut().adhan_volume = val;
+    pub fn set_adhan_volume(&self, adhan_volume: f32) {
+        self.imp().data.borrow_mut().adhan_volume = adhan_volume;
     }
 
     pub fn adhan_muted(&self) -> bool {
         self.imp().data.borrow().adhan_muted
     }
-    pub fn set_adhan_muted(&self, val: bool) {
-        self.imp().data.borrow_mut().adhan_muted = val;
+    pub fn set_adhan_muted(&self, adhan_muted: bool) {
+        self.imp().data.borrow_mut().adhan_muted = adhan_muted;
     }
 
     pub fn autostart(&self) -> bool {
         self.imp().data.borrow().autostart
     }
-    pub fn set_autostart(&self, val: bool) {
-        self.imp().data.borrow_mut().autostart = val;
+    pub fn set_autostart(&self, autostart: bool) {
+        self.imp().data.borrow_mut().autostart = autostart;
     }
 
     pub fn quran_bookmarks(&self) -> Vec<QuranBookmark> {
         self.imp().data.borrow().quran_bookmarks.clone()
     }
-    pub fn set_quran_bookmarks(&self, val: Vec<QuranBookmark>) {
-        self.imp().data.borrow_mut().quran_bookmarks = val;
+    pub fn set_quran_bookmarks(&self, quran_bookmarks: Vec<QuranBookmark>) {
+        self.imp().data.borrow_mut().quran_bookmarks = quran_bookmarks;
     }
 
-    pub fn quran_last_surah_num(&self) -> Option<u32> {
-        self.imp().data.borrow().quran_last_surah_num
+    pub fn quran_last_surah_number(&self) -> Option<u32> {
+        self.imp().data.borrow().quran_last_surah_number
     }
-    pub fn set_quran_last_surah_num(&self, val: Option<u32>) {
-        self.imp().data.borrow_mut().quran_last_surah_num = val;
+    pub fn set_quran_last_surah_number(&self, quran_last_surah_number: Option<u32>) {
+        self.imp().data.borrow_mut().quran_last_surah_number = quran_last_surah_number;
     }
 
     pub fn quran_last_page(&self) -> Option<u32> {
         self.imp().data.borrow().quran_last_page
     }
-    pub fn set_quran_last_page(&self, val: Option<u32>) {
-        self.imp().data.borrow_mut().quran_last_page = val;
+    pub fn set_quran_last_page(&self, quran_last_page: Option<u32>) {
+        self.imp().data.borrow_mut().quran_last_page = quran_last_page;
     }
 
     pub fn prayer_times_source(&self) -> PrayerTimesSource {
         self.imp().data.borrow().prayer_times_source.clone()
     }
-    pub fn set_prayer_times_source(&self, val: PrayerTimesSource) {
-        self.imp().data.borrow_mut().prayer_times_source = val;
+    pub fn set_prayer_times_source(&self, prayer_times_source: PrayerTimesSource) {
+        self.imp().data.borrow_mut().prayer_times_source = prayer_times_source;
         self.notify("prayer-times-source");
     }
 
     pub fn mawaqit_url(&self) -> Option<String> {
         self.imp().data.borrow().mawaqit_url.clone()
     }
-    pub fn set_mawaqit_url(&self, val: Option<String>) {
-        self.imp().data.borrow_mut().mawaqit_url = val;
+    pub fn set_mawaqit_url(&self, mawaqit_url: Option<String>) {
+        self.imp().data.borrow_mut().mawaqit_url = mawaqit_url;
     }
 
     pub fn mawaqit_auto_refresh_daily(&self) -> bool {
         self.imp().data.borrow().mawaqit_auto_refresh_daily
     }
-    pub fn set_mawaqit_auto_refresh_daily(&self, val: bool) {
-        self.imp().data.borrow_mut().mawaqit_auto_refresh_daily = val;
+    pub fn set_mawaqit_auto_refresh_daily(&self, mawaqit_auto_refresh_daily: bool) {
+        self.imp().data.borrow_mut().mawaqit_auto_refresh_daily = mawaqit_auto_refresh_daily;
     }
 
     pub fn mawaqit_cache(&self) -> Option<MawaqitCache> {
         self.imp().data.borrow().mawaqit_cache.clone()
     }
-    pub fn set_mawaqit_cache(&self, val: Option<MawaqitCache>) {
-        self.imp().data.borrow_mut().mawaqit_cache = val;
+    pub fn set_mawaqit_cache(&self, mawaqit_cache: Option<MawaqitCache>) {
+        self.imp().data.borrow_mut().mawaqit_cache = mawaqit_cache;
     }
 
     pub fn timezone_mode(&self) -> TimezoneMode {
         self.imp().data.borrow().timezone_mode.clone()
     }
-    pub fn set_timezone_mode(&self, val: TimezoneMode) {
-        self.imp().data.borrow_mut().timezone_mode = val;
+    pub fn set_timezone_mode(&self, timezone_mode: TimezoneMode) {
+        self.imp().data.borrow_mut().timezone_mode = timezone_mode;
         self.notify("timezone-mode");
     }
 
     pub fn quran_arabic_font_px(&self) -> f64 {
         self.imp().data.borrow().quran_arabic_font_px
     }
-    pub fn set_quran_arabic_font_px(&self, val: f64) {
-        self.imp().data.borrow_mut().quran_arabic_font_px = val;
+    pub fn set_quran_arabic_font_px(&self, quran_arabic_font_px: f64) {
+        self.imp().data.borrow_mut().quran_arabic_font_px = quran_arabic_font_px;
     }
 
     pub fn quran_translation_font_px(&self) -> f64 {
         self.imp().data.borrow().quran_translation_font_px
     }
-    pub fn set_quran_translation_font_px(&self, val: f64) {
-        self.imp().data.borrow_mut().quran_translation_font_px = val;
+    pub fn set_quran_translation_font_px(&self, quran_translation_font_px: f64) {
+        self.imp().data.borrow_mut().quran_translation_font_px = quran_translation_font_px;
     }
 
     pub fn quran_line_height(&self) -> f64 {
         self.imp().data.borrow().quran_line_height
     }
-    pub fn set_quran_line_height(&self, val: f64) {
-        self.imp().data.borrow_mut().quran_line_height = val;
+    pub fn set_quran_line_height(&self, quran_line_height: f64) {
+        self.imp().data.borrow_mut().quran_line_height = quran_line_height;
     }
 
     pub fn ui_font_family(&self) -> Option<String> {
         self.imp().data.borrow().ui_font_family.clone()
     }
-    pub fn set_ui_font_family(&self, val: Option<String>) {
-        self.imp().data.borrow_mut().ui_font_family = val;
+    pub fn set_ui_font_family(&self, ui_font_family: Option<String>) {
+        self.imp().data.borrow_mut().ui_font_family = ui_font_family;
     }
 
     pub fn arabic_font_family(&self) -> Option<String> {
         self.imp().data.borrow().arabic_font_family.clone()
     }
-    pub fn set_arabic_font_family(&self, val: Option<String>) {
-        self.imp().data.borrow_mut().arabic_font_family = val;
+    pub fn set_arabic_font_family(&self, arabic_font_family: Option<String>) {
+        self.imp().data.borrow_mut().arabic_font_family = arabic_font_family;
     }
 
     pub fn quran_font_family(&self) -> Option<String> {
         self.imp().data.borrow().quran_font_family.clone()
     }
-    pub fn set_quran_font_family(&self, val: Option<String>) {
-        self.imp().data.borrow_mut().quran_font_family = val;
+    pub fn set_quran_font_family(&self, quran_font_family: Option<String>) {
+        self.imp().data.borrow_mut().quran_font_family = quran_font_family;
     }
 
     pub fn iqamah_minutes(&self) -> HashMap<String, u32> {
         self.imp().data.borrow().iqamah_minutes.clone()
     }
-    pub fn set_iqamah_minutes(&self, val: HashMap<String, u32>) {
-        self.imp().data.borrow_mut().iqamah_minutes = val;
+    pub fn set_iqamah_minutes(&self, iqamah_minutes: HashMap<String, u32>) {
+        self.imp().data.borrow_mut().iqamah_minutes = iqamah_minutes;
     }
 
     pub fn reciter_slug(&self) -> String {
         self.imp().data.borrow().reciter_slug.clone()
     }
-    pub fn set_reciter_slug(&self, val: &str) {
-        self.imp().data.borrow_mut().reciter_slug = val.to_string();
+    pub fn set_reciter_slug(&self, reciter_slug: &str) {
+        self.imp().data.borrow_mut().reciter_slug = reciter_slug.to_string();
     }
 
     pub fn stop_condition(&self) -> StopCondition {
         self.imp().data.borrow().stop_condition
     }
-    pub fn set_stop_condition(&self, val: StopCondition) {
-        self.imp().data.borrow_mut().stop_condition = val;
+    pub fn set_stop_condition(&self, stop_condition: StopCondition) {
+        self.imp().data.borrow_mut().stop_condition = stop_condition;
     }
 
     pub fn installed_reciters(&self) -> Vec<String> {
         self.imp().data.borrow().installed_reciters.clone()
     }
-    pub fn set_installed_reciters(&self, val: Vec<String>) {
-        self.imp().data.borrow_mut().installed_reciters = val;
+    pub fn set_installed_reciters(&self, installed_reciters: Vec<String>) {
+        self.imp().data.borrow_mut().installed_reciters = installed_reciters;
     }
     pub fn add_installed_reciter(&self, slug: &str) {
         let mut data = self.imp().data.borrow_mut();
@@ -758,29 +784,29 @@ impl AppConfig {
     pub fn high_latitude_rule(&self) -> HighLatitudeChoice {
         self.imp().data.borrow().high_latitude_rule.clone()
     }
-    pub fn set_high_latitude_rule(&self, val: HighLatitudeChoice) {
-        self.imp().data.borrow_mut().high_latitude_rule = val;
+    pub fn set_high_latitude_rule(&self, high_latitude_rule: HighLatitudeChoice) {
+        self.imp().data.borrow_mut().high_latitude_rule = high_latitude_rule;
     }
 
     pub fn polar_estimation_method(&self) -> PolarEstimationMethod {
         self.imp().data.borrow().polar_estimation_method.clone()
     }
-    pub fn set_polar_estimation_method(&self, val: PolarEstimationMethod) {
-        self.imp().data.borrow_mut().polar_estimation_method = val;
+    pub fn set_polar_estimation_method(&self, polar_estimation_method: PolarEstimationMethod) {
+        self.imp().data.borrow_mut().polar_estimation_method = polar_estimation_method;
     }
 
     pub fn fallback_was_active(&self) -> bool {
         self.imp().data.borrow().fallback_was_active
     }
-    pub fn set_fallback_was_active(&self, val: bool) {
-        self.imp().data.borrow_mut().fallback_was_active = val;
+    pub fn set_fallback_was_active(&self, fallback_was_active: bool) {
+        self.imp().data.borrow_mut().fallback_was_active = fallback_was_active;
     }
 
     pub fn lre_was_blocked(&self) -> bool {
         self.imp().data.borrow().lre_was_blocked
     }
-    pub fn set_lre_was_blocked(&self, val: bool) {
-        self.imp().data.borrow_mut().lre_was_blocked = val;
+    pub fn set_lre_was_blocked(&self, lre_was_blocked: bool) {
+        self.imp().data.borrow_mut().lre_was_blocked = lre_was_blocked;
     }
 
     pub fn latitude_zone(&self) -> u8 {
@@ -864,6 +890,14 @@ impl AppConfig {
         path.push("config.json");
         path
     }
+
+    pub fn time_format(&self) -> TimeFormat {
+        self.imp().data.borrow().time_format
+    }
+
+    pub fn set_time_format(&self, time_format: TimeFormat) {
+        self.imp().data.borrow_mut().time_format = time_format;
+    }
 }
 
 #[cfg(test)]
@@ -937,11 +971,11 @@ mod tests {
             config.quran_bookmarks,
             vec![QuranBookmark {
                 page: 8,
-                surah_num: 2,
+                surah_number: 2,
                 verse: 1
             }]
         );
-        assert_eq!(config.quran_bookmark_surah_num, None);
+        assert_eq!(config.quran_bookmark_surah_number, None);
         assert_eq!(config.quran_bookmark_page, None);
     }
 
@@ -953,11 +987,57 @@ mod tests {
         };
         config.quran_bookmarks.push(QuranBookmark {
             page: 42,
-            surah_num: 29,
+            surah_number: 29,
             verse: 1,
         });
 
         assert!(!migrate(&mut config), "current schema must be a no-op");
         assert_eq!(config.quran_bookmarks.len(), 1);
+    }
+
+    #[test]
+    fn test_default_time_format() {
+        let config = AppConfigData::default();
+        assert_eq!(config.time_format, TimeFormat::Auto);
+    }
+
+    #[test]
+    fn test_time_format_roundtrip() {
+        let mut data = AppConfigData::default();
+        assert_eq!(data.time_format, TimeFormat::Auto);
+
+        data.time_format = TimeFormat::Hours12;
+        assert_eq!(data.time_format, TimeFormat::Hours12);
+
+        data.time_format = TimeFormat::Hours24;
+        assert_eq!(data.time_format, TimeFormat::Hours24);
+
+        data.time_format = TimeFormat::Auto;
+        assert_eq!(data.time_format, TimeFormat::Auto);
+    }
+
+    #[test]
+    fn test_time_format_serde() {
+        let auto: TimeFormat = serde_json::from_str(r#""auto""#).unwrap();
+        assert_eq!(auto, TimeFormat::Auto);
+
+        let h24: TimeFormat = serde_json::from_str(r#""24h""#).unwrap();
+        assert_eq!(h24, TimeFormat::Hours24);
+
+        let h12: TimeFormat = serde_json::from_str(r#""12h""#).unwrap();
+        assert_eq!(h12, TimeFormat::Hours12);
+
+        assert_eq!(
+            serde_json::to_string(&TimeFormat::Auto).unwrap(),
+            r#""auto""#
+        );
+        assert_eq!(
+            serde_json::to_string(&TimeFormat::Hours24).unwrap(),
+            r#""24h""#
+        );
+        assert_eq!(
+            serde_json::to_string(&TimeFormat::Hours12).unwrap(),
+            r#""12h""#
+        );
     }
 }

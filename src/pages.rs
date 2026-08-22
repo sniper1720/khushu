@@ -18,7 +18,7 @@ use crate::settings_ui;
 pub struct PagesParams {
     pub view_stack: Rc<adw::ViewStack>,
     pub split_view: adw::OverlaySplitView,
-    pub current_lang: Rc<RefCell<String>>,
+    pub current_language: Rc<RefCell<String>>,
     pub config: AppConfig,
     pub loc_tx: std::sync::mpsc::Sender<(f64, f64, Option<String>)>,
     pub loc_rx: std::sync::mpsc::Receiver<(f64, f64, Option<String>)>,
@@ -38,9 +38,9 @@ pub struct PagesContext {
 #[allow(clippy::too_many_arguments)]
 fn handle_lang_change(
     row: &adw::ComboRow,
-    cur_lang: &Rc<RefCell<String>>,
-    cfg: &AppConfig,
-    refresh_cal: &Rc<dyn Fn()>,
+    current_language: &Rc<RefCell<String>>,
+    config: &AppConfig,
+    refresh_calendar: &Rc<dyn Fn()>,
     refresh_adkar: &Rc<dyn Fn()>,
     refresh_qibla: &Rc<dyn Fn()>,
     qibla_page: &Rc<crate::qibla_ui::QiblaPage>,
@@ -53,36 +53,29 @@ fn handle_lang_change(
     list_box: &Rc<gtk::ListBox>,
     settings_ctx: &Rc<RefCell<crate::settings_ui::SettingsUiContext>>,
 ) {
-    let selected_lang;
-    let mut lang_changed = false;
+    let selected_language;
+    let mut language_changed = false;
     {
-        let mut lang = cur_lang.borrow_mut();
-        let next_lang = crate::i18n::language_code_from_index(row.selected()).to_string();
-        if *lang != next_lang {
-            *lang = next_lang;
-            lang_changed = true;
+        let mut language = current_language.borrow_mut();
+        let next_language = crate::i18n::language_code_from_index(row.selected()).to_string();
+        if *language != next_language {
+            *language = next_language;
+            language_changed = true;
         }
-        selected_lang = lang.clone();
+        selected_language = language.clone();
     }
-    if !lang_changed {
+    if !language_changed {
         return;
     }
 
-    let detected_lang = crate::i18n::resolved_locale(&selected_lang);
+    let detected_language = crate::i18n::resolved_locale(&selected_language);
 
-    {
-        let mut lang = cur_lang.borrow_mut();
-        if *lang != detected_lang {
-            *lang = detected_lang.clone();
-        }
-    }
+    crate::i18n::update_locale(&detected_language);
 
-    crate::i18n::update_locale(&detected_lang);
+    config.set_language(&selected_language);
+    config.save();
 
-    cfg.set_language(&selected_lang);
-    cfg.save();
-
-    if crate::i18n::is_rtl(&detected_lang) {
+    if crate::i18n::is_rtl(&detected_language) {
         gtk::Widget::set_default_direction(gtk::TextDirection::Rtl);
         window_app.set_direction(gtk::TextDirection::Rtl);
     } else {
@@ -90,10 +83,10 @@ fn handle_lang_change(
         window_app.set_direction(gtk::TextDirection::Ltr);
     }
 
-    crate::apply_font_css(cfg);
+    crate::apply_font_css(config);
 
     let style_manager = adw::StyleManager::default();
-    match cfg.theme() {
+    match config.theme() {
         crate::config::ThemeMode::Light => {
             style_manager.set_color_scheme(adw::ColorScheme::ForceLight)
         }
@@ -105,7 +98,7 @@ fn handle_lang_change(
         }
     }
 
-    crate::settings_ui::update_settings_ui_lang(&settings_ctx.borrow(), &detected_lang);
+    crate::settings_ui::update_settings_ui_lang(&settings_ctx.borrow(), &detected_language);
 
     let sidebar_for_update = sidebar.clone();
     let labels_deferred = [
@@ -141,35 +134,35 @@ fn handle_lang_change(
 
     window_app.set_title(Some(&tr("Khushu")));
 
-    refresh_cal();
+    refresh_calendar();
     refresh_adkar();
     refresh_qibla();
     qibla_page.rebuild_cardinals();
-    crate::quran::refresh_quran_ui(view_stack, &detected_lang, cfg.clone());
+    crate::quran::refresh_quran_ui(view_stack, &detected_language, config.clone());
 
     let ctx_for_geo = settings_ctx.clone();
-    let cfg_for_geo = cfg.clone();
+    let config_for_geo = config.clone();
     let loc_tx_for_geo = loc_tx.clone();
     let refresh_home_for_geo = refresh_home.clone();
     let list_box_for_geo = list_box.clone();
-    let needs_geocode = cfg.prayer_times_source() != crate::config::PrayerTimesSource::Mawaqit;
+    let needs_geocode = config.prayer_times_source() != crate::config::PrayerTimesSource::Mawaqit;
     if needs_geocode {
-        let (latitude, longitude) = (cfg.latitude(), cfg.longitude());
-        let lang_geo = detected_lang.clone();
+        let (latitude, longitude) = (config.latitude(), config.longitude());
+        let language_geo = detected_language.clone();
         gtk::glib::spawn_future_local(async move {
             if let Ok(name) =
-                crate::location::resolve_city_name(latitude, longitude, &lang_geo).await
+                crate::location::resolve_city_name(latitude, longitude, &language_geo).await
             {
                 let _ = loc_tx_for_geo.send((latitude, longitude, Some(name.clone())));
                 gtk::glib::idle_add_local(move || {
-                    cfg_for_geo.set_city_name(Some(name.clone()));
+                    config_for_geo.set_city_name(Some(name.clone()));
                     refresh_home_for_geo();
-                    crate::settings_ui::refresh_prayers(&cfg_for_geo, &list_box_for_geo);
+                    crate::settings_ui::refresh_prayers(&config_for_geo, &list_box_for_geo);
                     {
                         let ctx = ctx_for_geo.borrow();
-                        if let Some(cache) = cfg_for_geo.mawaqit_cache().as_ref() {
+                        if let Some(cache) = config_for_geo.mawaqit_cache().as_ref() {
                             ctx.mawaqit_status_row.set_subtitle(
-                                &crate::settings_ui::mawaqit_status_subtitle(cache, &lang_geo),
+                                &crate::settings_ui::mawaqit_status_subtitle(cache, &language_geo),
                             );
                         }
                     }
@@ -184,7 +177,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let PagesParams {
         view_stack,
         split_view,
-        current_lang,
+        current_language,
         config,
         loc_tx,
         loc_rx,
@@ -250,11 +243,11 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let list_box_home = list_box_rc.clone();
     let config_for_home = config.clone();
     let refresh_home: Rc<dyn Fn()> = Rc::new(move || {
-        let lang = config_for_home.language();
+        let language = config_for_home.language();
         refresh_home_ui(
             &hijri_label_ref,
             &location_label_ref,
-            &lang,
+            &language,
             &config_for_home,
         );
         settings_ui::refresh_prayers(&config_for_home, &list_box_home);
@@ -289,7 +282,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let list_box_loc = list_box_rc.clone();
     let hijri_label_loc = hijri_label.clone();
     let location_label_loc = location_label.clone();
-    let current_lang_loc = current_lang.clone();
+    let current_language_loc = current_language.clone();
 
     gtk::glib::timeout_add_local(std::time::Duration::from_millis(200), move || {
         while let Ok((latitude, longitude, city)) = loc_rx.try_recv() {
@@ -300,8 +293,13 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
             }
             config_for_location.save();
 
-            let lang = current_lang_loc.borrow();
-            refresh_home_ui(&hijri_label_loc, &location_label_loc, &lang, &config_for_location);
+            let language = current_language_loc.borrow();
+            refresh_home_ui(
+                &hijri_label_loc,
+                &location_label_loc,
+                &language,
+                &config_for_location,
+            );
             settings_ui::refresh_prayers(&config_for_location, &list_box_loc);
         }
         gtk::glib::ControlFlow::Continue
@@ -388,7 +386,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     view_stack.add_named(&adkar_box, Some("adkar"));
 
     let quran_page =
-        crate::quran::create_quran_page(&current_lang.borrow(), &view_stack, config.clone());
+        crate::quran::create_quran_page(&current_language.borrow(), &view_stack, config.clone());
     view_stack.add_named(&quran_page, Some("quran"));
 
     let settings_box = Box::new(Orientation::Vertical, 0);
@@ -406,18 +404,18 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let dynamic_settings_box = Box::new(Orientation::Vertical, 0);
     settings_box.append(&dynamic_settings_box);
 
-    let (lang_row, settings_ctx) = settings_ui::setup_settings_ui(settings_ui::SettingsUiParams {
+    let (language_row, settings_ctx) = settings_ui::setup_settings_ui(settings_ui::SettingsUiParams {
         settings_box: &dynamic_settings_box,
         config: config.clone(),
         list_box_rc: list_box_rc.clone(),
         window: &window,
-        current_lang: current_lang.clone(),
+        current_language: current_language.clone(),
         loc_tx: loc_tx.clone(),
         refresh_calendar: refresh_calendar.clone(),
     });
 
-    let cur_lang_signal = current_lang.clone();
-    let cfg_signal = config.clone();
+    let current_language_signal = current_language.clone();
+    let config_signal = config.clone();
     let ref_cal = refresh_calendar.clone();
     let ref_adkar = refresh_adkar.clone();
     let ref_qibla = refresh_qibla.clone();
@@ -431,16 +429,16 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let ref_list = list_box_rc.clone();
     let ref_ctx = settings_ctx.clone();
 
-    lang_row.connect_selected_notify(move |row| {
+    language_row.connect_selected_notify(move |row| {
         log::info!(
-            "selected-notify (settings): selected={}, cur_lang={}",
+            "selected-notify (settings): selected={}, current_language={}",
             row.selected(),
-            cur_lang_signal.borrow(),
+            current_language_signal.borrow(),
         );
         handle_lang_change(
             row,
-            &cur_lang_signal,
-            &cfg_signal,
+            &current_language_signal,
+            &config_signal,
             &ref_cal,
             &ref_adkar,
             &ref_qibla,
@@ -470,7 +468,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let fonts_view_stack = view_stack.clone();
     let fonts_sidebar_list = sidebar_list.clone();
     let fonts_window_title = window_title.clone();
-    let fonts_current_lang = current_lang.clone();
+    let fonts_current_language = current_language.clone();
     let fonts_split_view = split_view.clone();
     let fonts_config = config.clone();
     settings_ui::register_open_fonts_settings(Rc::new(move || {
@@ -479,7 +477,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
             &fonts_sidebar_list,
             &fonts_view_stack,
             &fonts_window_title,
-            &fonts_current_lang.borrow(),
+            &fonts_current_language.borrow(),
             &fonts_split_view,
             &fonts_config,
         );

@@ -1578,6 +1578,26 @@ msgstr ""
 msgid "File not usable or unsupported format"
 msgstr ""
 
+#: src/settings_ui.rs
+msgid "Auto"
+msgstr ""
+
+#: src/settings_ui.rs
+msgid "24-hour"
+msgstr ""
+
+#: src/settings_ui.rs
+msgid "12-hour"
+msgstr ""
+
+#: src/settings_ui.rs
+msgid "Time Format"
+msgstr ""
+
+#: src/settings_ui.rs
+msgid "Auto follows the time convention of your selected language."
+msgstr ""
+
 # =============================================================================
 # SECTION 8: APP UI & SYSTEM ACTIONS
 # =============================================================================

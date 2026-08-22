@@ -225,12 +225,12 @@ fn build_main_ui(app: &Application, config: AppConfig) {
     if config.location_mode() == LocationMode::Auto {
         let epoch = LOCATION_EPOCH.fetch_add(1, Ordering::Relaxed);
         let sender = loc_tx.clone();
-        let lang = config.language();
+        let language = config.language();
         gtk::glib::spawn_future_local(async move {
             if LOCATION_EPOCH.load(Ordering::Relaxed) != epoch {
                 return;
             }
-            if let Ok((latitude, longitude, name)) = location::fetch_auto_location(&lang).await {
+            if let Ok((latitude, longitude, name)) = location::fetch_auto_location(&language).await {
                 let _ = sender.send((latitude, longitude, Some(name)));
             }
         });
@@ -238,17 +238,17 @@ fn build_main_ui(app: &Application, config: AppConfig) {
 
     {
         let sender = loc_tx.clone();
-        connect_notify_blocked(&config, Some("location-mode"), move |cfg, _| {
-            if cfg.location_mode() == LocationMode::Auto {
+        connect_notify_blocked(&config, Some("location-mode"), move |config, _| {
+            if config.location_mode() == LocationMode::Auto {
                 let epoch = LOCATION_EPOCH.fetch_add(1, Ordering::Relaxed);
-                let lang = cfg.language();
+                let language = config.language();
                 let sender_c = sender.clone();
                 gtk::glib::spawn_future_local(async move {
                     if LOCATION_EPOCH.load(Ordering::Relaxed) != epoch {
                         return;
                     }
                     if let Ok((latitude, longitude, name)) =
-                        location::fetch_auto_location(&lang).await
+                        location::fetch_auto_location(&language).await
                     {
                         let _ = sender_c.send((latitude, longitude, Some(name)));
                     }
@@ -257,8 +257,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
         });
     }
 
-    let initial_lang = crate::i18n::supported_language_code(&config.language());
-    let current_lang = Rc::new(RefCell::new(initial_lang));
+    let current_language = Rc::new(RefCell::new(config.language()));
 
     let split_view = adw::OverlaySplitView::new();
     split_view.set_overflow(gtk::Overflow::Hidden);
@@ -333,7 +332,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
     let pages_context = pages::build_pages(pages::PagesParams {
         view_stack: view_stack_rc.clone(),
         split_view: split_view.clone(),
-        current_lang: current_lang.clone(),
+        current_language: current_language.clone(),
         config: config.clone(),
         loc_tx: loc_tx.clone(),
         loc_rx,
@@ -347,7 +346,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
         &sidebar_list,
         view_stack_rc.clone(),
         &window_title,
-        current_lang.clone(),
+        current_language.clone(),
         &split_view,
         &window,
         config.clone(),

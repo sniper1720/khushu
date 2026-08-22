@@ -162,13 +162,13 @@ impl QiblaPage {
         let anim_c_latitude = self.anim_source_id.clone();
         let compass_latitude = self.compass.clone();
         let latitude_notify_id =
-            crate::connect_notify_blocked(&self.config, Some("latitude"), move |cfg, _| {
+            crate::connect_notify_blocked(&self.config, Some("latitude"), move |config, _| {
                 if let Some(active_anim_id) = anim_c_latitude.borrow_mut().take() {
                     active_anim_id.remove();
                 }
 
                 *cached_bearing_latitude.borrow_mut() = None;
-                let bearing_now = compute_bearing(cfg, &cached_bearing_latitude);
+                let bearing_now = compute_bearing(config, &cached_bearing_latitude);
 
                 let compass_rotation = if compass_latitude.is_available() {
                     let heading = compass_latitude.get_heading();
@@ -195,13 +195,13 @@ impl QiblaPage {
         let anim_c_longitude = self.anim_source_id.clone();
         let compass_longitude = self.compass.clone();
         let longitude_notify_id =
-            crate::connect_notify_blocked(&self.config, Some("longitude"), move |cfg, _| {
+            crate::connect_notify_blocked(&self.config, Some("longitude"), move |config, _| {
                 if let Some(active_anim_id) = anim_c_longitude.borrow_mut().take() {
                     active_anim_id.remove();
                 }
 
                 *cached_bearing_longitude.borrow_mut() = None;
-                let bearing_now = compute_bearing(cfg, &cached_bearing_longitude);
+                let bearing_now = compute_bearing(config, &cached_bearing_longitude);
 
                 let compass_rotation = if compass_longitude.is_available() {
                     let heading = compass_longitude.get_heading();
@@ -235,7 +235,8 @@ impl QiblaPage {
                 let prev = *last_heading.borrow();
                 if (heading - prev).abs() > 0.5 {
                     *last_heading.borrow_mut() = heading;
-                    let bearing_now = compute_bearing(&config_for_compass_poll, &cached_bearing_poll);
+                    let bearing_now =
+                        compute_bearing(&config_for_compass_poll, &cached_bearing_poll);
                     let compass_rotation = if compass_poll.is_available() {
                         (bearing_now - heading + 360.0) % 360.0
                     } else {

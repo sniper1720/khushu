@@ -823,7 +823,8 @@ pub fn create_quran_page(
                 search_results.append(&row);
             }
         } else {
-            let search_language_owned = crate::i18n::supported_language_code(&quran_lang_for_search);
+            let search_language_owned =
+                crate::i18n::supported_language_code(&quran_lang_for_search);
             let search_lang = search_language_owned.as_str();
             let verse_matches = search_quran(&query, search_lang);
 
@@ -2096,8 +2097,14 @@ pub fn create_surah_view(
 
     let config_typo = AppConfig::load();
 
-    let arabic_adj =
-        gtk::Adjustment::new(config_typo.quran_arabic_font_px(), 16.0, 40.0, 1.0, 0.0, 0.0);
+    let arabic_adj = gtk::Adjustment::new(
+        config_typo.quran_arabic_font_px(),
+        16.0,
+        40.0,
+        1.0,
+        0.0,
+        0.0,
+    );
     let arabic_spin = adw::SpinRow::builder()
         .title(tr("Arabic Font Size"))
         .subtitle(tr("Size in pixels (16–40)"))
@@ -3363,8 +3370,11 @@ pub fn create_surah_view(
         if let Some(old) = view_stack_back.child_by_name("quran") {
             view_stack_back.remove(&old);
         }
-        let quran_page =
-            create_quran_page(&language_for_back, &view_stack_back, config_for_back.clone());
+        let quran_page = create_quran_page(
+            &language_for_back,
+            &view_stack_back,
+            config_for_back.clone(),
+        );
         view_stack_back.add_named(&quran_page, Some("quran"));
         view_stack_back.set_visible_child_name("quran");
     });

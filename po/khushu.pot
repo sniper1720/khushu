@@ -4,7 +4,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.3.2\n"
+"Project-Id-Version: Khushu 1.3.3\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -442,6 +442,18 @@ msgstr ""
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Added font settings for the interface, Arabic text, and Quran"
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Added 12-hour (AM/PM) time format option in Settings"
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed \"System Default\" language not persisting after restart"
+msgstr ""
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed location changes not saving on city search"
 msgstr ""
 
 # =============================================================================

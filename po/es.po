@@ -2,10 +2,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.3.2\n"
+"Project-Id-Version: Khushu 1.3.3\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-03-04 20:21+0100\n"
-"PO-Revision-Date: 2026-08-22 02:30+0000\n"
+"PO-Revision-Date: 2026-08-22 23:04+0000\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Spanish\n"
 "Language: es\n"
@@ -577,6 +577,18 @@ msgid "Added font settings for the interface, Arabic text, and Quran"
 msgstr ""
 "Se añadieron ajustes de fuente para la interfaz, el texto en árabe y el "
 "Corán."
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Added 12-hour (AM/PM) time format option in Settings"
+msgstr "Se añadió la opción de formato de hora de 12 horas (AM/PM) en Ajustes"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed \"System Default\" language not persisting after restart"
+msgstr "Se corrigió el error por el cual el idioma \"Predeterminado del sistema\" no se guardaba tras reiniciar"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed location changes not saving on city search"
+msgstr "Se corrigió el problema por el cual los cambios de ubicación no se guardaban al buscar una ciudad"
 
 # =============================================================================
 # SECTION 2: CALENDAR

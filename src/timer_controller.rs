@@ -68,9 +68,12 @@ fn compute_daily_state(config: &AppConfig, engine: &PrayerEngine, today: NaiveDa
     } else {
         None
     };
-    let location_text =
-        location::display_city_label(config.city_name().as_deref(), mawaqit_cache.as_ref(), &language)
-            .unwrap_or_else(|| format!("{:.2}, {:.2}", config.latitude(), config.longitude()));
+    let location_text = location::display_city_label(
+        config.city_name().as_deref(),
+        mawaqit_cache.as_ref(),
+        &language,
+    )
+    .unwrap_or_else(|| format!("{:.2}, {:.2}", config.latitude(), config.longitude()));
 
     DailyState {
         today_schedule,

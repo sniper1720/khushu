@@ -230,7 +230,8 @@ fn build_main_ui(app: &Application, config: AppConfig) {
             if LOCATION_EPOCH.load(Ordering::Relaxed) != epoch {
                 return;
             }
-            if let Ok((latitude, longitude, name)) = location::fetch_auto_location(&language).await {
+            if let Ok((latitude, longitude, name)) = location::fetch_auto_location(&language).await
+            {
                 let _ = sender.send((latitude, longitude, Some(name)));
             }
         });

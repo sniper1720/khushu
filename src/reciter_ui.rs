@@ -151,7 +151,8 @@ pub(crate) fn open_reciter_dialog(
     let download_tooltip = tr("Download for offline use");
     let downloading_label = tr("Downloading...");
 
-    let button_map: Rc<RefCell<HashMap<String, gtk::Button>>> = Rc::new(RefCell::new(HashMap::new()));
+    let button_map: Rc<RefCell<HashMap<String, gtk::Button>>> =
+        Rc::new(RefCell::new(HashMap::new()));
     let (dl_tx, dl_rx) = std::sync::mpsc::channel::<(String, i32)>();
 
     for (reciter_index, reciter) in RECITERS.iter().enumerate() {

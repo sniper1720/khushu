@@ -33,9 +33,11 @@ pub fn refresh_home_ui(
         None
     };
 
-    if let Some(text) =
-        location::display_city_label(config.city_name().as_deref(), mawaqit_cache.as_ref(), language)
-    {
+    if let Some(text) = location::display_city_label(
+        config.city_name().as_deref(),
+        mawaqit_cache.as_ref(),
+        language,
+    ) {
         location_label.set_label(&text);
         if contains_arabic(&text) {
             location_label.add_css_class("arabic-text");

@@ -404,15 +404,16 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let dynamic_settings_box = Box::new(Orientation::Vertical, 0);
     settings_box.append(&dynamic_settings_box);
 
-    let (language_row, settings_ctx) = settings_ui::setup_settings_ui(settings_ui::SettingsUiParams {
-        settings_box: &dynamic_settings_box,
-        config: config.clone(),
-        list_box_rc: list_box_rc.clone(),
-        window: &window,
-        current_language: current_language.clone(),
-        loc_tx: loc_tx.clone(),
-        refresh_calendar: refresh_calendar.clone(),
-    });
+    let (language_row, settings_ctx) =
+        settings_ui::setup_settings_ui(settings_ui::SettingsUiParams {
+            settings_box: &dynamic_settings_box,
+            config: config.clone(),
+            list_box_rc: list_box_rc.clone(),
+            window: &window,
+            current_language: current_language.clone(),
+            loc_tx: loc_tx.clone(),
+            refresh_calendar: refresh_calendar.clone(),
+        });
 
     let current_language_signal = current_language.clone();
     let config_signal = config.clone();

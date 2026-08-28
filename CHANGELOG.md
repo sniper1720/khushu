@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.3] — 2026-08-22
+
+### Added
+- **12-hour (AM/PM) time format** — new Time Format setting with Auto, 24-hour, and 12-hour options (Closes #26)
+
+### Fixed
+- **"System Default" language not persisting** — selecting System Default in Settings showed as English after restart
+- **Location not saving on city search** — changing the city via search or auto-detect was lost on restart
+
 ## [1.3.2] — 2026-08-03
 
 ### Added

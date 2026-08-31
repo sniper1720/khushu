@@ -65,7 +65,7 @@ fn start_rotation_animation(
         return;
     }
     let anim_inner = anim.clone();
-    let id = gtk::glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+    let source_id = gtk::glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
         let mut current = current.borrow_mut();
         let target = *target.borrow();
         let diff = target - *current;
@@ -86,7 +86,7 @@ fn start_rotation_animation(
         drawing_area.queue_draw();
         gtk::glib::ControlFlow::Continue
     });
-    *anim.borrow_mut() = Some(id);
+    *anim.borrow_mut() = Some(source_id);
 }
 
 pub struct QiblaPage {
@@ -393,8 +393,8 @@ pub fn create_qibla_page(config: AppConfig, compass_manager: Rc<CompassManager>)
 
         cr.save().expect("Cairo error");
         cr.translate(center_x, center_y);
-        let rot: f64 = *rotation_draw.borrow();
-        cr.rotate(rot.to_radians());
+        let rotation: f64 = *rotation_draw.borrow();
+        cr.rotate(rotation.to_radians());
 
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.2);
         cr.move_to(0.0, -radius + 10.0);

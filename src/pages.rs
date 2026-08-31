@@ -515,9 +515,9 @@ fn scroll_to_widget(scrolled: &gtk::ScrolledWindow, target: &gtk::Widget) {
     scrolled.add_tick_callback(move |_, _| {
         if target_c.allocated_width() > 0 {
             if let Some((_, y)) = target_c.translate_coordinates(&content, 0.0, 0.0) {
-                let adj = tick_scrolled.vadjustment();
-                let max = (adj.upper() - adj.page_size()).max(0.0);
-                adj.set_value((y - 24.0).clamp(0.0, max));
+                let adjustment = tick_scrolled.vadjustment();
+                let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
+                adjustment.set_value((y - 24.0).clamp(0.0, max));
             }
             gtk::glib::ControlFlow::Break
         } else {

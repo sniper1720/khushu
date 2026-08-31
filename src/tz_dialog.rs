@@ -106,12 +106,12 @@ fn load_tz_items(language: &str) -> Vec<TimezoneItem> {
                     .unwrap_or(&zone)
                     .replace('_', " ")
             });
-            let loc = location::time_zone_location_name(&zone, language).unwrap_or_default();
+            let location = location::time_zone_location_name(&zone, language).unwrap_or_default();
             let offset = location::localized_offset(offset_secs(*variant), language);
             let time =
                 location::localized_time(chrono::Utc::now().with_timezone(variant), language);
             let zone_label = location::localized_zone(&zone, language);
-            TimezoneItem::new(&zone, &zone_label, &name, &loc, &offset, &time)
+            TimezoneItem::new(&zone, &zone_label, &name, &location, &offset, &time)
         })
         .collect();
     items.sort_by_key(|item| item.name().to_lowercase());

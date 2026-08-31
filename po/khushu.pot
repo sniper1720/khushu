@@ -941,6 +941,26 @@ msgstr ""
 msgid "Choose the font family used for the Quran text."
 msgstr ""
 
+#: src/quran.rs
+msgid "Previous Verse"
+msgstr ""
+
+#: src/quran.rs
+msgid "Play"
+msgstr ""
+
+#: src/quran.rs
+msgid "Next Verse"
+msgstr ""
+
+#: src/quran.rs
+msgid "Choose Reciter"
+msgstr ""
+
+#: src/quran.rs
+msgid "Pause"
+msgstr ""
+
 # =============================================================================
 # SECTION 6: ADKAR
 # =============================================================================
@@ -1431,10 +1451,6 @@ msgid "Madinah Adhan"
 msgstr ""
 
 #: src/settings_ui.rs
-msgid "Polar fallback not required — using your latitude."
-msgstr ""
-
-#: src/settings_ui.rs
 msgid "LRE not available at this latitude."
 msgstr ""
 
@@ -1608,6 +1624,14 @@ msgstr ""
 
 #: src/settings_ui.rs
 msgid "Auto follows the time convention of your selected language."
+msgstr ""
+
+#: src/settings_ui.rs
+msgid "Prayer times are calculated at a substituted latitude."
+msgstr ""
+
+#: src/settings_ui.rs
+msgid "Prayer times are now calculated at your actual latitude."
 msgstr ""
 
 # =============================================================================

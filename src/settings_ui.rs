@@ -459,8 +459,8 @@ pub fn setup_settings_ui<'a>(
             _ => crate::config::ThemeMode::System,
         };
 
-        let sm = adw::StyleManager::default();
-        sm.set_color_scheme(match new_theme {
+        let style_manager = adw::StyleManager::default();
+        style_manager.set_color_scheme(match new_theme {
             crate::config::ThemeMode::Light => adw::ColorScheme::ForceLight,
             crate::config::ThemeMode::Dark => adw::ColorScheme::PreferDark,
             crate::config::ThemeMode::System => adw::ColorScheme::Default,
@@ -566,7 +566,7 @@ pub fn setup_settings_ui<'a>(
             default_desc: system_desc.clone(),
             current: config.ui_font_family(),
         },
-        |config, val| config.set_ui_font_family(val),
+        |config, font_family| config.set_ui_font_family(font_family),
     );
 
     let arabic_font_row = setup_font_setting_row(
@@ -579,7 +579,7 @@ pub fn setup_settings_ui<'a>(
             default_desc: system_desc,
             current: config.arabic_font_family(),
         },
-        |config, val| config.set_arabic_font_family(val),
+        |config, font_family| config.set_arabic_font_family(font_family),
     );
 
     let quran_font_row = setup_font_setting_row(
@@ -594,7 +594,7 @@ pub fn setup_settings_ui<'a>(
             default_desc: amiri_quran_desc,
             current: config.quran_font_family(),
         },
-        |config, val| config.set_quran_font_family(val),
+        |config, font_family| config.set_quran_font_family(font_family),
     );
 
     let (prayer_setup_heading, prayer_setup_desc) = append_settings_section_heading(
@@ -652,15 +652,17 @@ pub fn setup_settings_ui<'a>(
     let config_latitude = config.clone();
     let list_box_latitude = list_box_rc.clone();
     let window_latitude = window.clone();
-    latitude_row.adjustment().connect_value_changed(move |adj| {
-        let latitude = adj.value();
-        config_latitude.set_latitude(latitude);
-        config_latitude.save();
-        if let Some(result) = refresh_prayers(&config_latitude, &list_box_latitude) {
-            update_lre_toast(&config_latitude, &result, &window_latitude);
-            update_fallback_toast(&config_latitude, &result, &window_latitude);
-        }
-    });
+    latitude_row
+        .adjustment()
+        .connect_value_changed(move |adjustment| {
+            let latitude = adjustment.value();
+            config_latitude.set_latitude(latitude);
+            config_latitude.save();
+            if let Some(result) = refresh_prayers(&config_latitude, &list_box_latitude) {
+                update_lre_toast(&config_latitude, &result, &window_latitude);
+                update_fallback_toast(&config_latitude, &result, &window_latitude);
+            }
+        });
 
     let longitude_row = adw::SpinRow::builder()
         .title(tr("Longitude"))
@@ -680,8 +682,8 @@ pub fn setup_settings_ui<'a>(
     let window_longitude = window.clone();
     longitude_row
         .adjustment()
-        .connect_value_changed(move |adj| {
-            let longitude = adj.value();
+        .connect_value_changed(move |adjustment| {
+            let longitude = adjustment.value();
             config_longitude.set_longitude(longitude);
             config_longitude.save();
             if let Some(result) = refresh_prayers(&config_longitude, &list_box_longitude) {
@@ -927,8 +929,8 @@ pub fn setup_settings_ui<'a>(
     let refresh_calendar_for_fetch = refresh_calendar.clone();
     let window_for_fetch = window.clone();
     let do_fetch: Rc<dyn Fn()> = Rc::new(move || {
-        let raw = url_row_for_fetch.text().to_string();
-        if raw.trim().is_empty() {
+        let url_text = url_row_for_fetch.text().to_string();
+        if url_text.trim().is_empty() {
             status_for_fetch.set_subtitle(&tr("Invalid Mawaqit URL"));
             status_for_fetch.add_css_class("error");
             return;
@@ -943,7 +945,7 @@ pub fn setup_settings_ui<'a>(
         let refresh_calendar_fetch = refresh_calendar_for_fetch.clone();
         let window_bg = window_for_fetch.clone();
         gtk::glib::spawn_future_local(async move {
-            match crate::mawaqit::fetch_mawaqit_cache(&raw).await {
+            match crate::mawaqit::fetch_mawaqit_cache(&url_text).await {
                 Ok(cache) => {
                     let mut maybe_loc_update: Option<(f64, f64, Option<String>)> = None;
                     {
@@ -1116,12 +1118,12 @@ pub fn setup_settings_ui<'a>(
             Rc::new(move |zone: &str| {
                 let language = language_rc.borrow().clone();
                 let label = location::localized_time_zone_label(zone, &language);
-                let sub = if label.is_empty() {
+                let subtitle = if label.is_empty() {
                     zone.to_string()
                 } else {
                     label
                 };
-                row.set_subtitle(&sub);
+                row.set_subtitle(&subtitle);
                 config_for_tz.set_timezone_mode(TimezoneMode::Named(zone.to_string()));
                 config_for_tz.save();
                 if let Some(result) = refresh_prayers(&config_for_tz, &list_box_timezone_gesture_c)
@@ -1141,14 +1143,14 @@ pub fn setup_settings_ui<'a>(
     });
     timezone_named_row.add_controller(timezone_gesture_click);
 
-    let timezone_adj = gtk::Adjustment::new(0.0, -12.0, 14.0, 0.5, 0.0, 0.0);
+    let timezone_offset_adjustment = gtk::Adjustment::new(0.0, -12.0, 14.0, 0.5, 0.0, 0.0);
     if let TimezoneMode::UtcOffset(mins) = &current_timezone_mode {
-        timezone_adj.set_value(*mins as f64 / 60.0);
+        timezone_offset_adjustment.set_value(*mins as f64 / 60.0);
     }
     let timezone_offset_row = adw::SpinRow::builder()
         .title(tr("UTC Offset (hours)"))
         .subtitle(tr("Example: +2.0 for UTC+2, -5.0 for UTC-5"))
-        .adjustment(&timezone_adj)
+        .adjustment(&timezone_offset_adjustment)
         .digits(1)
         .visible(timezone_init_selected == 2)
         .build();
@@ -1158,13 +1160,13 @@ pub fn setup_settings_ui<'a>(
     let timezone_offset_vis = timezone_offset_row.clone();
     let config_for_timezone_mode = config.clone();
     let list_box_timezone = list_box_rc.clone();
-    let timezone_adj_for_mode = timezone_adj.clone();
+    let timezone_offset_adjustment_for_mode = timezone_offset_adjustment.clone();
     let window_timezone = window.clone();
     timezone_mode_row.connect_selected_notify(move |combo| {
-        let sel = combo.selected();
-        timezone_named_vis.set_visible(sel == 1);
-        timezone_offset_vis.set_visible(sel == 2);
-        let new_mode = match sel {
+        let selected_index = combo.selected();
+        timezone_named_vis.set_visible(selected_index == 1);
+        timezone_offset_vis.set_visible(selected_index == 2);
+        let new_mode = match selected_index {
             1 => {
                 let existing = match config_for_timezone_mode.timezone_mode() {
                     TimezoneMode::Named(name) if !name.trim().is_empty() => Some(name),
@@ -1178,7 +1180,9 @@ pub fn setup_settings_ui<'a>(
                     TimezoneMode::Auto
                 }
             }
-            2 => TimezoneMode::UtcOffset((timezone_adj_for_mode.value() * 60.0) as i32),
+            2 => {
+                TimezoneMode::UtcOffset((timezone_offset_adjustment_for_mode.value() * 60.0) as i32)
+            }
             _ => TimezoneMode::Auto,
         };
         config_for_timezone_mode.set_timezone_mode(new_mode);
@@ -1192,10 +1196,10 @@ pub fn setup_settings_ui<'a>(
     let config_for_timezone_offset = config.clone();
     let list_box_timezone_offset = list_box_rc.clone();
     let window_timezone_offset = window.clone();
-    timezone_adj.connect_value_changed(move |adj| {
+    timezone_offset_adjustment.connect_value_changed(move |adjustment| {
         if let TimezoneMode::UtcOffset(_) = config_for_timezone_offset.timezone_mode() {
             config_for_timezone_offset.set_timezone_mode(crate::config::TimezoneMode::UtcOffset(
-                (adj.value() * 60.0) as i32,
+                (adjustment.value() * 60.0) as i32,
             ));
             config_for_timezone_offset.save();
             if let Some(result) =
@@ -1220,18 +1224,19 @@ pub fn setup_settings_ui<'a>(
     calc_group.set_margin_bottom(24);
     settings_box.append(&calc_group);
 
-    let hijri_adj = gtk::Adjustment::new(config.hijri_offset() as f64, -2.0, 2.0, 1.0, 0.0, 0.0);
+    let hijri_offset_adjustment =
+        gtk::Adjustment::new(config.hijri_offset() as f64, -2.0, 2.0, 1.0, 0.0, 0.0);
     let hijri_row = adw::SpinRow::builder()
         .title(tr("Hijri Date Correction"))
         .subtitle(tr("Adjust Hijri date by +/- days"))
-        .adjustment(&hijri_adj)
+        .adjustment(&hijri_offset_adjustment)
         .digits(0)
         .build();
 
     let config_hijri = config.clone();
     let refresh_calendar_hijri = refresh_calendar.clone();
-    hijri_adj.connect_value_changed(move |adj| {
-        config_hijri.set_hijri_offset(adj.value() as i64);
+    hijri_offset_adjustment.connect_value_changed(move |adjustment| {
+        config_hijri.set_hijri_offset(adjustment.value() as i64);
         config_hijri.save();
         refresh_calendar_hijri();
     });
@@ -1489,16 +1494,26 @@ pub fn setup_settings_ui<'a>(
     });
     calc_group.add(&polar_row);
 
-    let latitude_zone = config.latitude_zone();
-    high_latitude_row.set_visible(latitude_zone >= 2);
-    polar_row.set_visible(latitude_zone >= 3);
+    // Moonsighting Committee ignores both the high-latitude rule and polar
+    // estimation (they have no effect on its output), so hide the rows under
+    // that method; otherwise fall back to the latitude-zone gating.
+    let high_latitude_row_clone = high_latitude_row.clone();
+    let polar_row_clone = polar_row.clone();
+    let update_calculation_rows = Rc::new(move |config: &AppConfig| {
+        let is_moonsighting = config.method() == CalculationMethod::MoonsightingCommittee;
+        let latitude_zone = config.latitude_zone();
+        high_latitude_row_clone.set_visible(!is_moonsighting && latitude_zone >= 2);
+        polar_row_clone.set_visible(!is_moonsighting && latitude_zone >= 3);
+    });
+    update_calculation_rows(&config);
 
-    let high_latitude_clone = high_latitude_row.clone();
-    let pf_clone = polar_row.clone();
+    let update_calculation_rows_latitude = update_calculation_rows.clone();
     crate::connect_notify_blocked(&config, Some("latitude"), move |config, _| {
-        let updated_latitude_zone = config.latitude_zone();
-        high_latitude_clone.set_visible(updated_latitude_zone >= 2);
-        pf_clone.set_visible(updated_latitude_zone >= 3);
+        update_calculation_rows_latitude(config);
+    });
+    let update_calculation_rows_method = update_calculation_rows.clone();
+    crate::connect_notify_blocked(&config, Some("method"), move |config, _| {
+        update_calculation_rows_method(config);
     });
 
     let iqamah_group = PreferencesGroup::builder()
@@ -1609,11 +1624,13 @@ pub fn setup_settings_ui<'a>(
         .build();
 
     let config_for_pre_prayer_minutes = config.clone();
-    notify_time.adjustment().connect_value_changed(move |adj| {
-        let new_minutes = adj.value() as u32;
-        config_for_pre_prayer_minutes.set_pre_prayer_minutes(new_minutes);
-        config_for_pre_prayer_minutes.save();
-    });
+    notify_time
+        .adjustment()
+        .connect_value_changed(move |adjustment| {
+            let new_minutes = adjustment.value() as u32;
+            config_for_pre_prayer_minutes.set_pre_prayer_minutes(new_minutes);
+            config_for_pre_prayer_minutes.save();
+        });
     notif_group.add(&notify_time);
 
     let time_row_clone = notify_time.clone();
@@ -1682,11 +1699,11 @@ pub fn setup_settings_ui<'a>(
             .get(prayer_name)
             .copied()
             .unwrap_or(default_mins);
-        let iq_adj = gtk::Adjustment::new(current as f64, 0.0, 60.0, 1.0, 5.0, 0.0);
+        let iqamah_adjustment = gtk::Adjustment::new(current as f64, 0.0, 60.0, 1.0, 5.0, 0.0);
         let iq_row = adw::SpinRow::builder()
             .title(tr(prayer_name))
             .subtitle(tr("Minutes"))
-            .adjustment(&iq_adj)
+            .adjustment(&iqamah_adjustment)
             .digits(0)
             .build();
         iqamah_rows.push(iq_row.clone());
@@ -1694,9 +1711,9 @@ pub fn setup_settings_ui<'a>(
 
         let config_for_iqamah_minutes = config.clone();
         let prayer_key = prayer_name.to_string();
-        iq_adj.connect_value_changed(move |adj| {
+        iqamah_adjustment.connect_value_changed(move |adjustment| {
             let mut mins = config_for_iqamah_minutes.iqamah_minutes();
-            mins.insert(prayer_key.clone(), adj.value() as u32);
+            mins.insert(prayer_key.clone(), adjustment.value() as u32);
             config_for_iqamah_minutes.set_iqamah_minutes(mins);
             config_for_iqamah_minutes.save();
         });
@@ -1795,7 +1812,7 @@ pub fn setup_settings_ui<'a>(
     });
     audio_group.add(&mute_toggle);
 
-    let volume_adj = gtk::Adjustment::new(
+    let volume_adjustment = gtk::Adjustment::new(
         (config.adhan_volume() * 100.0) as f64,
         0.0,
         100.0,
@@ -1806,14 +1823,14 @@ pub fn setup_settings_ui<'a>(
     let volume_row = adw::SpinRow::builder()
         .title(tr("Adhan Volume"))
         .subtitle(tr("Volume level (0–100%)"))
-        .adjustment(&volume_adj)
+        .adjustment(&volume_adjustment)
         .digits(0)
         .build();
     volume_row.set_visible(!config.adhan_muted());
 
     let config_vol = config.clone();
-    volume_adj.connect_value_changed(move |adj| {
-        config_vol.set_adhan_volume((adj.value() / 100.0) as f32);
+    volume_adjustment.connect_value_changed(move |adjustment| {
+        config_vol.set_adhan_volume((adjustment.value() / 100.0) as f32);
         config_vol.save();
     });
     audio_group.add(&volume_row);
@@ -2322,18 +2339,25 @@ pub(crate) fn update_fallback_toast(
     window: &adw::ApplicationWindow,
 ) {
     let prev = config.fallback_was_active();
-    if prev != result.fallback_active {
-        if !result.fallback_active
-            && config.latitude_zone() >= 3
-            && let Some(overlay) = find_toast_overlay(window)
-        {
-            let toast = adw::Toast::new(&tr("Polar fallback not required — using your latitude."));
-            toast.set_timeout(0);
-            overlay.add_toast(toast);
-        }
-        config.set_fallback_was_active(result.fallback_active);
-        config.save();
+    if prev == result.fallback_active {
+        return;
     }
+    let Some(overlay) = find_toast_overlay(window) else {
+        return;
+    };
+    let toast = if result.fallback_active {
+        adw::Toast::new(&tr(
+            "Prayer times are calculated at a substituted latitude.",
+        ))
+    } else {
+        adw::Toast::new(&tr(
+            "Prayer times are now calculated at your actual latitude.",
+        ))
+    };
+    toast.set_timeout(0);
+    overlay.add_toast(toast);
+    config.set_fallback_was_active(result.fallback_active);
+    config.save();
 }
 
 pub(crate) fn update_lre_toast(

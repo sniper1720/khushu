@@ -176,13 +176,14 @@ pub(crate) const SUPPORTED_LANGUAGES: [&str; 6] = ["ar", "en", "fr", "es", "tr",
 /// modifier (`@latin`), and `":…"` path suffixes are stripped. Region and underscores
 /// are preserved on purpose — ICU region-aware lookups (country/timezone names) rely on them.
 pub fn resolved_locale(language: &str) -> String {
-    let raw = if language == "auto" || language.is_empty() {
+    let raw_locale = if language == "auto" || language.is_empty() {
         detect_system_locale()
     } else {
         language.to_string()
     };
 
-    raw.trim()
+    raw_locale
+        .trim()
         .split(':')
         .next()
         .unwrap_or_default()
@@ -280,9 +281,9 @@ fn update_locale_internal(language: &str) {
     bind_domains(language);
 
     if let Some(lock) = CURRENT_APP_LOCALE.get()
-        && let Ok(mut cur) = lock.write()
+        && let Ok(mut current_locale) = lock.write()
     {
-        *cur = language.to_string();
+        *current_locale = language.to_string();
     }
 
     crate::background::update_tray_labels();

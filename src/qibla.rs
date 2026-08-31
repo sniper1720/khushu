@@ -137,7 +137,7 @@ impl CompassManager {
 
             let heading_cb = heading;
             let epoch_cb = epoch;
-            let sub = conn.subscribe_to_signal(
+            let subscription = conn.subscribe_to_signal(
                 Some("net.hadess.SensorProxy"),
                 Some("org.freedesktop.DBus.Properties"),
                 Some("PropertiesChanged"),
@@ -151,10 +151,10 @@ impl CompassManager {
                     if let Ok(mut heading_guard) = heading_cb.lock() {
                         let changed = signal_ref.parameters.child_value(1);
                         let dict = glib::VariantDict::new(Some(&changed));
-                        if let Some(val) = dict.lookup_value("CompassHeading", None)
-                            && let Some(h) = val.get::<f64>()
+                        if let Some(variant) = dict.lookup_value("CompassHeading", None)
+                            && let Some(heading) = variant.get::<f64>()
                         {
-                            *heading_guard = h;
+                            *heading_guard = heading;
                         }
                     }
                 },
@@ -162,7 +162,7 @@ impl CompassManager {
 
             *subscription_guard
                 .lock()
-                .expect("compass subscription lock") = Some(sub);
+                .expect("compass subscription lock") = Some(subscription);
         });
     }
 

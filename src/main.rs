@@ -355,7 +355,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
 
     let hero = pages_context.hero_label.clone();
     let hijri = pages_context.hijri_label.clone();
-    let loc = pages_context.location_label.clone();
+    let location_label = pages_context.location_label.clone();
     let list_box = pages_context.list_box.clone();
     let stop_btn = gtk::Button::from_icon_name("media-playback-stop-symbolic");
     stop_btn.add_css_class("flat");
@@ -385,7 +385,7 @@ fn build_main_ui(app: &Application, config: AppConfig) {
         }
         hero.set_label(&hero_text);
         hijri.set_label(&hijri_text);
-        loc.set_label(&location_text);
+        location_label.set_label(&location_text);
 
         if stop_btn_rc.parent().is_some() {
             stop_btn_rc.unparent();

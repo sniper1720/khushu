@@ -15,7 +15,7 @@ gtk4 = { version = "0.11", features = ["v4_10"] }
 ksni = "0.3"
 libadwaita = { version = "0.9", features = ["v1_5"] }
 rodio = "0.22"
-mawaqit = "0.2"
+mawaqit = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["rt", "macros", "rt-multi-thread"] }

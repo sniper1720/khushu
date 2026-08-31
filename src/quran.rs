@@ -1748,14 +1748,17 @@ fn build_recitation_toolbar(
     let prev_btn = gtk::Button::new();
     prev_btn.set_icon_name("media-skip-backward-symbolic");
     prev_btn.add_css_class("flat");
+    prev_btn.set_tooltip_text(Some(&tr("Previous Verse")));
 
     let play_btn = gtk::Button::new();
     play_btn.set_icon_name("media-playback-start-symbolic");
     play_btn.add_css_class("flat");
+    play_btn.set_tooltip_text(Some(&tr("Play")));
 
     let next_btn = gtk::Button::new();
     next_btn.set_icon_name("media-skip-forward-symbolic");
     next_btn.add_css_class("flat");
+    next_btn.set_tooltip_text(Some(&tr("Next Verse")));
 
     let sync_nav = {
         let rec_state_c = rec_state.clone();
@@ -1800,6 +1803,7 @@ fn build_recitation_toolbar(
     reciter_box.append(&reciter_label);
     let reciter_btn = gtk::Button::new();
     reciter_btn.set_child(Some(&reciter_box));
+    reciter_btn.set_tooltip_text(Some(&tr("Choose Reciter")));
     let dialog_btn = reciter_btn.clone();
     let dialog_cfg = config.clone();
     reciter_btn.connect_clicked(move |_| {
@@ -2006,12 +2010,12 @@ pub fn create_surah_view(
         title_box.append(&surah_title);
 
         if !meta.surah_type.trim().is_empty() {
-            let typ = if meta.surah_type.trim().eq_ignore_ascii_case("meccan") {
+            let surah_type = if meta.surah_type.trim().eq_ignore_ascii_case("meccan") {
                 tr("Meccan")
             } else {
                 tr("Medinan")
             };
-            let type_label = gtk::Label::new(Some(&typ));
+            let type_label = gtk::Label::new(Some(&surah_type));
             type_label.add_css_class("caption");
             apply_quran_meta_font(&type_label, "ar");
             type_label.set_margin_bottom(6);
@@ -2042,12 +2046,12 @@ pub fn create_surah_view(
             sub_parts.push(meta.transliteration.trim().to_string());
         }
         if !meta.surah_type.trim().is_empty() {
-            let typ = if meta.surah_type.trim().eq_ignore_ascii_case("meccan") {
+            let surah_type = if meta.surah_type.trim().eq_ignore_ascii_case("meccan") {
                 tr("Meccan")
             } else {
                 tr("Medinan")
             };
-            sub_parts.push(typ);
+            sub_parts.push(surah_type);
         }
 
         if !sub_parts.is_empty() {
@@ -2083,22 +2087,22 @@ pub fn create_surah_view(
     typography_btn.add_css_class("flat");
     typography_btn.set_tooltip_text(Some(&tr("Typography Options")));
 
-    let typo_popover = gtk::Popover::new();
-    let typo_outer = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    typo_outer.set_margin_start(4);
-    typo_outer.set_margin_end(4);
-    typo_outer.set_margin_top(8);
-    typo_outer.set_margin_bottom(12);
+    let typography_popover = gtk::Popover::new();
+    let typography_outer = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    typography_outer.set_margin_start(4);
+    typography_outer.set_margin_end(4);
+    typography_outer.set_margin_top(8);
+    typography_outer.set_margin_bottom(12);
 
-    let typo_group = adw::PreferencesGroup::builder()
+    let typography_group = adw::PreferencesGroup::builder()
         .title(tr("Reading Display"))
         .build();
-    typo_outer.append(&typo_group);
+    typography_outer.append(&typography_group);
 
-    let config_typo = AppConfig::load();
+    let config_typography = AppConfig::load();
 
-    let arabic_adj = gtk::Adjustment::new(
-        config_typo.quran_arabic_font_px(),
+    let arabic_font_adjustment = gtk::Adjustment::new(
+        config_typography.quran_arabic_font_px(),
         16.0,
         40.0,
         1.0,
@@ -2108,20 +2112,20 @@ pub fn create_surah_view(
     let arabic_spin = adw::SpinRow::builder()
         .title(tr("Arabic Font Size"))
         .subtitle(tr("Size in pixels (16–40)"))
-        .adjustment(&arabic_adj)
+        .adjustment(&arabic_font_adjustment)
         .digits(0)
         .build();
-    typo_group.add(&arabic_spin);
+    typography_group.add(&arabic_spin);
 
     let config_for_arabic = config.clone();
-    arabic_adj.connect_value_changed(move |adj| {
-        config_for_arabic.set_quran_arabic_font_px(adj.value());
+    arabic_font_adjustment.connect_value_changed(move |adjustment| {
+        config_for_arabic.set_quran_arabic_font_px(adjustment.value());
         config_for_arabic.save();
         crate::apply_font_css(&config_for_arabic);
     });
 
-    let trans_adj = gtk::Adjustment::new(
-        config_typo.quran_translation_font_px(),
+    let translation_font_adjustment = gtk::Adjustment::new(
+        config_typography.quran_translation_font_px(),
         10.0,
         28.0,
         1.0,
@@ -2131,30 +2135,37 @@ pub fn create_surah_view(
     let trans_spin = adw::SpinRow::builder()
         .title(tr("Translation Font Size"))
         .subtitle(tr("Size in pixels (10–28)"))
-        .adjustment(&trans_adj)
+        .adjustment(&translation_font_adjustment)
         .digits(0)
         .build();
-    typo_group.add(&trans_spin);
+    typography_group.add(&trans_spin);
 
     let config_for_trans = config.clone();
-    trans_adj.connect_value_changed(move |adj| {
-        config_for_trans.set_quran_translation_font_px(adj.value());
+    translation_font_adjustment.connect_value_changed(move |adjustment| {
+        config_for_trans.set_quran_translation_font_px(adjustment.value());
         config_for_trans.save();
         crate::apply_font_css(&config_for_trans);
     });
 
-    let lh_adj = gtk::Adjustment::new(config_typo.quran_line_height(), 1.0, 3.0, 0.1, 0.0, 0.0);
+    let line_height_adjustment = gtk::Adjustment::new(
+        config_typography.quran_line_height(),
+        1.0,
+        3.0,
+        0.1,
+        0.0,
+        0.0,
+    );
     let lh_spin = adw::SpinRow::builder()
         .title(tr("Line Spacing"))
         .subtitle(tr("Multiplier (1.0–3.0)"))
-        .adjustment(&lh_adj)
+        .adjustment(&line_height_adjustment)
         .digits(1)
         .build();
-    typo_group.add(&lh_spin);
+    typography_group.add(&lh_spin);
 
     let config_for_lh = config.clone();
-    lh_adj.connect_value_changed(move |adj| {
-        config_for_lh.set_quran_line_height(adj.value());
+    line_height_adjustment.connect_value_changed(move |adjustment| {
+        config_for_lh.set_quran_line_height(adjustment.value());
         config_for_lh.save();
         crate::apply_font_css(&config_for_lh);
     });
@@ -2165,35 +2176,35 @@ pub fn create_surah_view(
         .activatable(true)
         .build();
     fonts_link_row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
-    let popover_for_fonts_link = typo_popover.clone();
+    let popover_for_fonts_link = typography_popover.clone();
     fonts_link_row.connect_activated(move |_| {
         popover_for_fonts_link.popdown();
         crate::settings_ui::open_fonts_settings();
     });
-    typo_group.add(&fonts_link_row);
+    typography_group.add(&fonts_link_row);
 
     let reset_btn = gtk::Button::with_label(&tr("Reset to Default"));
     reset_btn.set_margin_top(8);
     reset_btn.set_margin_start(4);
     reset_btn.set_margin_end(4);
-    let arabic_adj_reset = arabic_adj.clone();
-    let trans_adj_reset = trans_adj.clone();
-    let lh_adj_reset = lh_adj.clone();
+    let arabic_font_adjustment_reset = arabic_font_adjustment.clone();
+    let translation_font_adjustment_reset = translation_font_adjustment.clone();
+    let line_height_adjustment_reset = line_height_adjustment.clone();
     let config_for_reset = config.clone();
     reset_btn.connect_clicked(move |_| {
-        arabic_adj_reset.set_value(22.0);
-        trans_adj_reset.set_value(14.0);
-        lh_adj_reset.set_value(1.0);
+        arabic_font_adjustment_reset.set_value(22.0);
+        translation_font_adjustment_reset.set_value(14.0);
+        line_height_adjustment_reset.set_value(1.0);
         config_for_reset.set_quran_arabic_font_px(22.0);
         config_for_reset.set_quran_translation_font_px(14.0);
         config_for_reset.set_quran_line_height(1.0);
         config_for_reset.save();
         crate::apply_font_css(&config_for_reset);
     });
-    typo_outer.append(&reset_btn);
+    typography_outer.append(&reset_btn);
 
-    typo_popover.set_child(Some(&typo_outer));
-    typography_btn.set_popover(Some(&typo_popover));
+    typography_popover.set_child(Some(&typography_outer));
+    typography_btn.set_popover(Some(&typography_popover));
 
     let header_actions = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     header_actions.set_valign(gtk::Align::Center);
@@ -2346,12 +2357,13 @@ pub fn create_surah_view(
                         header_box.append(&arabic_label);
 
                         if !meta.surah_type.trim().is_empty() {
-                            let typ = if meta.surah_type.trim().eq_ignore_ascii_case("meccan") {
-                                tr("Meccan")
-                            } else {
-                                tr("Medinan")
-                            };
-                            let type_label = gtk::Label::new(Some(&typ));
+                            let surah_type =
+                                if meta.surah_type.trim().eq_ignore_ascii_case("meccan") {
+                                    tr("Meccan")
+                                } else {
+                                    tr("Medinan")
+                                };
+                            let type_label = gtk::Label::new(Some(&surah_type));
                             type_label.set_wrap(true);
                             type_label.set_xalign(0.5);
                             apply_quran_meta_font(&type_label, "ar");
@@ -2489,12 +2501,13 @@ pub fn create_surah_view(
                         }
 
                         if !meta.surah_type.trim().is_empty() {
-                            let typ = if meta.surah_type.trim().eq_ignore_ascii_case("meccan") {
-                                tr("Meccan")
-                            } else {
-                                tr("Medinan")
-                            };
-                            let type_label = gtk::Label::new(Some(&typ));
+                            let surah_type =
+                                if meta.surah_type.trim().eq_ignore_ascii_case("meccan") {
+                                    tr("Meccan")
+                                } else {
+                                    tr("Medinan")
+                                };
+                            let type_label = gtk::Label::new(Some(&surah_type));
                             type_label.set_wrap(true);
                             type_label.set_xalign(0.5);
                             type_label.add_css_class("caption");
@@ -2684,9 +2697,9 @@ pub fn create_surah_view(
                     if let Some((_, y)) =
                         target.translate_coordinates(&content_for_scroll, 0.0, 0.0)
                     {
-                        let adj = tick_scrolled.vadjustment();
-                        let max = (adj.upper() - adj.page_size()).max(0.0);
-                        adj.set_value((y - 24.0).clamp(0.0, max));
+                        let adjustment = tick_scrolled.vadjustment();
+                        let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
+                        adjustment.set_value((y - 24.0).clamp(0.0, max));
                     }
                     glib::ControlFlow::Break
                 } else {
@@ -2697,9 +2710,9 @@ pub fn create_surah_view(
                         if let Some((_, y)) =
                             target_c.translate_coordinates(&content_for_scroll_c, 0.0, 0.0)
                         {
-                            let adj = tick_scrolled_c.vadjustment();
-                            let max = (adj.upper() - adj.page_size()).max(0.0);
-                            adj.set_value((y - 24.0).clamp(0.0, max));
+                            let adjustment = tick_scrolled_c.vadjustment();
+                            let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
+                            adjustment.set_value((y - 24.0).clamp(0.0, max));
                         }
                         glib::ControlFlow::Break
                     });
@@ -2741,9 +2754,9 @@ pub fn create_surah_view(
                             label.translate_coordinates(&content_widget, 0.0, 0.0)
                         {
                             let y_pixels = label_y + rect.y() as f64 / f64::from(gtk::pango::SCALE);
-                            let adj = tick_scrolled.vadjustment();
-                            let max = (adj.upper() - adj.page_size()).max(0.0);
-                            adj.set_value((y_pixels - 24.0).clamp(0.0, max));
+                            let adjustment = tick_scrolled.vadjustment();
+                            let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
+                            adjustment.set_value((y_pixels - 24.0).clamp(0.0, max));
                         }
                         glib::ControlFlow::Break
                     } else {
@@ -2758,9 +2771,9 @@ pub fn create_surah_view(
                             {
                                 let y_pixels =
                                     label_y + rect.y() as f64 / f64::from(gtk::pango::SCALE);
-                                let adj = tick_scrolled_c.vadjustment();
-                                let max = (adj.upper() - adj.page_size()).max(0.0);
-                                adj.set_value((y_pixels - 24.0).clamp(0.0, max));
+                                let adjustment = tick_scrolled_c.vadjustment();
+                                let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
+                                adjustment.set_value((y_pixels - 24.0).clamp(0.0, max));
                             }
                             glib::ControlFlow::Break
                         });
@@ -2981,7 +2994,7 @@ pub fn create_surah_view(
                 };
                 rebuild_header_title.set_text(&name);
                 if let Some(ref extra) = rebuild_header_extra {
-                    let typ = if surah_meta_info
+                    let surah_type = if surah_meta_info
                         .surah_type
                         .trim()
                         .eq_ignore_ascii_case("meccan")
@@ -2990,7 +3003,7 @@ pub fn create_surah_view(
                     } else {
                         tr("Medinan")
                     };
-                    extra.set_text(&typ);
+                    extra.set_text(&surah_type);
                 }
             } else {
                 let name = if !surah_meta_info.translated.trim().is_empty() {
@@ -3007,7 +3020,7 @@ pub fn create_surah_view(
                         sub_parts.push(surah_meta_info.transliteration.trim().to_string());
                     }
                     if !surah_meta_info.surah_type.trim().is_empty() {
-                        let typ = if surah_meta_info
+                        let surah_type = if surah_meta_info
                             .surah_type
                             .trim()
                             .eq_ignore_ascii_case("meccan")
@@ -3016,7 +3029,7 @@ pub fn create_surah_view(
                         } else {
                             tr("Medinan")
                         };
-                        sub_parts.push(typ);
+                        sub_parts.push(surah_type);
                     }
                     extra.set_text(&sub_parts.join(" • "));
                 }
@@ -3149,11 +3162,13 @@ pub fn create_surah_view(
             if !is_reciting {
                 callback_rec_state.borrow().playing.set(false);
             }
+            let play_tooltip = if is_reciting { tr("Pause") } else { tr("Play") };
             play_btn.set_icon_name(if is_reciting {
                 "media-playback-pause-symbolic"
             } else {
                 "media-playback-start-symbolic"
             });
+            play_btn.set_tooltip_text(Some(&play_tooltip));
             sync_nav_play_state();
         })
     };
@@ -3387,8 +3402,8 @@ pub fn create_surah_view(
         if let Some(ref rebuild) = *rebuild_fn_for_start.borrow() {
             rebuild();
         }
-        let adj = scrolled_for_start.vadjustment();
-        adj.set_value(0.0);
+        let adjustment = scrolled_for_start.vadjustment();
+        adjustment.set_value(0.0);
     });
 
     let current_page_for_bm = current_page.clone();

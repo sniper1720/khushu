@@ -18,8 +18,8 @@ fn client() -> &'static Client {
     })
 }
 
-fn normalize_mawaqit_url(raw: &str) -> Result<String, String> {
-    let trimmed = raw.trim();
+fn normalize_mawaqit_url(raw_url: &str) -> Result<String, String> {
+    let trimmed = raw_url.trim();
     if trimmed.is_empty() {
         return Err("Invalid Mawaqit URL".to_string());
     }

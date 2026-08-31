@@ -43,8 +43,6 @@ pub struct PrayerResult {
 pub struct PrayerEngine {
     params: Parameters,
     location: Coordinates,
-    polar: mawaqit::PolarFallback,
-    madhab: Madhab,
     high_latitude: HighLatitudeChoice,
 }
 
@@ -88,10 +86,10 @@ impl PrayerEngine {
             params.isha_angle = 18.0;
         }
 
-        params.polar_fallback = match polar {
-            PolarEstimationMethod::NearestLatitude => mawaqit::PolarFallback::NearestLatitude,
-            PolarEstimationMethod::Reference45 => mawaqit::PolarFallback::Reference45,
-        };
+        params.polar_estimation = Some(match polar {
+            PolarEstimationMethod::NearestLatitude => mawaqit::PolarEstimation::NearestLatitude,
+            PolarEstimationMethod::Reference45 => mawaqit::PolarEstimation::Reference45,
+        });
 
         params.high_latitude_rule = match high_latitude {
             HighLatitudeChoice::Auto => mawaqit::HighLatitudeRule::Recommended,
@@ -106,23 +104,11 @@ impl PrayerEngine {
         Self {
             params,
             location,
-            polar: params.polar_fallback,
-            madhab: mawaqit_madhab,
             high_latitude: high_latitude.clone(),
         }
     }
 
     pub fn get_prayer_times(&self, date: NaiveDate) -> Result<PrayerResult, &'static str> {
-        let date_utc = Utc
-            .with_ymd_and_hms(date.year(), date.month(), date.day(), 0, 0, 0)
-            .single()
-            .ok_or("failed to create UTC date")?;
-        let resolved = self
-            .polar
-            .resolve_latitude(date_utc, self.location, self.madhab)
-            .unwrap_or(self.location.latitude);
-        let fallback_active = (resolved - self.location.latitude).abs() > 0.001;
-
         let (times, lre_blocked) = match PrayerTimes::try_new(date, self.location, self.params) {
             Ok(prayer_times) => (prayer_times, false),
             Err(_)
@@ -137,6 +123,13 @@ impl PrayerEngine {
             }
             Err(err) => return Err(err),
         };
+
+        // reference_latitude() already folds in any substitution mawaqit used,
+        // be it a polar-estimation walk or Moonsighting Committee's Zone C
+        // anchor/walk, plus any lre_blocked retry. We trust the library's final
+        // answer rather than re-deriving a substitution ourselves, so the
+        // indicator stays honest for every method.
+        let fallback_active = (times.reference_latitude() - self.location.latitude).abs() > 0.001;
 
         Ok(PrayerResult {
             schedule: self.schedule_from_times(times),
@@ -162,9 +155,9 @@ impl PrayerEngine {
 }
 
 fn parse_hm(text: &str) -> Option<(u32, u32)> {
-    let mut it = text.split(':');
-    let hours = it.next()?.parse::<u32>().ok()?;
-    let minutes = it.next()?.parse::<u32>().ok()?;
+    let mut parts = text.split(':');
+    let hours = parts.next()?.parse::<u32>().ok()?;
+    let minutes = parts.next()?.parse::<u32>().ok()?;
     if hours > 23 || minutes > 59 {
         return None;
     }
@@ -611,6 +604,32 @@ mod tests {
             mwl_t.fajr.format("%H:%M").to_string(),
             egypt_t.fajr.format("%H:%M").to_string(),
             "MWL and Egypt Fajr should differ"
+        );
+    }
+
+    #[test]
+    fn moonsighting_committee_high_latitude_reports_fallback_active() {
+        // Hammerfest in perpetual night (|lat| > 60°): Moonsighting
+        // Committee walks to the nearest working latitude, so the
+        // schedule's reference latitude differs from the true one. The
+        // fallback indicator must reflect that substitution via
+        // reference_latitude(), not a manual polar-estimation pre-pass
+        // (which cannot see the committee's own Zone C rules).
+        let date = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        let (high_latitude_rule, prayer_params) = default_params();
+        let engine = PrayerEngine::new(
+            70.66,
+            23.68,
+            &CalculationMethod::MoonsightingCommittee,
+            &MadhabChoice::Shafi,
+            &high_latitude_rule,
+            &prayer_params,
+        );
+
+        let result = engine.get_prayer_times(date).unwrap();
+        assert!(
+            result.fallback_active,
+            "MC high-latitude substitution must be reported as a fallback"
         );
     }
 }

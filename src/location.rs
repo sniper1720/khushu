@@ -535,7 +535,7 @@ async fn fetch_portal_location(language: &str) -> Result<(f64, f64, String), Str
 
     let timeout = gtk4::glib::timeout_future_seconds(10);
     let location = match futures_util::future::select(timeout, stream.next()).await {
-        Either::Right((Some(loc), _)) => loc,
+        Either::Right((Some(location), _)) => location,
         Either::Right((None, _)) => {
             let _ = session.close().await;
             log::error!("Location stream ended unexpectedly");

@@ -195,7 +195,8 @@ impl Default for StoredLocation {
 
 /// Config schema version, distinct from the app version.
 /// `0` = files written before versioning; bump this to migrate old files once.
-/// `2` = per-mode location stores (the shared lat/long/city become a mirror).
+/// `2` = per-mode location stores (the active store is the single source of truth;
+/// legacy flat lat/long/city are dropped on rewrite).
 pub const CONFIG_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -203,13 +204,19 @@ pub struct AppConfigData {
     /// Schema version; `0` when absent (legacy files).
     #[serde(default)]
     pub schema_version: u32,
+    /// Legacy pre-v2 shared coordinates, kept as read-only inputs for the v1->v2
+    /// migration. Never written to disk (`skip_serializing`); removed once no
+    /// v1-era file is expected.
+    #[serde(default, skip_serializing)]
     pub latitude: f64,
+    #[serde(default, skip_serializing)]
     pub longitude: f64,
+    #[serde(default, skip_serializing)]
+    pub city_name: Option<String>,
     pub method: CalculationMethod,
     pub madhab: MadhabChoice,
     pub location_mode: LocationMode,
-    pub city_name: Option<String>,
-    /// Per-mode location stores; the shared lat/long/city mirror the active one.
+    /// Per-mode location stores; the active one is the single source of truth.
     #[serde(default)]
     pub city_search: StoredLocation,
     #[serde(default)]
@@ -495,9 +502,10 @@ fn migrate(data: &mut AppConfigData) -> bool {
     data.quran_bookmark_surah_number = None;
     data.quran_bookmark_page = None;
 
-    // v1 → v2: the single global lat/long/city become a mirror of the active
-    // mode's store; seed that mode's store from the legacy shared values so
-    // existing users keep their configured coordinates.
+    // v1 → v2: the single global lat/long/city become the per-mode stores; seed
+    // the active mode's store from the legacy shared values so existing users
+    // keep their configured coordinates. The legacy flat fields are marked
+    // `skip_serializing`, so the rewritten v2 file drops them from disk.
     if data.schema_version < 2 {
         let active = match data.location_mode {
             LocationMode::City => &mut data.city_search,
@@ -536,61 +544,43 @@ impl AppConfig {
     /// The live location value exposed as the single `location` GObject
     /// property. Read it instead of the per-field conveniences in new code.
     pub fn location(&self) -> StoredLocation {
-        let data = self.imp().data.borrow();
-        StoredLocation {
-            latitude: data.latitude,
-            longitude: data.longitude,
-            city_name: data.city_name.clone(),
-        }
+        self.active_location()
     }
     pub fn set_location(&self, state: StoredLocation) {
         let mut data = self.imp().data.borrow_mut();
-        let active = Self::active_mut(&mut data);
-        active.latitude = state.latitude;
-        active.longitude = state.longitude;
-        active.city_name = state.city_name.clone();
-        data.latitude = state.latitude;
-        data.longitude = state.longitude;
-        data.city_name = state.city_name;
+        *Self::active_location_mut(&mut data) = state;
         drop(data);
         self.notify("location");
     }
-
     pub fn latitude(&self) -> f64 {
-        self.imp().data.borrow().latitude
+        self.location().latitude
     }
     pub fn set_latitude(&self, latitude: f64) {
-        if (self.latitude() - latitude).abs() > 1e-10 {
-            let mut data = self.imp().data.borrow_mut();
-            Self::active_mut(&mut data).latitude = latitude;
-            data.latitude = latitude;
-            drop(data);
-            self.notify("location");
+        let mut state = self.location();
+        if (state.latitude - latitude).abs() > 1e-10 {
+            state.latitude = latitude;
+            self.set_location(state);
         }
     }
 
     pub fn longitude(&self) -> f64 {
-        self.imp().data.borrow().longitude
+        self.location().longitude
     }
     pub fn set_longitude(&self, longitude: f64) {
-        if (self.longitude() - longitude).abs() > 1e-10 {
-            let mut data = self.imp().data.borrow_mut();
-            Self::active_mut(&mut data).longitude = longitude;
-            data.longitude = longitude;
-            drop(data);
-            self.notify("location");
+        let mut state = self.location();
+        if (state.longitude - longitude).abs() > 1e-10 {
+            state.longitude = longitude;
+            self.set_location(state);
         }
     }
 
     pub fn city_name(&self) -> Option<String> {
-        self.imp().data.borrow().city_name.clone()
+        self.location().city_name
     }
     pub fn set_city_name(&self, city_name: Option<String>) {
-        let mut data = self.imp().data.borrow_mut();
-        Self::active_mut(&mut data).city_name = city_name.clone();
-        data.city_name = city_name;
-        drop(data);
-        self.notify("location");
+        let mut state = self.location();
+        state.city_name = city_name;
+        self.set_location(state);
     }
 
     /// The coordinates stored for the active location mode.
@@ -603,22 +593,12 @@ impl AppConfig {
         }
     }
 
-    fn active_mut(data: &mut AppConfigData) -> &mut StoredLocation {
+    fn active_location_mut(data: &mut AppConfigData) -> &mut StoredLocation {
         match data.location_mode {
             LocationMode::City => &mut data.city_search,
             LocationMode::Auto => &mut data.location_auto,
             LocationMode::Manual => &mut data.manual_location,
         }
-    }
-
-    /// Mirrors a mode's store into the shared properties and notifies readers.
-    fn apply_active_location(&self, state: StoredLocation) {
-        let mut data = self.imp().data.borrow_mut();
-        data.latitude = state.latitude;
-        data.longitude = state.longitude;
-        data.city_name = state.city_name;
-        drop(data);
-        self.notify("location");
     }
 
     pub fn method(&self) -> CalculationMethod {
@@ -653,7 +633,10 @@ impl AppConfig {
             }
         };
         self.imp().data.borrow_mut().location_mode = location_mode;
-        self.apply_active_location(state);
+        let mut data = self.imp().data.borrow_mut();
+        *Self::active_location_mut(&mut data) = state;
+        drop(data);
+        self.notify("location");
         self.notify("location-mode");
     }
 
@@ -1025,15 +1008,15 @@ mod tests {
     #[test]
     fn test_default_config_location() {
         let config = AppConfigData::default();
-        assert_eq!(config.latitude, 36.75);
-        assert_eq!(config.longitude, 3.05);
+        assert_eq!(config.manual_location.latitude, 36.75);
+        assert_eq!(config.manual_location.longitude, 3.05);
         assert_eq!(config.location_mode, LocationMode::Manual);
     }
 
     #[test]
-    fn setter_routes_writes_to_active_mode_store_and_mirror() {
+    fn setter_routes_writes_to_active_mode_store() {
         let config = AppConfig::default();
-        // Default mode is Manual; setters write to the manual store and mirror.
+        // Default mode is Manual; setters write to the manual store.
         config.set_latitude(41.0);
         config.set_longitude(29.0);
         config.set_city_name(Some("Istanbul".into()));
@@ -1154,6 +1137,21 @@ mod tests {
         assert_eq!(config.manual_location.longitude, 2.3522);
         assert_eq!(config.manual_location.city_name.as_deref(), Some("Paris"));
         assert_eq!(config.city_search.latitude, 36.75);
+
+        // The rewritten v2 file must drop the legacy flat fields from disk.
+        let rewritten = serde_json::to_value(&config).unwrap();
+        assert!(
+            rewritten.get("latitude").is_none(),
+            "v2 must not serialize the legacy flat latitude"
+        );
+        assert!(
+            rewritten.get("longitude").is_none(),
+            "v2 must not serialize the legacy flat longitude"
+        );
+        assert!(
+            rewritten.get("city_name").is_none(),
+            "v2 must not serialize the legacy flat city_name"
+        );
     }
 
     #[test]

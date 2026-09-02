@@ -61,6 +61,53 @@ where
     })
 }
 
+/// Every `AppConfig` property name whose change should trigger a view refresh.
+/// Views subscribe via [`connect_to_properties`]; the set is declared here once
+/// instead of being re-listed per view.
+pub(crate) const CONFIG_REFRESH_PROPERTIES: &[&str] = &[
+    "location",
+    "language",
+    "prayer-times-source",
+    "method",
+    "madhab",
+    "timezone-mode",
+];
+
+/// The subset of `CONFIG_REFRESH_PROPERTIES` that changes the raw prayer-angle
+/// engine itself. A change here must rebuild the `PrayerEngine`; the remaining
+/// refresh properties only need the schedule/label layer recomputed.
+///
+/// `location` is a single token covering the whole location triad, so a
+/// city-label-only change is treated as engine-invalidating too. That is
+/// accepted: a pure label rename wasting one cheap engine rebuild is benign,
+/// and it is the inherent cost of collapsing three per-field properties into
+/// one. If a future feature needs lat-only / long-only / city-only reactivity,
+/// split `location` back into per-field properties and reintroduce flags to
+/// coalesce the burst.
+pub(crate) const ENGINE_INVALIDATING_PROPERTIES: &[&str] = &["location", "method", "madhab"];
+
+/// Subscribes `callback` to each property name in `properties`.
+///
+/// Wraps `connect_notify_blocked` so the reactive property set is declared in
+/// one place per call site rather than hand-listed in each view. Returns the
+/// handler ids so a caller that needs to disconnect (for example on teardown)
+/// can do so; callers that keep the target for the app lifetime can ignore it.
+pub(crate) fn connect_to_properties(
+    target: &AppConfig,
+    properties: &[&str],
+    callback: impl Fn() + 'static + Clone,
+) -> Vec<gtk::glib::SignalHandlerId> {
+    properties
+        .iter()
+        .map(|&property| {
+            connect_notify_blocked(target, Some(property), {
+                let callback = callback.clone();
+                move |_, _| callback()
+            })
+        })
+        .collect()
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::init();

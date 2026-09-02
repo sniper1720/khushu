@@ -1,4 +1,4 @@
-use crate::config::{MawaqitCache, TimeFormat};
+use crate::config::{AppConfig, LocationMode, PrayerTimesSource, TimeFormat};
 use crate::i18n::{icu_locale_key, tr};
 use chrono::{Datelike, Timelike};
 use icu::calendar::{Date, Gregorian};
@@ -216,7 +216,7 @@ pub fn localized_time_zone_label(timezone: &str, language: &str) -> String {
 }
 
 fn localize_iana_root(root: &str, language: &str) -> Option<String> {
-    // IANA roots without UN M.49 region codes — expose to xgettext
+    // IANA roots without UN M.49 region codes (expose to xgettext)
     if false {
         tr("Atlantic Ocean");
         tr("Indian Ocean");
@@ -315,6 +315,36 @@ fn fallback_time_only(
     match time_format {
         TimeFormat::Auto | TimeFormat::Hours24 => datetime.format("%H:%M").to_string(),
         TimeFormat::Hours12 => datetime.format("%I:%M %p").to_string(),
+    }
+}
+
+/// Formats a Mawaqit-published "HH:MM" wall-clock string for display.
+///
+/// The mosque schedule is its local wall-clock, so the published string is
+/// shown directly, converted only for the 12/24-hour preference. This keeps
+/// the label identical to what the mosque publishes regardless of the system
+/// timezone.
+pub fn format_published_time(published: &str, time_format: TimeFormat) -> String {
+    let (hours, minutes) = match published.split_once(':').and_then(|(hours, minutes)| {
+        let hours = hours.trim().parse::<u32>().ok()?;
+        let minutes = minutes.trim().parse::<u32>().ok()?;
+        Some((hours, minutes))
+    }) {
+        Some(parsed) => parsed,
+        None => return published.to_string(),
+    };
+
+    match time_format {
+        TimeFormat::Auto | TimeFormat::Hours24 => format!("{hours:02}:{minutes:02}"),
+        TimeFormat::Hours12 => {
+            let (display_hour, period) = match hours {
+                0 => (12, "AM"),
+                12 => (12, "PM"),
+                hour if hour > 12 => (hour - 12, "PM"),
+                hour => (hour, "AM"),
+            };
+            format!("{display_hour:02}:{minutes:02} {period}")
+        }
     }
 }
 
@@ -426,63 +456,57 @@ pub fn localized_time(datetime: chrono::DateTime<chrono_tz::Tz>, language: &str)
     })
 }
 
-pub fn mawaqit_fallback_city_name(
-    mosque_name: Option<&str>,
-    timezone: Option<&str>,
-) -> Option<String> {
-    mosque_name
-        .and_then(|name| name.rsplit_once(" - ").map(|(_, city)| city))
+pub fn display_city_label(city_name: Option<&str>, language: &str) -> Option<String> {
+    city_name
         .and_then(non_empty_text)
-        .or_else(|| {
-            timezone
-                .and_then(|timezone_value| {
-                    timezone_value
-                        .rsplit_once('/')
-                        .map(|(_, city)| city.replace('_', " "))
-                })
-                .and_then(|city| non_empty_text(&city))
-        })
+        .map(|city| append_country(short_city_with_country(&city), None, language))
 }
 
-pub fn localized_mawaqit_city_name(
-    current_city_name: Option<&str>,
-    timezone: Option<&str>,
-    mosque_name: Option<&str>,
-    language: &str,
-) -> Option<String> {
-    timezone
-        .and_then(|timezone_value| city_name_from_time_zone(timezone_value, language))
-        .or_else(|| current_city_name.and_then(non_empty_text))
-        .or_else(|| mawaqit_fallback_city_name(mosque_name, timezone))
-}
-
-pub fn display_city_label(
-    city_name: Option<&str>,
-    mawaqit_cache: Option<&MawaqitCache>,
-    language: &str,
-) -> Option<String> {
-    let city = if let Some(cache) = mawaqit_cache {
-        localized_mawaqit_city_name(
-            city_name,
-            cache.timezone.as_deref(),
-            cache.mosque_name.as_deref(),
-            language,
-        )
-    } else {
-        city_name.and_then(non_empty_text)
-    }?;
-
-    let mut text = short_city_with_country(&city);
-    if let Some(cache) = mawaqit_cache
-        && let Some(code) = cache.country_code.as_deref()
+fn append_country(city: String, country_code: Option<&str>, language: &str) -> String {
+    let mut text = city;
+    if let Some(code) = country_code
         && !text.contains(',')
         && let Some(country) = country_name_from_code(code, language)
         && !country.is_empty()
     {
         text = format!("{}, {}", text, country);
     }
+    text
+}
 
-    Some(text)
+/// Produces the single authoritative location line used across the app.
+///
+/// Connected Mosque (Mawaqit): the mosque name, else the reverse-geocoded
+/// resolved city (plus country), else the coordinates. Manual mode and any
+/// missing data fall back to the coordinates.
+pub fn display_location_label(config: &AppConfig, language: &str) -> String {
+    let coordinates = format_coordinates(config.latitude(), config.longitude());
+
+    if config.prayer_times_source() == PrayerTimesSource::Mawaqit {
+        if let Some(cache) = config.mawaqit_cache() {
+            if let Some(name) = non_empty_text(cache.mosque_name.as_deref().unwrap_or("")) {
+                return append_country(
+                    short_city_with_country(&name),
+                    cache.country_code.as_deref(),
+                    language,
+                );
+            }
+            if let Some(city) = non_empty_text(cache.resolved_city.as_deref().unwrap_or("")) {
+                return append_country(
+                    short_city_with_country(&city),
+                    cache.country_code.as_deref(),
+                    language,
+                );
+            }
+        }
+        return coordinates;
+    }
+
+    if config.location_mode() == LocationMode::Manual {
+        return coordinates;
+    }
+
+    display_city_label(config.city_name().as_deref(), language).unwrap_or(coordinates)
 }
 
 use ashpd::desktop::location::{Accuracy, CreateSessionOptions, LocationProxy};
@@ -500,6 +524,15 @@ pub async fn resolve_city_name(
     reverse_geocode(latitude, longitude, language)
         .await
         .map(|name| short_city_with_country(&name))
+}
+
+/// Resolves the locality for a Mawaqit cache at fetch time.
+///
+/// Populates `MawaqitCache.resolved_city` from the mosque coordinates via the
+/// Nominatim resolver; a failure yields `None` and the display falls back to
+/// the mosque name or coordinates rather than the stored city.
+pub async fn resolve_mawaqit_city(latitude: f64, longitude: f64, language: &str) -> Option<String> {
+    resolve_city_name(latitude, longitude, language).await.ok()
 }
 
 async fn fetch_portal_location(language: &str) -> Result<(f64, f64, String), String> {
@@ -706,6 +739,7 @@ pub async fn search_city(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::MawaqitCache;
 
     fn empty_cache() -> MawaqitCache {
         MawaqitCache {
@@ -715,6 +749,7 @@ mod tests {
             latitude: None,
             longitude: None,
             country_code: None,
+            resolved_city: None,
             year: 2026,
             months: Vec::new(),
             fetched_on: String::new(),
@@ -725,15 +760,6 @@ mod tests {
     fn localizes_city_from_icu_time_zone_data() {
         assert_eq!(
             city_name_from_time_zone("Europe/Vienna", "de").as_deref(),
-            Some("Wien")
-        );
-    }
-
-    #[test]
-    fn localized_mawaqit_city_prefers_icu_over_stored_city() {
-        assert_eq!(
-            localized_mawaqit_city_name(Some("Vienna"), Some("Europe/Vienna"), None, "de")
-                .as_deref(),
             Some("Wien")
         );
     }
@@ -802,14 +828,93 @@ mod tests {
     }
 
     #[test]
-    fn display_city_label_appends_country_for_mawaqit() {
+    fn display_location_label_prefers_mosque_name_for_mawaqit() {
+        let config = crate::config::AppConfig::default();
+        config.set_prayer_times_source(crate::config::PrayerTimesSource::Mawaqit);
         let mut cache = empty_cache();
-        cache.timezone = Some("Europe/Vienna".to_string());
+        cache.mosque_name = Some("Masjid Al-Noor - Vienna".to_string());
         cache.country_code = Some("AT".to_string());
+        config.set_mawaqit_cache(Some(cache));
 
+        let label = display_location_label(&config, "en");
         assert_eq!(
-            display_city_label(None, Some(&cache), "en").as_deref(),
-            Some("Vienna, Austria")
+            label, "Masjid Al-Noor - Vienna, Austria",
+            "mosque name should lead, got: {label}"
+        );
+    }
+
+    #[test]
+    fn display_location_label_uses_resolved_city_when_mosque_name_absent() {
+        let config = crate::config::AppConfig::default();
+        config.set_prayer_times_source(crate::config::PrayerTimesSource::Mawaqit);
+        let mut cache = empty_cache();
+        cache.mosque_name = None;
+        cache.resolved_city = Some("Vienna".to_string());
+        cache.country_code = Some("AT".to_string());
+        config.set_mawaqit_cache(Some(cache));
+
+        assert!(display_location_label(&config, "en").contains("Vienna, Austria"));
+    }
+
+    #[test]
+    fn display_location_label_falls_back_to_coordinates_for_mawaqit_without_data() {
+        let config = crate::config::AppConfig::default();
+        config.set_prayer_times_source(crate::config::PrayerTimesSource::Mawaqit);
+        config.set_latitude(48.2);
+        config.set_longitude(16.3);
+
+        assert_eq!(display_location_label(&config, "en"), "48.20°N, 16.30°E");
+    }
+
+    #[test]
+    fn display_location_label_uses_coordinates_in_manual_mode() {
+        let config = crate::config::AppConfig::default();
+        config.set_location_mode(crate::config::LocationMode::Manual);
+        config.set_latitude(-33.86);
+        config.set_longitude(151.2);
+
+        assert_eq!(display_location_label(&config, "en"), "33.86°S, 151.20°E");
+    }
+
+    #[test]
+    fn display_location_label_uses_stored_city_in_city_mode() {
+        let config = crate::config::AppConfig::default();
+        config.set_location_mode(crate::config::LocationMode::City);
+        config.set_city_name(Some("Sydney, Australia".to_string()));
+
+        assert_eq!(display_location_label(&config, "en"), "Sydney, Australia");
+    }
+
+    #[test]
+    fn display_city_label_returns_stored_city() {
+        assert_eq!(
+            display_city_label(Some("Sydney, Australia"), "en").as_deref(),
+            Some("Sydney, Australia")
+        );
+    }
+
+    #[test]
+    fn format_published_time_formats_both_clock_styles() {
+        assert_eq!(format_published_time("03:03", TimeFormat::Hours24), "03:03");
+        assert_eq!(
+            format_published_time("03:03", TimeFormat::Hours12),
+            "03:03 AM"
+        );
+        assert_eq!(
+            format_published_time("17:00", TimeFormat::Hours12),
+            "05:00 PM"
+        );
+        assert_eq!(
+            format_published_time("12:15", TimeFormat::Hours12),
+            "12:15 PM"
+        );
+        assert_eq!(
+            format_published_time("00:05", TimeFormat::Hours12),
+            "12:05 AM"
+        );
+        assert_eq!(
+            format_published_time("malformed", TimeFormat::Hours24),
+            "malformed"
         );
     }
 }

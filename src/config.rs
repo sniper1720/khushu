@@ -164,6 +164,8 @@ pub struct MawaqitCache {
     pub longitude: Option<f64>,
     #[serde(default)]
     pub country_code: Option<String>,
+    #[serde(default)]
+    pub resolved_city: Option<String>,
     pub year: i32,
     #[serde(default)]
     pub months: Vec<std::collections::BTreeMap<u32, [String; 6]>>,
@@ -171,9 +173,30 @@ pub struct MawaqitCache {
     pub fetched_on: String,
 }
 
+/// A location mode's stored coordinates and optional city label.
+/// `Default` yields the app's default coordinates with no city.
+#[derive(glib::Boxed, Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[boxed_type(name = "KhushuStoredLocation")]
+pub struct StoredLocation {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub city_name: Option<String>,
+}
+
+impl Default for StoredLocation {
+    fn default() -> Self {
+        Self {
+            latitude: 36.75,
+            longitude: 3.05,
+            city_name: None,
+        }
+    }
+}
+
 /// Config schema version, distinct from the app version.
 /// `0` = files written before versioning; bump this to migrate old files once.
-pub const CONFIG_SCHEMA_VERSION: u32 = 1;
+/// `2` = per-mode location stores (the shared lat/long/city become a mirror).
+pub const CONFIG_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppConfigData {
@@ -186,6 +209,13 @@ pub struct AppConfigData {
     pub madhab: MadhabChoice,
     pub location_mode: LocationMode,
     pub city_name: Option<String>,
+    /// Per-mode location stores; the shared lat/long/city mirror the active one.
+    #[serde(default)]
+    pub city_search: StoredLocation,
+    #[serde(default)]
+    pub location_auto: StoredLocation,
+    #[serde(default)]
+    pub manual_location: StoredLocation,
     pub adhan_sound_path: Option<String>,
     pub pre_prayer_notify: bool,
     pub pre_prayer_minutes: u32,
@@ -210,7 +240,7 @@ pub struct AppConfigData {
     pub adhan_muted: bool,
     #[serde(default = "default_autostart")]
     pub autostart: bool,
-    // Migrated from v0 single-bookmark fields — serde reads these via alias to migrate
+    // Migrated from v0 single-bookmark fields: serde reads these via alias to migrate
     // into quran_bookmarks. Can be removed once all users are on schema version >= 1.
     #[serde(
         default,
@@ -279,6 +309,9 @@ impl Default for AppConfigData {
             madhab: MadhabChoice::Shafi,
             location_mode: LocationMode::Manual,
             city_name: None,
+            city_search: StoredLocation::default(),
+            location_auto: StoredLocation::default(),
+            manual_location: StoredLocation::default(),
             adhan_sound_path: None,
             pre_prayer_notify: true,
             pre_prayer_minutes: 15,
@@ -373,17 +406,8 @@ mod imp {
         fn properties() -> &'static [glib::ParamSpec] {
             static PROPERTIES: LazyLock<Vec<glib::ParamSpec>> = LazyLock::new(|| {
                 vec![
-                    glib::ParamSpecDouble::builder("latitude")
-                        .nick("Latitude")
-                        .minimum(-90.0)
-                        .maximum(90.0)
-                        .default_value(36.75)
-                        .build(),
-                    glib::ParamSpecDouble::builder("longitude")
-                        .nick("Longitude")
-                        .minimum(-180.0)
-                        .maximum(180.0)
-                        .default_value(3.05)
+                    glib::ParamSpecBoxed::builder::<StoredLocation>("location")
+                        .nick("Location")
                         .build(),
                     glib::ParamSpecString::builder("method")
                         .nick("Calculation Method")
@@ -395,10 +419,6 @@ mod imp {
                         .build(),
                     glib::ParamSpecString::builder("language")
                         .nick("Language")
-                        .read_only()
-                        .build(),
-                    glib::ParamSpecString::builder("city-name")
-                        .nick("City Name")
                         .read_only()
                         .build(),
                     glib::ParamSpecString::builder("prayer-times-source")
@@ -421,12 +441,10 @@ mod imp {
         fn property(&self, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
             let obj = self.obj();
             match pspec.name() {
-                "latitude" => obj.latitude().to_value(),
-                "longitude" => obj.longitude().to_value(),
+                "location" => obj.location().to_value(),
                 "method" => format!("{:?}", obj.method()).to_value(),
                 "madhab" => format!("{:?}", obj.madhab()).to_value(),
                 "language" => obj.language().to_value(),
-                "city-name" => obj.city_name().to_value(),
                 "prayer-times-source" => format!("{:?}", obj.prayer_times_source()).to_value(),
                 "timezone-mode" => format!("{:?}", obj.timezone_mode()).to_value(),
                 "location-mode" => format!("{:?}", obj.location_mode()).to_value(),
@@ -437,8 +455,7 @@ mod imp {
         fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
             let obj = self.obj();
             match pspec.name() {
-                "latitude" => obj.set_latitude(value.get().expect("latitude param value")),
-                "longitude" => obj.set_longitude(value.get().expect("longitude param value")),
+                "location" => obj.set_location(value.get().expect("location param value")),
                 _ => unimplemented!("set_property {:?}", pspec.name()),
             }
         }
@@ -478,6 +495,20 @@ fn migrate(data: &mut AppConfigData) -> bool {
     data.quran_bookmark_surah_number = None;
     data.quran_bookmark_page = None;
 
+    // v1 → v2: the single global lat/long/city become a mirror of the active
+    // mode's store; seed that mode's store from the legacy shared values so
+    // existing users keep their configured coordinates.
+    if data.schema_version < 2 {
+        let active = match data.location_mode {
+            LocationMode::City => &mut data.city_search,
+            LocationMode::Auto => &mut data.location_auto,
+            LocationMode::Manual => &mut data.manual_location,
+        };
+        active.latitude = data.latitude;
+        active.longitude = data.longitude;
+        active.city_name = data.city_name.clone();
+    }
+
     data.schema_version = CONFIG_SCHEMA_VERSION;
     true
 }
@@ -502,13 +533,39 @@ impl AppConfig {
         self.imp().data.borrow_mut().theme = theme;
     }
 
+    /// The live location value exposed as the single `location` GObject
+    /// property. Read it instead of the per-field conveniences in new code.
+    pub fn location(&self) -> StoredLocation {
+        let data = self.imp().data.borrow();
+        StoredLocation {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            city_name: data.city_name.clone(),
+        }
+    }
+    pub fn set_location(&self, state: StoredLocation) {
+        let mut data = self.imp().data.borrow_mut();
+        let active = Self::active_mut(&mut data);
+        active.latitude = state.latitude;
+        active.longitude = state.longitude;
+        active.city_name = state.city_name.clone();
+        data.latitude = state.latitude;
+        data.longitude = state.longitude;
+        data.city_name = state.city_name;
+        drop(data);
+        self.notify("location");
+    }
+
     pub fn latitude(&self) -> f64 {
         self.imp().data.borrow().latitude
     }
     pub fn set_latitude(&self, latitude: f64) {
         if (self.latitude() - latitude).abs() > 1e-10 {
-            self.imp().data.borrow_mut().latitude = latitude;
-            self.notify("latitude");
+            let mut data = self.imp().data.borrow_mut();
+            Self::active_mut(&mut data).latitude = latitude;
+            data.latitude = latitude;
+            drop(data);
+            self.notify("location");
         }
     }
 
@@ -517,8 +574,11 @@ impl AppConfig {
     }
     pub fn set_longitude(&self, longitude: f64) {
         if (self.longitude() - longitude).abs() > 1e-10 {
-            self.imp().data.borrow_mut().longitude = longitude;
-            self.notify("longitude");
+            let mut data = self.imp().data.borrow_mut();
+            Self::active_mut(&mut data).longitude = longitude;
+            data.longitude = longitude;
+            drop(data);
+            self.notify("location");
         }
     }
 
@@ -526,8 +586,39 @@ impl AppConfig {
         self.imp().data.borrow().city_name.clone()
     }
     pub fn set_city_name(&self, city_name: Option<String>) {
-        self.imp().data.borrow_mut().city_name = city_name;
-        self.notify("city-name");
+        let mut data = self.imp().data.borrow_mut();
+        Self::active_mut(&mut data).city_name = city_name.clone();
+        data.city_name = city_name;
+        drop(data);
+        self.notify("location");
+    }
+
+    /// The coordinates stored for the active location mode.
+    pub fn active_location(&self) -> StoredLocation {
+        let data = self.imp().data.borrow();
+        match data.location_mode {
+            LocationMode::City => data.city_search.clone(),
+            LocationMode::Auto => data.location_auto.clone(),
+            LocationMode::Manual => data.manual_location.clone(),
+        }
+    }
+
+    fn active_mut(data: &mut AppConfigData) -> &mut StoredLocation {
+        match data.location_mode {
+            LocationMode::City => &mut data.city_search,
+            LocationMode::Auto => &mut data.location_auto,
+            LocationMode::Manual => &mut data.manual_location,
+        }
+    }
+
+    /// Mirrors a mode's store into the shared properties and notifies readers.
+    fn apply_active_location(&self, state: StoredLocation) {
+        let mut data = self.imp().data.borrow_mut();
+        data.latitude = state.latitude;
+        data.longitude = state.longitude;
+        data.city_name = state.city_name;
+        drop(data);
+        self.notify("location");
     }
 
     pub fn method(&self) -> CalculationMethod {
@@ -550,10 +641,20 @@ impl AppConfig {
         self.imp().data.borrow().location_mode.clone()
     }
     pub fn set_location_mode(&self, location_mode: LocationMode) {
-        if self.location_mode() != location_mode {
-            self.imp().data.borrow_mut().location_mode = location_mode;
-            self.notify("location-mode");
+        if self.location_mode() == location_mode {
+            return;
         }
+        let state = {
+            let data = self.imp().data.borrow();
+            match location_mode {
+                LocationMode::City => data.city_search.clone(),
+                LocationMode::Auto => data.location_auto.clone(),
+                LocationMode::Manual => data.manual_location.clone(),
+            }
+        };
+        self.imp().data.borrow_mut().location_mode = location_mode;
+        self.apply_active_location(state);
+        self.notify("location-mode");
     }
 
     pub fn adhan_sound_path(&self) -> Option<String> {
@@ -903,6 +1004,7 @@ impl AppConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::rc::Rc;
 
     #[test]
     fn test_default_config_font_families() {
@@ -926,6 +1028,132 @@ mod tests {
         assert_eq!(config.latitude, 36.75);
         assert_eq!(config.longitude, 3.05);
         assert_eq!(config.location_mode, LocationMode::Manual);
+    }
+
+    #[test]
+    fn setter_routes_writes_to_active_mode_store_and_mirror() {
+        let config = AppConfig::default();
+        // Default mode is Manual; setters write to the manual store and mirror.
+        config.set_latitude(41.0);
+        config.set_longitude(29.0);
+        config.set_city_name(Some("Istanbul".into()));
+        assert_eq!(config.latitude(), 41.0);
+        assert_eq!(config.active_location().latitude, 41.0);
+        assert_eq!(
+            config.active_location().city_name.as_deref(),
+            Some("Istanbul")
+        );
+
+        // Switching to City restores that mode's own store, not Manual's values.
+        config.set_location_mode(LocationMode::City);
+        assert_eq!(config.latitude(), 36.75);
+        config.set_city_name(Some("Ankara".into()));
+        assert_eq!(
+            config.active_location().city_name.as_deref(),
+            Some("Ankara")
+        );
+
+        // Switching back to Manual must retain Istanbul (independent stores).
+        config.set_location_mode(LocationMode::Manual);
+        assert_eq!(config.latitude(), 41.0);
+        assert_eq!(config.city_name().as_deref(), Some("Istanbul"));
+        assert_eq!(
+            config.active_location().city_name.as_deref(),
+            Some("Istanbul")
+        );
+    }
+
+    #[test]
+    fn auto_fetch_does_not_clobber_city_mode_store() {
+        let config = AppConfig::default();
+        config.set_location_mode(LocationMode::City);
+        config.set_city_name(Some("Ankara".into()));
+        config.set_latitude(39.9);
+        config.set_longitude(32.8);
+
+        // An Auto-mode GPS resolution writes only to the auto store.
+        config.set_location_mode(LocationMode::Auto);
+        config.set_latitude(40.0);
+        config.set_longitude(32.9);
+        config.set_city_name(Some("Ankara Auto".into()));
+
+        config.set_location_mode(LocationMode::City);
+        assert_eq!(config.city_name().as_deref(), Some("Ankara"));
+        assert_eq!(config.latitude(), 39.9);
+        assert_eq!(
+            config.active_location().city_name.as_deref(),
+            Some("Ankara")
+        );
+    }
+
+    #[test]
+    fn setter_fires_single_location_notify() {
+        let config = AppConfig::default();
+        let location_notifies = Rc::new(RefCell::new(0u32));
+        config.connect_notify_local(Some("location"), {
+            let location_notifies = location_notifies.clone();
+            move |_, _| *location_notifies.borrow_mut() += 1
+        });
+
+        config.set_latitude(41.0);
+        config.set_longitude(29.0);
+        config.set_city_name(Some("Istanbul".into()));
+
+        assert_eq!(*location_notifies.borrow(), 3);
+    }
+
+    #[test]
+    fn location_mode_switch_fires_location_and_location_mode_notifies() {
+        let config = AppConfig::default();
+        let location_notifies = Rc::new(RefCell::new(0u32));
+        let mode_notifies = Rc::new(RefCell::new(0u32));
+        config.connect_notify_local(Some("location"), {
+            let location_notifies = location_notifies.clone();
+            move |_, _| *location_notifies.borrow_mut() += 1
+        });
+        config.connect_notify_local(Some("location-mode"), {
+            let mode_notifies = mode_notifies.clone();
+            move |_, _| *mode_notifies.borrow_mut() += 1
+        });
+
+        // Give the City mode a distinct location first.
+        config.set_location_mode(LocationMode::City);
+        config.set_latitude(39.9);
+        config.set_longitude(32.8);
+        config.set_city_name(Some("Ankara".into()));
+
+        // Switch back to Manual: `apply_active_location` fires `location`,
+        // then the setter fires `location-mode`.
+        *location_notifies.borrow_mut() = 0;
+        *mode_notifies.borrow_mut() = 0;
+        config.set_location_mode(LocationMode::Manual);
+
+        assert_eq!(*location_notifies.borrow(), 1);
+        assert_eq!(*mode_notifies.borrow(), 1);
+    }
+
+    #[test]
+    fn v1_to_v2_migration_seeds_active_mode_store_from_shared_fields() {
+        let json = serde_json::json!({
+            "schema_version": 1,
+            "latitude": 48.8566,
+            "longitude": 2.3522,
+            "city_name": "Paris",
+            "method": "MWL",
+            "madhab": "Shafi",
+            "location_mode": "Manual",
+            "pre_prayer_notify": true,
+            "pre_prayer_minutes": 15,
+            "hijri_offset": 0,
+        });
+        let mut config: AppConfigData = serde_json::from_value(json).unwrap();
+        assert_eq!(config.schema_version, 1);
+        assert!(migrate(&mut config));
+        assert_eq!(config.schema_version, CONFIG_SCHEMA_VERSION);
+        assert_eq!(config.manual_location.latitude, 48.8566);
+        assert_eq!(config.manual_location.longitude, 2.3522);
+        assert_eq!(config.manual_location.city_name.as_deref(), Some("Paris"));
+        assert_eq!(config.city_search.latitude, 36.75);
     }
 
     #[test]

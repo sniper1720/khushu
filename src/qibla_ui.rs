@@ -153,71 +153,43 @@ impl QiblaPage {
             self.anim_source_id.clone(),
         );
 
-        let cached_bearing_latitude = self.cached_bearing.clone();
-        let current_rotation_latitude = self.current_rotation.clone();
-        let target_rotation_latitude = self.target_rotation.clone();
-        let drawing_area_latitude = self.drawing_area.clone();
-        let bearing_label_latitude = self.bearing_label.clone();
-        let status_label_latitude = self.status_label.clone();
-        let anim_c_latitude = self.anim_source_id.clone();
-        let compass_latitude = self.compass.clone();
-        let latitude_notify_id =
-            crate::connect_notify_blocked(&self.config, Some("latitude"), move |config, _| {
-                if let Some(active_anim_id) = anim_c_latitude.borrow_mut().take() {
-                    active_anim_id.remove();
-                }
+        let config_listening = self.config.clone();
+        let cached_bearing_listening = self.cached_bearing.clone();
+        let current_rotation_listening = self.current_rotation.clone();
+        let target_rotation_listening = self.target_rotation.clone();
+        let drawing_area_listening = self.drawing_area.clone();
+        let bearing_label_listening = self.bearing_label.clone();
+        let status_label_listening = self.status_label.clone();
+        let anim_listening = self.anim_source_id.clone();
+        let compass_listening = self.compass.clone();
+        let listen_to_config = move || {
+            if let Some(active_anim_id) = anim_listening.borrow_mut().take() {
+                active_anim_id.remove();
+            }
 
-                *cached_bearing_latitude.borrow_mut() = None;
-                let bearing_now = compute_bearing(config, &cached_bearing_latitude);
+            *cached_bearing_listening.borrow_mut() = None;
+            let bearing_now = compute_bearing(&config_listening, &cached_bearing_listening);
 
-                let compass_rotation = if compass_latitude.is_available() {
-                    let heading = compass_latitude.get_heading();
-                    (bearing_now - heading + 360.0) % 360.0
-                } else {
-                    bearing_now
-                };
+            let compass_rotation = if compass_listening.is_available() {
+                let heading = compass_listening.get_heading();
+                (bearing_now - heading + 360.0) % 360.0
+            } else {
+                bearing_now
+            };
 
-                *target_rotation_latitude.borrow_mut() = compass_rotation;
-                *current_rotation_latitude.borrow_mut() = compass_rotation;
+            *target_rotation_listening.borrow_mut() = compass_rotation;
+            *current_rotation_listening.borrow_mut() = compass_rotation;
 
-                bearing_label_latitude.set_label(&bearing_label_text(bearing_now));
-                status_label_latitude.set_label(&status_text(compass_latitude.is_available()));
-                drawing_area_latitude.queue_draw();
-            });
-        self.notify_ids.borrow_mut().push(latitude_notify_id);
-
-        let cached_bearing_longitude = self.cached_bearing.clone();
-        let current_rotation_longitude = self.current_rotation.clone();
-        let target_rotation_longitude = self.target_rotation.clone();
-        let drawing_area_longitude = self.drawing_area.clone();
-        let bearing_label_longitude = self.bearing_label.clone();
-        let status_label_longitude = self.status_label.clone();
-        let anim_c_longitude = self.anim_source_id.clone();
-        let compass_longitude = self.compass.clone();
-        let longitude_notify_id =
-            crate::connect_notify_blocked(&self.config, Some("longitude"), move |config, _| {
-                if let Some(active_anim_id) = anim_c_longitude.borrow_mut().take() {
-                    active_anim_id.remove();
-                }
-
-                *cached_bearing_longitude.borrow_mut() = None;
-                let bearing_now = compute_bearing(config, &cached_bearing_longitude);
-
-                let compass_rotation = if compass_longitude.is_available() {
-                    let heading = compass_longitude.get_heading();
-                    (bearing_now - heading + 360.0) % 360.0
-                } else {
-                    bearing_now
-                };
-
-                *target_rotation_longitude.borrow_mut() = compass_rotation;
-                *current_rotation_longitude.borrow_mut() = compass_rotation;
-
-                bearing_label_longitude.set_label(&bearing_label_text(bearing_now));
-                status_label_longitude.set_label(&status_text(compass_longitude.is_available()));
-                drawing_area_longitude.queue_draw();
-            });
-        self.notify_ids.borrow_mut().push(longitude_notify_id);
+            bearing_label_listening.set_label(&bearing_label_text(bearing_now));
+            status_label_listening.set_label(&status_text(compass_listening.is_available()));
+            drawing_area_listening.queue_draw();
+        };
+        let listening_ids = crate::connect_to_properties(
+            &self.config,
+            crate::CONFIG_REFRESH_PROPERTIES,
+            listen_to_config,
+        );
+        self.notify_ids.borrow_mut().extend(listening_ids);
 
         let compass_poll = self.compass.clone();
         let config_for_compass_poll = self.config.clone();
@@ -479,7 +451,7 @@ pub fn create_qibla_page(config: AppConfig, compass_manager: Rc<CompassManager>)
 
 fn get_cardinal(bearing: f64) -> &'static str {
     let directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-    // DIRECTIONS: Cardinal directions — expose to xgettext
+    // DIRECTIONS: Cardinal directions (expose to xgettext)
     if false {
         tr("N");
         tr("NE");

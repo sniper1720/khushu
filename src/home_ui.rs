@@ -26,30 +26,11 @@ pub fn refresh_home_ui(
     let hijri_text = crate::time::format_hijri_date(now, config.hijri_offset());
     hijri_label.set_label(&hijri_text);
 
-    let mawaqit_cache = if config.prayer_times_source() == crate::config::PrayerTimesSource::Mawaqit
-    {
-        config.mawaqit_cache()
+    let text = location::display_location_label(config, language);
+    location_label.set_label(&text);
+    if contains_arabic(&text) {
+        location_label.add_css_class("arabic-text");
     } else {
-        None
-    };
-
-    if let Some(text) = location::display_city_label(
-        config.city_name().as_deref(),
-        mawaqit_cache.as_ref(),
-        language,
-    ) {
-        location_label.set_label(&text);
-        if contains_arabic(&text) {
-            location_label.add_css_class("arabic-text");
-        } else {
-            location_label.remove_css_class("arabic-text");
-        }
-    } else {
-        location_label.set_label(&format!(
-            "{:.2}, {:.2}",
-            config.latitude(),
-            config.longitude()
-        ));
         location_label.remove_css_class("arabic-text");
     }
 }

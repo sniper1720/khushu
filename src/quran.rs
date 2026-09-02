@@ -545,7 +545,7 @@ fn is_arabic_ignorable(character: char) -> bool {
         0x06E5 | 0x06E6 |
         // Extended Arabic marks (found in some Uthmani fonts)
         0x08D3..=0x08FF |
-        // Arabic presentation forms — combining marks
+        // Arabic presentation forms: combining marks
         0xFE70..=0xFE7F
     )
 }
@@ -566,7 +566,7 @@ fn is_arabic_query(query: &str) -> bool {
 fn normalize_arabic_char(character: char) -> char {
     match character {
         // Alef variants → plain Alef  (أ إ آ ٱ ٲ ٳ → ا)
-        // U+0670 = Superscript Alef (dagger alef) — represents a pronounced alef in Uthmani
+        // U+0670 = Superscript Alef (dagger alef): represents a pronounced alef in Uthmani
         '\u{0622}' | '\u{0623}' | '\u{0625}' | '\u{0670}' | '\u{0671}' | '\u{0672}'
         | '\u{0673}' => '\u{0627}',
         // Alef Maqsura → Yaa  (ى → ي)

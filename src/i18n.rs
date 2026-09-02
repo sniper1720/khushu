@@ -174,7 +174,7 @@ pub(crate) const SUPPORTED_LANGUAGES: [&str; 6] = ["ar", "en", "fr", "es", "tr",
 /// Resolves a stored locale value to its plain language+region form: `"auto"`/empty
 /// falls back to the detected system locale, and POSIX charset (`.UTF-8`), Unicode
 /// modifier (`@latin`), and `":…"` path suffixes are stripped. Region and underscores
-/// are preserved on purpose — ICU region-aware lookups (country/timezone names) rely on them.
+/// are preserved on purpose; ICU region-aware lookups (country/timezone names) rely on them.
 pub fn resolved_locale(language: &str) -> String {
     let raw_locale = if language == "auto" || language.is_empty() {
         detect_system_locale()
@@ -331,7 +331,7 @@ mod tests {
         let locale_dir = get_locale_dir();
         assert!(
             std::path::Path::new(&locale_dir).exists(),
-            "MO files must exist at {locale_dir} — build with `cargo build` first"
+            "MO files must exist at {locale_dir}: build with `cargo build` first"
         );
 
         let _ = bindtextdomain("khushu", &locale_dir);
@@ -355,7 +355,7 @@ mod tests {
 
         assert_ne!(
             fr, ar,
-            "French ({fr}) and Arabic ({ar}) must differ — gettext caching bug!"
+            "French ({fr}) and Arabic ({ar}) must differ: gettext caching bug!"
         );
 
         set_locale_env("fr");

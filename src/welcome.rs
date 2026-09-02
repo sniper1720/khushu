@@ -157,7 +157,7 @@ where
         gtk::StringList::new(&["Manual Coordinates", "City Selection", "Auto (GPS/Network)"]);
 
     let mode_row = ComboRow::builder()
-        .title("Location Method")
+        .title("Location Mode")
         .model(&modes)
         .build();
 
@@ -407,7 +407,7 @@ where
             );
 
             location_group_c.set_title(&tr("Location Settings"));
-            mode_row_c.set_title(&tr("Location Method"));
+            mode_row_c.set_title(&tr("Location Mode"));
             modes_c.splice(
                 0,
                 3,

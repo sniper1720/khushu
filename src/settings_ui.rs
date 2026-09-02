@@ -2,6 +2,8 @@ use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use chrono::Datelike;
+
 use adw::prelude::*;
 use adw::{ComboRow, PreferencesGroup};
 use gtk::glib::WeakRef;
@@ -316,6 +318,7 @@ pub struct SettingsUiParams<'a> {
 pub struct SettingsUiContext {
     pub config: AppConfig,
     pub current_language: Rc<RefCell<String>>,
+    pub sync_lock: Rc<std::cell::Cell<bool>>,
 
     pub general_heading: gtk::Label,
     pub general_desc: gtk::Label,
@@ -393,6 +396,93 @@ pub struct SettingsUiContext {
     pub test_audio_button: Button,
 }
 
+impl SettingsUiContext {
+    /// Re-renders the Location Mode group and syncs the mode and timezone
+    /// rows from the config. Under Connected Mosque the Location Mode group
+    /// is hidden and the timezone rows show the effective mosque timezone
+    /// disabled; the user's stored mode and timezone are never overwritten.
+    /// Selection sets are guarded by `sync_lock` so the handlers do not
+    /// re-enter and mutate config.
+    fn sync_location_and_timezone(&self, language: &str) {
+        let config = &self.config;
+        let is_mawaqit = config.prayer_times_source() == crate::config::PrayerTimesSource::Mawaqit;
+        let mode = config.location_mode();
+
+        self.sync_lock.set(true);
+
+        self.mode_row.set_visible(!is_mawaqit);
+        self.latitude_row
+            .set_visible(!is_mawaqit && mode == LocationMode::Manual);
+        self.longitude_row
+            .set_visible(!is_mawaqit && mode == LocationMode::Manual);
+        self.city_row
+            .set_visible(!is_mawaqit && mode == LocationMode::City);
+        self.auto_row
+            .set_visible(!is_mawaqit && mode == LocationMode::Auto);
+        if is_mawaqit {
+            self.status_row.set_visible(false);
+        }
+        if !is_mawaqit {
+            self.mode_row.set_selected(match mode {
+                LocationMode::Manual => 0,
+                LocationMode::City => 1,
+                LocationMode::Auto => 2,
+            });
+            if mode == LocationMode::Manual {
+                let latitude = config.latitude();
+                let longitude = config.longitude();
+                if (self.latitude_row.adjustment().value() - latitude).abs() > 1e-4 {
+                    self.latitude_row.adjustment().set_value(latitude);
+                }
+                if (self.longitude_row.adjustment().value() - longitude).abs() > 1e-4 {
+                    self.longitude_row.adjustment().set_value(longitude);
+                }
+            } else if mode == LocationMode::Auto {
+                let auto_mode_city = config.active_location().city_name;
+                let subtitle = auto_mode_city
+                    .as_deref()
+                    .filter(|name| !name.is_empty())
+                    .map(location::short_city_with_country)
+                    .unwrap_or_default();
+                if self.auto_row.subtitle().as_deref() != Some(subtitle.as_str()) {
+                    self.auto_row.set_subtitle(&subtitle);
+                }
+            }
+        }
+
+        let effective = crate::time::effective_timezone(config);
+        match &effective {
+            TimezoneMode::Auto => {
+                self.timezone_mode_row.set_selected(0);
+                self.timezone_named_row.set_visible(false);
+                self.timezone_offset_row.set_visible(false);
+            }
+            TimezoneMode::Named(name) => {
+                self.timezone_mode_row.set_selected(1);
+                self.timezone_named_row.set_visible(true);
+                self.timezone_offset_row.set_visible(false);
+                let label = location::localized_time_zone_label(name, language);
+                self.timezone_named_row.set_subtitle(&if label.is_empty() {
+                    name.clone()
+                } else {
+                    label
+                });
+            }
+            TimezoneMode::UtcOffset(_) => {
+                self.timezone_mode_row.set_selected(2);
+                self.timezone_named_row.set_visible(false);
+                self.timezone_offset_row.set_visible(true);
+            }
+        }
+
+        self.timezone_mode_row.set_sensitive(!is_mawaqit);
+        self.timezone_named_row.set_sensitive(!is_mawaqit);
+        self.timezone_offset_row.set_sensitive(!is_mawaqit);
+
+        self.sync_lock.set(false);
+    }
+}
+
 pub fn setup_settings_ui<'a>(
     params: SettingsUiParams<'a>,
 ) -> (adw::ComboRow, Rc<RefCell<SettingsUiContext>>) {
@@ -406,6 +496,23 @@ pub fn setup_settings_ui<'a>(
         refresh_calendar,
     } = params;
     let selected_language = current_language.borrow().clone();
+
+    // Guard against handler re-entry while the UI is programmatically synced,
+    // so setting a combo selection never mutates config.
+    let sync_lock = Rc::new(std::cell::Cell::new(false));
+    // Late-bound so the internal handlers can trigger a full location/timezone
+    // sync once the context exists.
+    let ctx_slot: Rc<RefCell<Option<Rc<RefCell<SettingsUiContext>>>>> = Rc::new(RefCell::new(None));
+    let sync_closure_current_language = current_language.clone();
+    let trigger_sync_closures = ctx_slot.clone();
+    let trigger_sync = Rc::new(move || {
+        if let Some(ctx) = trigger_sync_closures.borrow().as_ref() {
+            let language = sync_closure_current_language.borrow().clone();
+            ctx.borrow().sync_location_and_timezone(&language);
+        }
+    });
+    let trigger_sync_for_source = trigger_sync.clone();
+    let trigger_sync_for_fetch = trigger_sync.clone();
 
     let (general_heading, general_desc) = append_settings_section_heading(
         settings_box,
@@ -625,7 +732,7 @@ pub fn setup_settings_ui<'a>(
     let modes_slices: Vec<&str> = modes_strings.iter().map(|item| item.as_str()).collect();
     let modes = StringList::new(&modes_slices);
     let mode_row = ComboRow::builder()
-        .title(tr("Location Method"))
+        .title(tr("Location Mode"))
         .model(&modes)
         .build();
 
@@ -652,9 +759,13 @@ pub fn setup_settings_ui<'a>(
     let config_latitude = config.clone();
     let list_box_latitude = list_box_rc.clone();
     let window_latitude = window.clone();
+    let sync_lock_latitude = sync_lock.clone();
     latitude_row
         .adjustment()
         .connect_value_changed(move |adjustment| {
+            if sync_lock_latitude.get() {
+                return;
+            }
             let latitude = adjustment.value();
             config_latitude.set_latitude(latitude);
             config_latitude.save();
@@ -680,9 +791,13 @@ pub fn setup_settings_ui<'a>(
     let config_longitude = config.clone();
     let list_box_longitude = list_box_rc.clone();
     let window_longitude = window.clone();
+    let sync_lock_longitude = sync_lock.clone();
     longitude_row
         .adjustment()
         .connect_value_changed(move |adjustment| {
+            if sync_lock_longitude.get() {
+                return;
+            }
             let longitude = adjustment.value();
             config_longitude.set_longitude(longitude);
             config_longitude.save();
@@ -704,16 +819,7 @@ pub fn setup_settings_ui<'a>(
 
     if config.location_mode() == LocationMode::City {
         let city_name = config.city_name();
-        let mawaqit_cache = if config.prayer_times_source() == PrayerTimesSource::Mawaqit {
-            config.mawaqit_cache()
-        } else {
-            None
-        };
-        if let Some(text) = location::display_city_label(
-            city_name.as_deref(),
-            mawaqit_cache.as_ref(),
-            &selected_language,
-        ) {
+        if let Some(text) = location::display_city_label(city_name.as_deref(), &selected_language) {
             city_row.set_text(&text);
         }
     }
@@ -778,7 +884,7 @@ pub fn setup_settings_ui<'a>(
     let auto_row = adw::ActionRow::builder()
         .title(tr("Auto Detection"))
         .build();
-    if let Some(name) = &config.city_name() {
+    if let Some(name) = &config.active_location().city_name {
         auto_row.set_subtitle(&location::short_city_with_country(name));
     }
     let auto_button = Button::with_label(&tr("Update Now"));
@@ -902,7 +1008,11 @@ pub fn setup_settings_ui<'a>(
     let status_for_source = mawaqit_status_row.clone();
     let refresh_button_for_source = refresh_button.clone();
     let window_for_source = window.clone();
+    let sync_lock_for_source = sync_lock.clone();
     source_row.connect_selected_notify(move |row| {
+        if sync_lock_for_source.get() {
+            return;
+        }
         let show = row.selected() == 1;
         config_for_source.set_prayer_times_source(if show {
             crate::config::PrayerTimesSource::Mawaqit
@@ -914,6 +1024,7 @@ pub fn setup_settings_ui<'a>(
         auto_row_for_source.set_visible(show);
         status_for_source.set_visible(show);
         refresh_button_for_source.set_visible(show);
+        trigger_sync_for_source();
         if let Some(result) = refresh_prayers(&config_for_source, &list_box_for_source) {
             update_lre_toast(&config_for_source, &result, &window_for_source);
             update_fallback_toast(&config_for_source, &result, &window_for_source);
@@ -944,10 +1055,11 @@ pub fn setup_settings_ui<'a>(
         let sender = loc_tx_for_fetch.clone();
         let refresh_calendar_fetch = refresh_calendar_for_fetch.clone();
         let window_bg = window_for_fetch.clone();
+        let trigger_sync_fetch = trigger_sync_for_fetch.clone();
         gtk::glib::spawn_future_local(async move {
             match crate::mawaqit::fetch_mawaqit_cache(&url_text).await {
                 Ok(cache) => {
-                    let mut maybe_loc_update: Option<(f64, f64, Option<String>)> = None;
+                    let mut fetched_coordinates: Option<(f64, f64)> = None;
                     {
                         config_for_mawaqit_save.set_mawaqit_url(Some(cache.url.clone()));
                         config_for_mawaqit_save.set_mawaqit_cache(Some(cache.clone()));
@@ -955,58 +1067,36 @@ pub fn setup_settings_ui<'a>(
                         {
                             config_for_mawaqit_save.set_latitude(latitude);
                             config_for_mawaqit_save.set_longitude(longitude);
-                            config_for_mawaqit_save.set_location_mode(LocationMode::City);
-                            let fallback_city = crate::location::localized_mawaqit_city_name(
-                                None,
-                                cache.timezone.as_deref(),
-                                cache.mosque_name.as_deref(),
-                                &language,
-                            );
-                            if let Some(city) = fallback_city.clone() {
-                                config_for_mawaqit_save.set_city_name(Some(city.clone()));
-                                maybe_loc_update = Some((latitude, longitude, Some(city)));
-                            } else {
-                                maybe_loc_update = Some((latitude, longitude, None));
-                            }
-                        }
-
-                        if let Some(ref mawaqit_timezone) = cache.timezone
-                            && let Some(ref system_timezone) =
-                                crate::location::system_time_zone_id()
-                            && !mawaqit_timezone.eq_ignore_ascii_case(system_timezone)
-                        {
-                            config_for_mawaqit_save
-                                .set_timezone_mode(TimezoneMode::Named(mawaqit_timezone.clone()));
-                            log::info!(
-                                "Timezone auto-updated to {} (Mawaqit, different from system {})",
-                                mawaqit_timezone,
-                                system_timezone
-                            );
+                            fetched_coordinates = Some((latitude, longitude));
                         }
                         config_for_mawaqit_save.save();
                     }
-                    if let Some((latitude_ref, longitude_ref, None)) = &maybe_loc_update {
-                        let latitude = *latitude_ref;
-                        let longitude = *longitude_ref;
-                        let config_for_mawaqit2 = config_for_mawaqit_save.clone();
+                    if let Some((latitude, longitude)) = fetched_coordinates {
+                        let config_for_mawaqit_resolve = config_for_mawaqit_save.clone();
                         let inner_sender = sender.clone();
                         let language_for_city = language.clone();
                         gtk::glib::spawn_future_local(async move {
-                            if let Ok(name) = crate::location::resolve_city_name(
+                            if let Some(name) = crate::location::resolve_mawaqit_city(
                                 latitude,
                                 longitude,
                                 &language_for_city,
                             )
                             .await
                             {
-                                config_for_mawaqit2.set_city_name(Some(name.clone()));
-                                config_for_mawaqit2.save();
-                                let _ = inner_sender.send((latitude, longitude, Some(name)));
+                                if let Some(mut stored_cache) =
+                                    config_for_mawaqit_resolve.mawaqit_cache()
+                                {
+                                    stored_cache.resolved_city = Some(name);
+                                    config_for_mawaqit_resolve
+                                        .set_mawaqit_cache(Some(stored_cache));
+                                    config_for_mawaqit_resolve.save();
+                                }
+                                let _ = inner_sender.send((latitude, longitude, None));
                             }
                         });
                     }
-                    if let Some((latitude, longitude, name)) = maybe_loc_update {
-                        let _ = sender.send((latitude, longitude, name));
+                    if let Some((latitude, longitude)) = fetched_coordinates {
+                        let _ = sender.send((latitude, longitude, None));
                     }
                     let title = cache
                         .mosque_name
@@ -1020,6 +1110,7 @@ pub fn setup_settings_ui<'a>(
                         update_fallback_toast(&config_for_mawaqit_save, &result, &window_bg);
                     }
                     refresh_calendar_fetch();
+                    trigger_sync_fetch();
                 }
                 Err(err) => {
                     status.add_css_class("error");
@@ -1162,7 +1253,11 @@ pub fn setup_settings_ui<'a>(
     let list_box_timezone = list_box_rc.clone();
     let timezone_offset_adjustment_for_mode = timezone_offset_adjustment.clone();
     let window_timezone = window.clone();
+    let sync_lock_for_timezone_mode = sync_lock.clone();
     timezone_mode_row.connect_selected_notify(move |combo| {
+        if sync_lock_for_timezone_mode.get() {
+            return;
+        }
         let selected_index = combo.selected();
         timezone_named_vis.set_visible(selected_index == 1);
         timezone_offset_vis.set_visible(selected_index == 2);
@@ -1336,7 +1431,12 @@ pub fn setup_settings_ui<'a>(
     let status_row_for_mode = mawaqit_status_row.clone();
     let refresh_button_for_mode = refresh_button.clone();
     let window_mode = window.clone();
+    let sync_lock_for_mode = sync_lock.clone();
+    let trigger_sync_for_mode = trigger_sync.clone();
     mode_row.connect_selected_notify(move |combo| {
+        if sync_lock_for_mode.get() {
+            return;
+        }
         let mode = match combo.selected() {
             0 => LocationMode::Manual,
             1 => LocationMode::City,
@@ -1361,6 +1461,7 @@ pub fn setup_settings_ui<'a>(
             update_lre_toast(&config_mode, &result, &window_mode);
             update_fallback_toast(&config_mode, &result, &window_mode);
         }
+        trigger_sync_for_mode();
     });
 
     let madhab_strings = [tr("Shafi (Maliki/Hanbali)"), tr("Hanafi")];
@@ -1507,13 +1608,10 @@ pub fn setup_settings_ui<'a>(
     });
     update_calculation_rows(&config);
 
-    let update_calculation_rows_latitude = update_calculation_rows.clone();
-    crate::connect_notify_blocked(&config, Some("latitude"), move |config, _| {
-        update_calculation_rows_latitude(config);
-    });
-    let update_calculation_rows_method = update_calculation_rows.clone();
-    crate::connect_notify_blocked(&config, Some("method"), move |config, _| {
-        update_calculation_rows_method(config);
+    let update_calculation_rows_listen = update_calculation_rows.clone();
+    let config_calculation = config.clone();
+    crate::connect_to_properties(&config, crate::CONFIG_REFRESH_PROPERTIES, move || {
+        update_calculation_rows_listen(&config_calculation)
     });
 
     let iqamah_group = PreferencesGroup::builder()
@@ -1868,6 +1966,7 @@ pub fn setup_settings_ui<'a>(
     let ctx = SettingsUiContext {
         config: config.clone(),
         current_language: current_language.clone(),
+        sync_lock: sync_lock.clone(),
 
         general_heading,
         general_desc,
@@ -1945,7 +2044,11 @@ pub fn setup_settings_ui<'a>(
         test_audio_button,
     };
 
-    (language_row, Rc::new(RefCell::new(ctx)))
+    let ctx = Rc::new(RefCell::new(ctx));
+    *ctx_slot.borrow_mut() = Some(ctx.clone());
+    ctx.borrow().sync_location_and_timezone(&selected_language);
+
+    (language_row, ctx)
 }
 
 pub fn update_settings_ui_lang(ctx: &SettingsUiContext, language: &str) {
@@ -2021,7 +2124,7 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, language: &str) {
     let mode_refs: Vec<&str> = mode_items.iter().map(|item| item.as_str()).collect();
     ctx.mode_model
         .splice(0, ctx.mode_model.n_items(), &mode_refs);
-    ctx.mode_row.set_title(&tr("Location Method"));
+    ctx.mode_row.set_title(&tr("Location Mode"));
 
     ctx.latitude_row.set_title(&tr("Latitude"));
     ctx.longitude_row.set_title(&tr("Longitude"));
@@ -2040,11 +2143,8 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, language: &str) {
     let language_for_geocode = language.to_string();
 
     if app_config.location_mode() == crate::config::LocationMode::City
-        && let Some(text) = location::display_city_label(
-            app_config.city_name().as_deref(),
-            app_config.mawaqit_cache().as_ref(),
-            language,
-        )
+        && let Some(text) =
+            location::display_city_label(app_config.city_name().as_deref(), language)
     {
         ctx.city_row.set_text(&text);
     }
@@ -2274,6 +2374,8 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, language: &str) {
     ctx.volume_row.set_subtitle(&tr("Volume level (0–100%)"));
 
     ctx.test_audio_button.set_label(&tr("▶ Preview Adhan"));
+
+    ctx.sync_location_and_timezone(language);
 }
 
 fn adhan_preset_label(file_name: &str) -> String {
@@ -2298,23 +2400,43 @@ pub fn refresh_prayers(
 
     let today = crate::time::effective_today(config);
     if let Ok(result) = crate::time::schedule_for_config(config, today) {
+        // For Connected Mosque the times are the mosque's published
+        // wall-clock strings; show them as-is (12/24h preference only) so the
+        // label matches the mosque regardless of the system timezone.
+        let published_times =
+            if config.prayer_times_source() == crate::config::PrayerTimesSource::Mawaqit {
+                config.mawaqit_cache().and_then(|cache| {
+                    cache
+                        .months
+                        .get(today.month0() as usize)?
+                        .get(&today.day())
+                        .cloned()
+                })
+            } else {
+                None
+            };
+
         let prayers = [
-            ("Fajr", result.schedule.fajr),
-            ("Sunrise", result.schedule.shurooq),
-            ("Dhuhr", result.schedule.dhuhr),
-            ("Asr", result.schedule.asr),
-            ("Maghrib", result.schedule.maghrib),
-            ("Isha", result.schedule.isha),
+            ("Fajr", result.schedule.fajr, 0),
+            ("Sunrise", result.schedule.shurooq, 1),
+            ("Dhuhr", result.schedule.dhuhr, 2),
+            ("Asr", result.schedule.asr, 3),
+            ("Maghrib", result.schedule.maghrib, 4),
+            ("Isha", result.schedule.isha, 5),
         ];
 
-        for (name, time) in prayers {
+        for (name, time, published_idx) in prayers {
+            let subtitle = match &published_times {
+                Some(times) => {
+                    location::format_published_time(&times[published_idx], config.time_format())
+                }
+                None => {
+                    location::localized_time_only(time, &config.language(), config.time_format())
+                }
+            };
             let row = adw::ActionRow::builder()
                 .title(tr(name))
-                .subtitle(location::localized_time_only(
-                    time,
-                    &config.language(),
-                    config.time_format(),
-                ))
+                .subtitle(&subtitle)
                 .name(name)
                 .build();
             list_box.append(&row);

@@ -136,7 +136,7 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
         }
 
         let days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        // DAYS: Short weekday names — expose to xgettext
+        // DAYS: Short weekday names (expose to xgettext)
         if false {
             tr("Sun");
             tr("Mon");
@@ -333,7 +333,7 @@ fn get_gregorian_month_name(month: u32) -> String {
         "November",
         "December",
     ];
-    // EN_MONTHS: Gregorian month names — expose to xgettext
+    // EN_MONTHS: Gregorian month names (expose to xgettext)
     if false {
         tr("January");
         tr("February");
@@ -365,7 +365,7 @@ fn get_gregorian_weekday_name(day: chrono::Weekday) -> String {
         "Friday",
         "Saturday",
     ];
-    // EN_WEEKDAYS: Weekday names — expose to xgettext
+    // EN_WEEKDAYS: Weekday names (expose to xgettext)
     if false {
         tr("Sunday");
         tr("Monday");

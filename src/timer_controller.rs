@@ -63,17 +63,7 @@ fn compute_daily_state(config: &AppConfig, engine: &PrayerEngine, today: NaiveDa
 
     let hijri_text = crate::time::format_hijri_date(now, config.hijri_offset());
 
-    let mawaqit_cache = if use_mawaqit {
-        config.mawaqit_cache()
-    } else {
-        None
-    };
-    let location_text = location::display_city_label(
-        config.city_name().as_deref(),
-        mawaqit_cache.as_ref(),
-        &language,
-    )
-    .unwrap_or_else(|| format!("{:.2}, {:.2}", config.latitude(), config.longitude()));
+    let location_text = location::display_location_label(config, &language);
 
     DailyState {
         today_schedule,
@@ -154,7 +144,7 @@ fn assemble_prayer_state(
             }
         }
         None => PrayerState {
-            hero_text: tr("Prayer times unavailable — retrying"),
+            hero_text: tr("Prayer times unavailable. Retrying..."),
             hijri_text,
             location_text,
             next_prayer_name: String::new(),
@@ -220,63 +210,60 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
     let engine_cache: Rc<RefCell<Option<PrayerEngine>>> = Rc::new(RefCell::new(None));
     let daily_state: Rc<RefCell<Option<DailyState>>> = Rc::new(RefCell::new(None));
 
-    let engine_stale: Rc<RefCell<bool>> = Rc::new(RefCell::new(true));
-    let schedule_stale: Rc<RefCell<bool>> = Rc::new(RefCell::new(true));
+    // Rebuild the `PrayerEngine` from the current config and recompute the daily
+    // state. Config changes that affect the engine (coordinates, method, madhab)
+    // call this immediately, so the schedule is never more than one notification
+    // stale.
+    let rebuild_engine_and_schedule: Rc<dyn Fn()> = Rc::new({
+        let config = config.clone();
+        let engine_cache = engine_cache.clone();
+        let daily_state = daily_state.clone();
+        move || {
+            *engine_cache.borrow_mut() = Some(PrayerEngine::new(
+                config.latitude(),
+                config.longitude(),
+                &config.method(),
+                &config.madhab(),
+                &config.high_latitude_rule(),
+                &config.polar_estimation_method(),
+            ));
+            let today = crate::time::effective_today(&config);
+            let engine = engine_cache.borrow();
+            if let Some(engine) = engine.as_ref() {
+                *daily_state.borrow_mut() = Some(compute_daily_state(&config, engine, today));
+            }
+        }
+    });
+
+    // Recompute the daily state when a config change does not invalidate the
+    // engine (language, prayer-times-source, timezone-mode). The engine cache is
+    // already populated; if it is not yet (first tick has not run), rebuild it
+    // first so the schedule stays consistent.
+    let recompute_schedule: Rc<dyn Fn()> = Rc::new({
+        let config = config.clone();
+        let engine_cache = engine_cache.clone();
+        let daily_state = daily_state.clone();
+        let rebuild_engine_and_schedule = rebuild_engine_and_schedule.clone();
+        move || {
+            let today = crate::time::effective_today(&config);
+            let engine = engine_cache.borrow();
+            if let Some(engine) = engine.as_ref() {
+                *daily_state.borrow_mut() = Some(compute_daily_state(&config, engine, today));
+            } else {
+                drop(engine);
+                rebuild_engine_and_schedule();
+            }
+        }
+    });
 
     {
-        let engine_stale_c = engine_stale.clone();
-        let schedule_stale_c = schedule_stale.clone();
-        crate::connect_notify_blocked(&config, Some("latitude"), move |_, _| {
-            *engine_stale_c.borrow_mut() = true;
-            *schedule_stale_c.borrow_mut() = true;
+        let rebuild = rebuild_engine_and_schedule.clone();
+        crate::connect_to_properties(&config, crate::ENGINE_INVALIDATING_PROPERTIES, move || {
+            rebuild();
         });
-    }
-    {
-        let engine_stale_c = engine_stale.clone();
-        let schedule_stale_c = schedule_stale.clone();
-        crate::connect_notify_blocked(&config, Some("longitude"), move |_, _| {
-            *engine_stale_c.borrow_mut() = true;
-            *schedule_stale_c.borrow_mut() = true;
-        });
-    }
-    {
-        let engine_stale_c = engine_stale.clone();
-        let schedule_stale_c = schedule_stale.clone();
-        crate::connect_notify_blocked(&config, Some("method"), move |_, _| {
-            *engine_stale_c.borrow_mut() = true;
-            *schedule_stale_c.borrow_mut() = true;
-        });
-    }
-    {
-        let engine_stale_c = engine_stale.clone();
-        let schedule_stale_c = schedule_stale.clone();
-        crate::connect_notify_blocked(&config, Some("madhab"), move |_, _| {
-            *engine_stale_c.borrow_mut() = true;
-            *schedule_stale_c.borrow_mut() = true;
-        });
-    }
-    {
-        let schedule_stale_c = schedule_stale.clone();
-        crate::connect_notify_blocked(&config, Some("language"), move |_, _| {
-            *schedule_stale_c.borrow_mut() = true;
-        });
-    }
-    {
-        let schedule_stale_c = schedule_stale.clone();
-        crate::connect_notify_blocked(&config, Some("city-name"), move |_, _| {
-            *schedule_stale_c.borrow_mut() = true;
-        });
-    }
-    {
-        let schedule_stale_c = schedule_stale.clone();
-        crate::connect_notify_blocked(&config, Some("prayer-times-source"), move |_, _| {
-            *schedule_stale_c.borrow_mut() = true;
-        });
-    }
-    {
-        let schedule_stale_c = schedule_stale.clone();
-        crate::connect_notify_blocked(&config, Some("timezone-mode"), move |_, _| {
-            *schedule_stale_c.borrow_mut() = true;
+        let recompute = recompute_schedule.clone();
+        crate::connect_to_properties(&config, crate::CONFIG_REFRESH_PROPERTIES, move || {
+            recompute();
         });
     }
 
@@ -313,17 +300,15 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
     });
 
     gtk4::glib::timeout_add_seconds_local(1, move || {
-        if *engine_stale.borrow() {
-            let engine = PrayerEngine::new(
+        if engine_cache.borrow().is_none() {
+            *engine_cache.borrow_mut() = Some(PrayerEngine::new(
                 config.latitude(),
                 config.longitude(),
                 &config.method(),
                 &config.madhab(),
                 &config.high_latitude_rule(),
                 &config.polar_estimation_method(),
-            );
-            *engine_cache.borrow_mut() = Some(engine);
-            *engine_stale.borrow_mut() = false;
+            ));
         }
 
         let engine_guard = engine_cache.borrow();
@@ -334,16 +319,18 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
         let today = crate::time::effective_today(&config);
         let language = crate::i18n::supported_language_code(&config.language());
 
+        // Config changes recompute the schedule synchronously in the notify
+        // handlers above. The tick only fills the gaps that are not config
+        // driven: a missing state (startup, or the async mawaqit re-fetch sets
+        // `daily_state` to None) and the date rolling over at midnight.
         let mut state_guard = daily_state.borrow_mut();
-        let schedule_changed = *schedule_stale.borrow()
-            || state_guard
-                .as_ref()
-                .map(|state| state.cache_date != today)
-                .unwrap_or(true);
+        let schedule_changed = state_guard
+            .as_ref()
+            .map(|state| state.cache_date != today)
+            .unwrap_or(true);
         if schedule_changed {
             let fresh = compute_daily_state(&config, engine, today);
             *state_guard = Some(fresh);
-            *schedule_stale.borrow_mut() = false;
         }
         let hijri_text = state_guard
             .as_ref()
@@ -862,6 +849,7 @@ mod tests {
             latitude: None,
             longitude: None,
             country_code: None,
+            resolved_city: None,
             year: 2026,
             months: vec![],
             fetched_on: fetched_on.to_string(),
@@ -894,7 +882,7 @@ mod tests {
             None,
         );
 
-        assert_eq!(state.hero_text, tr("Prayer times unavailable — retrying"));
+        assert_eq!(state.hero_text, tr("Prayer times unavailable. Retrying..."));
         assert_eq!(state.next_prayer_name, "");
         assert!(!state.is_iqamah);
     }

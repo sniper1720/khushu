@@ -85,7 +85,7 @@ pub(crate) fn open_reciter_dialog(
     config: AppConfig,
     label: gtk::Label,
 ) {
-    // RECITERS: Quran reciter display names — expose to xgettext
+    // RECITERS: Quran reciter display names (expose to xgettext)
     if false {
         tr("Mishary Alafasy");
         tr("Abdul Basit");

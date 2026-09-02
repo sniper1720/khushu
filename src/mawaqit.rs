@@ -197,6 +197,7 @@ fn parse_cache_from_value(url: &str, json: &Value) -> Result<MawaqitCache, Strin
         latitude,
         longitude,
         country_code,
+        resolved_city: None,
         year,
         months,
         fetched_on,
@@ -204,7 +205,7 @@ fn parse_cache_from_value(url: &str, json: &Value) -> Result<MawaqitCache, Strin
 }
 
 pub async fn fetch_mawaqit_cache(raw_url: &str) -> Result<MawaqitCache, String> {
-    // Mawaqit error strings — expose to xgettext
+    // Mawaqit error strings (expose to xgettext)
     if false {
         let _ = tr("Invalid Mawaqit URL");
         let _ = tr("Mawaqit fetch failed");

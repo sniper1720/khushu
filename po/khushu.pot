@@ -689,7 +689,7 @@ msgid "It is time for Iqamah of"
 msgstr ""
 
 #: src/timer_controller.rs
-msgid "Prayer times unavailable — retrying"
+msgid "Prayer times unavailable. Retrying..."
 msgstr ""
 
 # =============================================================================
@@ -1080,7 +1080,7 @@ msgid "Auto (GPS/Network)"
 msgstr ""
 
 #: src/settings_ui.rs src/welcome.rs
-msgid "Location Method"
+msgid "Location Mode"
 msgstr ""
 
 #: src/settings_ui.rs src/welcome.rs

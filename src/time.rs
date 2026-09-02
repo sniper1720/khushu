@@ -166,80 +166,15 @@ fn parse_hm(text: &str) -> Option<(u32, u32)> {
 
 pub fn schedule_from_hm(
     date: NaiveDate,
-    fajr: &str,
-    shurooq: &str,
-    dhuhr: &str,
-    asr: &str,
-    maghrib: &str,
-    isha: &str,
+    times: &[String; 6],
+    timezone: Option<&Tz>,
 ) -> Option<PrayerSchedule> {
-    let (fajr_hours, fajr_minutes) = parse_hm(fajr)?;
-    let (shurooq_hours, shurooq_minutes) = parse_hm(shurooq)?;
-    let (dhuhr_hours, dhuhr_minutes) = parse_hm(dhuhr)?;
-    let (asr_hours, asr_minutes) = parse_hm(asr)?;
-    let (maghrib_hours, maghrib_minutes) = parse_hm(maghrib)?;
-    let (isha_hours, isha_minutes) = parse_hm(isha)?;
-
-    let fajr_time = Local
-        .with_ymd_and_hms(
-            date.year(),
-            date.month(),
-            date.day(),
-            fajr_hours,
-            fajr_minutes,
-            0,
-        )
-        .single()?;
-    let shurooq_time = Local
-        .with_ymd_and_hms(
-            date.year(),
-            date.month(),
-            date.day(),
-            shurooq_hours,
-            shurooq_minutes,
-            0,
-        )
-        .single()?;
-    let dhuhr_time = Local
-        .with_ymd_and_hms(
-            date.year(),
-            date.month(),
-            date.day(),
-            dhuhr_hours,
-            dhuhr_minutes,
-            0,
-        )
-        .single()?;
-    let asr_time = Local
-        .with_ymd_and_hms(
-            date.year(),
-            date.month(),
-            date.day(),
-            asr_hours,
-            asr_minutes,
-            0,
-        )
-        .single()?;
-    let maghrib_time = Local
-        .with_ymd_and_hms(
-            date.year(),
-            date.month(),
-            date.day(),
-            maghrib_hours,
-            maghrib_minutes,
-            0,
-        )
-        .single()?;
-    let isha_time = Local
-        .with_ymd_and_hms(
-            date.year(),
-            date.month(),
-            date.day(),
-            isha_hours,
-            isha_minutes,
-            0,
-        )
-        .single()?;
+    let fajr_time = wall_clock_from_hm(date, &times[0], timezone)?;
+    let shurooq_time = wall_clock_from_hm(date, &times[1], timezone)?;
+    let dhuhr_time = wall_clock_from_hm(date, &times[2], timezone)?;
+    let asr_time = wall_clock_from_hm(date, &times[3], timezone)?;
+    let maghrib_time = wall_clock_from_hm(date, &times[4], timezone)?;
+    let isha_time = wall_clock_from_hm(date, &times[5], timezone)?;
 
     Some(PrayerSchedule {
         fajr: fajr_time,
@@ -249,6 +184,38 @@ pub fn schedule_from_hm(
         maghrib: maghrib_time,
         isha: isha_time,
     })
+}
+
+fn wall_clock_from_hm(
+    date: NaiveDate,
+    time: &str,
+    timezone: Option<&Tz>,
+) -> Option<DateTime<Local>> {
+    let (hours, minutes) = parse_hm(time)?;
+    wall_clock_to_local(date, hours, minutes, timezone)
+}
+
+/// Builds a real instant from a wall-clock time.
+///
+/// With a target timezone the wall-clock is interpreted in that zone (the
+/// Connected Mosque schedule is the mosque's local wall-clock); otherwise it
+/// is taken as the system-local wall-clock.
+fn wall_clock_to_local(
+    date: NaiveDate,
+    hours: u32,
+    minutes: u32,
+    timezone: Option<&Tz>,
+) -> Option<DateTime<Local>> {
+    match timezone {
+        Some(zone) => {
+            let naive = date.and_hms_opt(hours, minutes, 0)?;
+            let zoned = zone.from_local_datetime(&naive).single()?;
+            Some(zoned.with_timezone(&Local))
+        }
+        None => Local
+            .with_ymd_and_hms(date.year(), date.month(), date.day(), hours, minutes, 0)
+            .single(),
+    }
 }
 
 pub fn schedule_for_config(
@@ -263,9 +230,17 @@ pub fn schedule_for_config(
         if let Some(month) = cache.months.get(month_idx)
             && let Some(arr) = month.get(&date.day())
         {
-            return schedule_from_hm(date, &arr[0], &arr[1], &arr[2], &arr[3], &arr[4], &arr[5])
+            // The cached strings are the mosque's wall-clock times; build them
+            // as real instants in the mosque timezone and do not apply the
+            // timezone override, which would reinterpret the wall-clock and
+            // shift the schedule.
+            let mosque_timezone = cache
+                .timezone
+                .as_deref()
+                .and_then(|timezone| timezone.parse::<Tz>().ok());
+            return schedule_from_hm(date, arr, mosque_timezone.as_ref())
                 .map(|schedule| PrayerResult {
-                    schedule: apply_timezone_override(config, schedule),
+                    schedule,
                     lre_blocked: false,
                     fallback_active: false,
                 })
@@ -308,7 +283,27 @@ pub fn next_prayer_from_schedule(
     None
 }
 
+/// The timezone that actually governs prayer times.
+///
+/// For the Connected Mosque source the mosque timezone is forced: it reflects
+/// the cached wall-clock schedule. Otherwise the user's stored timezone mode
+/// applies. The stored mode is never mutated.
+pub fn effective_timezone(config: &AppConfig) -> TimezoneMode {
+    if config.prayer_times_source() == PrayerTimesSource::Mawaqit
+        && let Some(cache) = config.mawaqit_cache().as_ref()
+        && let Some(timezone) = cache.timezone.as_deref()
+    {
+        return TimezoneMode::Named(timezone.to_string());
+    }
+    config.timezone_mode()
+}
+
 pub fn effective_now(config: &AppConfig) -> DateTime<Local> {
+    // For the Connected Mosque source the schedule is real wall-clock in the
+    // mosque timezone.
+    if config.prayer_times_source() == PrayerTimesSource::Mawaqit {
+        return Local::now();
+    }
     match config.timezone_mode() {
         TimezoneMode::Auto => Local::now(),
         TimezoneMode::Named(timezone_str) => {
@@ -344,7 +339,7 @@ pub fn effective_today(config: &AppConfig) -> NaiveDate {
 }
 
 pub fn format_hijri_date(datetime: DateTime<Local>, hijri_offset: i64) -> String {
-    // HIJRI_MONTH_NAMES: Islamic month names — expose to xgettext
+    // HIJRI_MONTH_NAMES: Islamic month names (expose to xgettext)
     if false {
         tr("Muharram");
         tr("Safar");
@@ -631,5 +626,69 @@ mod tests {
             result.fallback_active,
             "MC high-latitude substitution must be reported as a fallback"
         );
+    }
+
+    #[test]
+    fn mawaqit_schedule_builds_real_instant_in_mosque_timezone() {
+        let moscow: Tz = "Europe/Moscow".parse().unwrap();
+        let date = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
+        let schedule = schedule_from_hm(
+            date,
+            &[
+                "03:03".to_string(),
+                "05:00".to_string(),
+                "12:15".to_string(),
+                "14:30".to_string(),
+                "17:00".to_string(),
+                "18:30".to_string(),
+            ],
+            Some(&moscow),
+        )
+        .expect("schedule");
+
+        // The published wall-clock is preserved in the mosque timezone...
+        let fajr_wall_clock = schedule
+            .fajr
+            .with_timezone(&moscow)
+            .format("%H:%M")
+            .to_string();
+        assert_eq!(fajr_wall_clock, "03:03");
+        // ...and the underlying instant is real (Moscow is UTC+3), never
+        // shifted by the timezone override regardless of the system zone.
+        let fajr_utc = schedule
+            .fajr
+            .with_timezone(&Utc)
+            .format("%H:%M")
+            .to_string();
+        assert_eq!(fajr_utc, "00:03");
+    }
+
+    #[test]
+    fn effective_timezone_forces_mosque_zone_under_mawaqit() {
+        let config = AppConfig::default();
+        config.set_prayer_times_source(PrayerTimesSource::Mawaqit);
+        let mut cache = crate::config::MawaqitCache {
+            url: "https://mawaqit.net".to_string(),
+            mosque_name: None,
+            timezone: Some("Europe/Moscow".to_string()),
+            latitude: Some(55.75),
+            longitude: Some(37.62),
+            country_code: None,
+            resolved_city: None,
+            year: 2026,
+            months: Vec::new(),
+            fetched_on: String::new(),
+        };
+        config.set_mawaqit_cache(Some(cache.clone()));
+
+        assert_eq!(
+            effective_timezone(&config),
+            TimezoneMode::Named("Europe/Moscow".to_string())
+        );
+
+        // Without a cache timezone, the user's stored mode is returned.
+        cache.timezone = None;
+        config.set_mawaqit_cache(Some(cache));
+        assert_eq!(effective_timezone(&config), TimezoneMode::Auto);
     }
 }

@@ -256,25 +256,9 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     refresh_home_initial();
 
     {
-        let refresh_home_c = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("latitude"), move |_, _| refresh_home_c());
-    }
-    {
-        let refresh_home_c = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("longitude"), move |_, _| refresh_home_c());
-    }
-    {
-        let refresh_home_c = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("city-name"), move |_, _| refresh_home_c());
-    }
-    {
-        let refresh_home_c = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("language"), move |_, _| refresh_home_c());
-    }
-    {
-        let refresh_home_c = refresh_home.clone();
-        crate::connect_notify_blocked(&config, Some("prayer-times-source"), move |_, _| {
-            refresh_home_c()
+        let refresh_home_rt = refresh_home.clone();
+        crate::connect_to_properties(&config, crate::CONFIG_REFRESH_PROPERTIES, move || {
+            refresh_home_rt()
         });
     }
 

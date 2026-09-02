@@ -84,6 +84,28 @@ fn find_next_prayer(
         .or_else(|| tomorrow_schedule.map(|schedule| ("Fajr".to_string(), schedule.fajr)))
 }
 
+fn iqamah_countdown_target(
+    schedule: &PrayerSchedule,
+    now: chrono::DateTime<Local>,
+    iqamah_minutes: &std::collections::HashMap<String, u32>,
+) -> Option<(String, chrono::DateTime<Local>)> {
+    let five_prayers = [
+        ("Fajr", schedule.fajr),
+        ("Dhuhr", schedule.dhuhr),
+        ("Asr", schedule.asr),
+        ("Maghrib", schedule.maghrib),
+        ("Isha", schedule.isha),
+    ];
+    five_prayers
+        .into_iter()
+        .rev()
+        .find_map(|(name, scan_time)| {
+            let iqamah_mins = iqamah_minutes.get(name).copied().unwrap_or(10) as i64;
+            let iqamah_end = scan_time + Duration::minutes(iqamah_mins);
+            (now >= scan_time && now < iqamah_end).then(|| (name.to_string(), iqamah_end))
+        })
+}
+
 const MAWAQIT_REFRESH_INTERVAL_SECONDS: u32 = 3600;
 
 const SECONDS_PER_MINUTE: i64 = 60;
@@ -399,6 +421,15 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
             }
 
             if is_core_timer {
+                let iqamah_countdown_update = today_schedule.as_ref().and_then(|schedule| {
+                    iqamah_countdown_target(schedule, now, &config.iqamah_minutes())
+                });
+                let iqamah_countdown_changed =
+                    *iqamah_countdown.borrow() != iqamah_countdown_update;
+                if iqamah_countdown_changed {
+                    *iqamah_countdown.borrow_mut() = iqamah_countdown_update;
+                }
+
                 let mut handled = prayers_handled.borrow_mut();
                 if let Some(ref scan_schedule) = today_schedule {
                     for (scan_name, scan_time) in [
@@ -414,13 +445,6 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                                 .get(scan_name)
                                 .copied()
                                 .unwrap_or(10) as i64;
-                            let iqamah_end = scan_time + Duration::minutes(iqamah_mins);
-                            if now < iqamah_end {
-                                *iqamah_countdown.borrow_mut() =
-                                    Some((scan_name.to_string(), iqamah_end));
-                                *iqamah_notified_at.borrow_mut() = None;
-                            }
-
                             let adhan_window = Duration::minutes(iqamah_mins).max(MIN_ADHAN_WINDOW);
                             if now.signed_duration_since(scan_time) < adhan_window {
                                 show_notification(
@@ -839,6 +863,71 @@ mod tests {
         let result = find_next_prayer(Some(&today), None, now);
 
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn iqamah_countdown_target_returns_active_prayer_inside_window() {
+        let now = Local::now();
+        let dhuhr_time = now - Duration::minutes(2);
+        let schedule = PrayerSchedule {
+            fajr: now - Duration::hours(5),
+            shurooq: now - Duration::hours(4),
+            dhuhr: dhuhr_time,
+            asr: now + Duration::hours(2),
+            maghrib: now + Duration::hours(4),
+            isha: now + Duration::hours(5),
+        };
+        let iqamah_minutes =
+            std::collections::HashMap::from([("Dhuhr".to_string(), 5), ("Asr".to_string(), 5)]);
+
+        let result = iqamah_countdown_target(&schedule, now, &iqamah_minutes);
+
+        assert_eq!(
+            result.as_ref().map(|(name, _)| name.as_str()),
+            Some("Dhuhr")
+        );
+        assert_eq!(result.unwrap().1, dhuhr_time + Duration::minutes(5));
+    }
+
+    #[test]
+    fn iqamah_countdown_target_returns_none_outside_all_windows() {
+        let now = Local::now();
+        let schedule = PrayerSchedule {
+            fajr: now - Duration::hours(5),
+            shurooq: now - Duration::hours(4),
+            dhuhr: now - Duration::hours(2),
+            asr: now - Duration::hours(1),
+            maghrib: now - Duration::minutes(30),
+            isha: now + Duration::minutes(59),
+        };
+        let iqamah_minutes =
+            std::collections::HashMap::from([("Fajr".to_string(), 5), ("Isha".to_string(), 0)]);
+
+        let result = iqamah_countdown_target(&schedule, now, &iqamah_minutes);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn iqamah_countdown_target_prefers_latest_eligible_prayer() {
+        let now = Local::now();
+        let asr_time = now - Duration::minutes(3);
+        let isha_time = now - Duration::minutes(1);
+        let schedule = PrayerSchedule {
+            fajr: now - Duration::hours(6),
+            shurooq: now - Duration::hours(5),
+            dhuhr: now - Duration::hours(4),
+            asr: asr_time,
+            maghrib: now + Duration::hours(1),
+            isha: isha_time,
+        };
+        let iqamah_minutes =
+            std::collections::HashMap::from([("Asr".to_string(), 5), ("Isha".to_string(), 5)]);
+
+        let result = iqamah_countdown_target(&schedule, now, &iqamah_minutes);
+
+        assert_eq!(result.as_ref().map(|(name, _)| name.as_str()), Some("Isha"));
+        assert_eq!(result.unwrap().1, isha_time + Duration::minutes(5));
     }
 
     fn make_mawaqit_cache(fetched_on: &str) -> crate::config::MawaqitCache {

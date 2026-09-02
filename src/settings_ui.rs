@@ -437,6 +437,13 @@ impl SettingsUiContext {
                 if (self.longitude_row.adjustment().value() - longitude).abs() > 1e-4 {
                     self.longitude_row.adjustment().set_value(longitude);
                 }
+            } else if mode == LocationMode::City {
+                let city_name = config.active_location().city_name;
+                if let Some(label) = location::display_city_label(city_name.as_deref(), language)
+                    && self.city_row.text() != label
+                {
+                    self.city_row.set_text(&label);
+                }
             } else if mode == LocationMode::Auto {
                 let auto_mode_city = config.active_location().city_name;
                 let subtitle = auto_mode_city
@@ -818,8 +825,11 @@ pub fn setup_settings_ui<'a>(
     let city_row = adw::EntryRow::builder().title(tr("City Search")).build();
 
     if config.location_mode() == LocationMode::City {
-        let city_name = config.city_name();
-        if let Some(text) = location::display_city_label(city_name.as_deref(), &selected_language) {
+        let label = location::display_city_label(
+            config.active_location().city_name.as_deref(),
+            &selected_language,
+        );
+        if let Some(text) = label {
             city_row.set_text(&text);
         }
     }

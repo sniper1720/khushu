@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.4] — 2026-09-03
+
+### Added
+- **Per-mode location stores**: Manual, City, and Auto now keep their own coordinates instead of sharing one flat field, so switching modes no longer overwrites other modes' locations
+- **Tooltips for Quran recitation buttons**: Play, previous/next verse, and choose reciter now show tooltips, with the play button's label updating to match playback state for better accessibility
+
+### Fixed
+- **Next-prayer lookup returning past prayers**: It assumed tomorrow's Fajr was always ahead, but at high latitudes a day's Fajr can fall on the previous evening. This caused the lookup to return a past prayer and leave the hero stuck on "It's time for Fajr". It now scans today and tomorrow, returning only genuinely future prayers
+- **Iqamah countdown stale after location change**: Recomputed from the live schedule on each tick instead of being coupled to the adhan scan, so it stays accurate when the location is updated
+
+### Changed
+- **mawaqit 0.4**: Updated the prayer calculation library from 0.2 to 0.4. The Moonsighting Committee method now uses its updated rules above 60° latitude instead of the old 18-hour day-length thresholds
+
 ## [1.3.3] — 2026-08-22
 
 ### Added

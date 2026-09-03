@@ -4,10 +4,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.3.3\n"
+"Project-Id-Version: Khushu 1.3.4\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-05-28 12:01+0700\n"
-"PO-Revision-Date: 2026-09-02 01:40+0000\n"
+"PO-Revision-Date: 2026-09-03 03:08+0000\n"
 "Last-Translator: WiqbalRar\n"
 "Language-Team: Indonesian\n"
 "Language: id\n"
@@ -572,6 +572,26 @@ msgstr ""
 msgid "Fixed location changes not saving on city search"
 msgstr ""
 "Memperbaiki masalah perubahan lokasi yang tidak tersimpan saat mencari kota"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Added per-mode location stores for Manual, City, and Auto"
+msgstr "Menambahkan penyimpanan lokasi terpisah untuk mode Manual, Kota, dan Otomatis"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Added tooltips for Quran recitation controls"
+msgstr "Menambahkan petunjuk alat (tooltips) untuk kontrol tilawah Al-Qur'an"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed next-prayer lookup returning past prayers"
+msgstr "Memperbaiki pencarian waktu shalat berikutnya yang mengembalikan waktu yang telah berlalu"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Fixed stale iqamah countdown after a location change"
+msgstr "Memperbaiki hitung mundur ikamah yang tersangkut setelah perubahan lokasi"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid "Updated prayer calculation library to mawaqit 0.4"
+msgstr "Memperbarui pustaka kalkulasi waktu shalat ke mawaqit 0.4"
 
 # =============================================================================
 # SECTION 2: CALENDAR

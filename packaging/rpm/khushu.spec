@@ -1,5 +1,5 @@
 Name:           khushu
-Version:        1.3.3
+Version:        1.3.4
 Release:        1%{?dist}
 Summary:        An all-in-one Muslim app for Linux
 
@@ -55,6 +55,13 @@ adaptive UI built with GTK4 and Libadwaita.
 %{_datadir}/fonts/truetype/%{name}/
 
 %changelog
+* Thu Sep 03 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.4-1
+- Added per-mode location stores for Manual, City, and Auto
+- Added tooltips for Quran recitation controls
+- Fixed next-prayer lookup returning past prayers
+- Fixed stale iqamah countdown after a location change
+- Updated prayer calculation library to mawaqit 0.4
+
 * Sat Aug 22 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.3-1
 - Added 12-hour (AM/PM) time format option in Settings
 - Fixed "System Default" language not persisting after restart

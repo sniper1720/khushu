@@ -79,9 +79,14 @@ fn find_next_prayer(
     tomorrow_schedule: Option<&PrayerSchedule>,
     now: chrono::DateTime<Local>,
 ) -> Option<(String, chrono::DateTime<Local>)> {
-    today_schedule
-        .and_then(|schedule| next_prayer_from_schedule(schedule, now))
-        .or_else(|| tomorrow_schedule.map(|schedule| ("Fajr".to_string(), schedule.fajr)))
+    // Scan today then tomorrow with the same rule rather than assuming the
+    // tomorrow-Fajr fallback is always ahead: at high latitude a day's Fajr can
+    // fall on the previous evening, so the fallback may already be in the past.
+    // A two-schedule scan returns the first genuinely future prayer.
+    [today_schedule, tomorrow_schedule]
+        .into_iter()
+        .flatten()
+        .find_map(|schedule| next_prayer_from_schedule(schedule, now))
 }
 
 fn iqamah_countdown_target(
@@ -821,7 +826,7 @@ mod tests {
     }
 
     #[test]
-    fn find_next_prayer_falls_back_to_tomorrow_fajr_when_today_exhausted() {
+    fn find_next_prayer_continues_to_tomorrow_fajr_when_today_exhausted() {
         let now = Local::now();
 
         let today = PrayerSchedule {
@@ -842,10 +847,11 @@ mod tests {
             isha: now + Duration::hours(16),
         };
 
-        let result = find_next_prayer(Some(&today), Some(&tomorrow), now);
+        let result = find_next_prayer(Some(&today), Some(&tomorrow), now).unwrap();
 
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().0, "Fajr");
+        assert_eq!(result.0, "Fajr");
+        assert!(result.1 > now, "next prayer must be in the future");
+        assert_eq!(result.1, now + Duration::hours(5));
     }
 
     #[test]
@@ -863,6 +869,57 @@ mod tests {
         let result = find_next_prayer(Some(&today), None, now);
 
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn find_next_prayer_returns_none_when_both_schedules_exhausted() {
+        let now = Local::now();
+        let today = PrayerSchedule {
+            fajr: now - Duration::hours(12),
+            shurooq: now - Duration::hours(11),
+            dhuhr: now - Duration::hours(6),
+            asr: now - Duration::hours(3),
+            maghrib: now - Duration::hours(1),
+            isha: now - Duration::minutes(30),
+        };
+        let tomorrow = PrayerSchedule {
+            fajr: now - Duration::hours(12),
+            shurooq: now - Duration::hours(11),
+            dhuhr: now - Duration::hours(6),
+            asr: now - Duration::hours(3),
+            maghrib: now - Duration::minutes(30),
+            isha: now - Duration::minutes(1),
+        };
+
+        let result = find_next_prayer(Some(&today), Some(&tomorrow), now);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn find_next_prayer_skips_past_tomorrow_slots_to_future_one() {
+        let now = Local::now();
+        let today = PrayerSchedule {
+            fajr: now - Duration::hours(12),
+            shurooq: now - Duration::hours(11),
+            dhuhr: now - Duration::hours(6),
+            asr: now - Duration::hours(3),
+            maghrib: now - Duration::hours(1),
+            isha: now - Duration::minutes(30),
+        };
+        let tomorrow = PrayerSchedule {
+            fajr: now - Duration::minutes(10),
+            shurooq: now + Duration::minutes(20),
+            dhuhr: now + Duration::hours(5),
+            asr: now + Duration::hours(8),
+            maghrib: now + Duration::hours(10),
+            isha: now + Duration::hours(11),
+        };
+
+        let result = find_next_prayer(Some(&today), Some(&tomorrow), now).unwrap();
+
+        assert_eq!(result.0, "Sunrise");
+        assert_eq!(result.1, now + Duration::minutes(20));
     }
 
     #[test]

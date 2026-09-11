@@ -111,6 +111,20 @@ fn iqamah_countdown_target(
         })
 }
 
+// `handled` records exactly the prayers whose adhan has been raised, so a
+// prayer whose window was missed stays out of it and stays recoverable.
+fn adhan_should_raise(
+    now: chrono::DateTime<Local>,
+    scan_time: chrono::DateTime<Local>,
+    iqamah_mins: i64,
+    already_handled: bool,
+) -> bool {
+    now >= scan_time
+        && !already_handled
+        && now.signed_duration_since(scan_time)
+            < Duration::minutes(iqamah_mins).max(MIN_ADHAN_WINDOW)
+}
+
 const MAWAQIT_REFRESH_INTERVAL_SECONDS: u32 = 3600;
 
 const SECONDS_PER_MINUTE: i64 = 60;
@@ -237,9 +251,8 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
     let engine_cache: Rc<RefCell<Option<PrayerEngine>>> = Rc::new(RefCell::new(None));
     let daily_state: Rc<RefCell<Option<DailyState>>> = Rc::new(RefCell::new(None));
 
-    // Rebuild the `PrayerEngine` from the current config and recompute the daily
-    // state. Config changes that affect the engine (coordinates, method, madhab)
-    // call this immediately, so the schedule is never more than one notification
+    // Config changes that affect the engine (coordinates, method, madhab) call
+    // this immediately, so the schedule is never more than one notification
     // stale.
     let rebuild_engine_and_schedule: Rc<dyn Fn()> = Rc::new({
         let config = config.clone();
@@ -444,29 +457,31 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
                         ("Maghrib", scan_schedule.maghrib),
                         ("Isha", scan_schedule.isha),
                     ] {
-                        if now >= scan_time && !handled.contains(scan_name) {
-                            let iqamah_mins = config
-                                .iqamah_minutes()
-                                .get(scan_name)
-                                .copied()
-                                .unwrap_or(10) as i64;
-                            let adhan_window = Duration::minutes(iqamah_mins).max(MIN_ADHAN_WINDOW);
-                            if now.signed_duration_since(scan_time) < adhan_window {
-                                show_notification(
-                                    &format!("{} {}", tr("It's time for"), tr(scan_name)),
-                                    &format!("{} {}.", tr("It is now time for"), tr(scan_name)),
-                                    true,
-                                    &tr("Open Khushu"),
-                                    &tr("Stop Adhan"),
-                                );
+                        let iqamah_mins = config
+                            .iqamah_minutes()
+                            .get(scan_name)
+                            .copied()
+                            .unwrap_or(10) as i64;
+                        if adhan_should_raise(
+                            now,
+                            scan_time,
+                            iqamah_mins,
+                            handled.contains(scan_name),
+                        ) {
+                            show_notification(
+                                &format!("{} {}", tr("It's time for"), tr(scan_name)),
+                                &format!("{} {}.", tr("It is now time for"), tr(scan_name)),
+                                true,
+                                &tr("Open Khushu"),
+                                &tr("Stop Adhan"),
+                            );
 
-                                let adhan_path = config
-                                    .adhan_sound_path()
-                                    .unwrap_or_else(|| "assets/audio/Madinah.mp3".to_string());
-                                if !config.adhan_muted() {
-                                    crate::audio::play_adhan(&adhan_path, config.adhan_volume());
-                                    *adhan_for_prayer.borrow_mut() = Some(scan_name.to_string());
-                                }
+                            let adhan_path = config
+                                .adhan_sound_path()
+                                .unwrap_or_else(|| "assets/audio/Madinah.mp3".to_string());
+                            if !config.adhan_muted() {
+                                crate::audio::play_adhan(&adhan_path, config.adhan_volume());
+                                *adhan_for_prayer.borrow_mut() = Some(scan_name.to_string());
                             }
                             handled.insert(scan_name.to_string());
                         }
@@ -1090,5 +1105,48 @@ mod tests {
 
         assert_eq!(state.hero_text, iqamah_hero);
         assert!(state.is_iqamah);
+    }
+
+    #[test]
+    fn adhan_should_raise_true_inside_window_when_not_handled() {
+        let now = Local::now();
+        let scan_time = now - Duration::minutes(5);
+
+        assert!(adhan_should_raise(now, scan_time, 10, false));
+    }
+
+    #[test]
+    fn adhan_should_raise_false_when_window_missed() {
+        // Regression: v1.3.4 inserted the prayer into `handled` even when its
+        // adhan window was already missed, poisoning it for the rest of the day.
+        let now = Local::now();
+        let scan_time = now - Duration::hours(2);
+
+        assert!(!adhan_should_raise(now, scan_time, 10, false));
+    }
+
+    #[test]
+    fn adhan_should_raise_false_when_already_handled() {
+        let now = Local::now();
+        let scan_time = now - Duration::seconds(5);
+
+        assert!(!adhan_should_raise(now, scan_time, 10, true));
+    }
+
+    #[test]
+    fn adhan_should_raise_false_before_scan_time() {
+        let now = Local::now();
+        let scan_time = now + Duration::minutes(1);
+
+        assert!(!adhan_should_raise(now, scan_time, 10, false));
+    }
+
+    #[test]
+    fn adhan_should_raise_respects_zero_iqamah_minutes_floor() {
+        let now = Local::now();
+        let scan_time = now - Duration::seconds(30);
+
+        assert!(adhan_should_raise(now, scan_time, 0, false));
+        assert!(!adhan_should_raise(now, scan_time, 0, true));
     }
 }

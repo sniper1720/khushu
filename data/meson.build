@@ -23,5 +23,7 @@ configure_file(
   install_dir: join_paths(datadir, 'dbus-1', 'services')
 )
 
+install_man('khushu.1')
+
 subdir('fonts')
 subdir('icons')

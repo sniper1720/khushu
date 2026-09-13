@@ -8,9 +8,8 @@ Build-Depends: debhelper-compat (= 13),
                cargo,
                rustc,
                libgtk-4-dev,
-                libadwaita-1-dev,
-                libasound2-dev,
-               libssl-dev,
+               libadwaita-1-dev,
+               libasound2-dev,
                pkg-config,
                gettext
 Standards-Version: 4.6.2

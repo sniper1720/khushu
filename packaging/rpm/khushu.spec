@@ -3,11 +3,9 @@ Version:        1.3.4
 Release:        1%{?dist}
 Summary:        An all-in-one Muslim app for Linux
 
-License:        GPLv3+
+License:        GPL-3.0-or-later
 URL:            https://github.com/sniper1720/khushu
 Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz
-
-%define debug_package %{nil}
 
 BuildRequires:  meson
 BuildRequires:  ninja-build
@@ -18,7 +16,6 @@ BuildRequires:  gtk4-devel
 BuildRequires:  libadwaita-devel
 BuildRequires:  pkgconf-pkg-config
 BuildRequires:  alsa-lib-devel
-BuildRequires:  openssl-devel
 BuildRequires:  gettext
 
 Requires:       hicolor-icon-theme
@@ -37,11 +34,12 @@ adaptive UI built with GTK4 and Libadwaita.
 
 %install
 %meson_install
+%find_lang %{name} --all-name
 
 %check
 %meson_test
 
-%files
+%files -f %{name}.lang
 %license LICENSE
 %doc README.md
 %{_bindir}/%{name}
@@ -50,9 +48,9 @@ adaptive UI built with GTK4 and Libadwaita.
 %{_datadir}/icons/hicolor/scalable/apps/io.github.sniper1720.khushu.svg
 %{_datadir}/icons/hicolor/symbolic/apps/io.github.sniper1720.khushu-symbolic.svg
 %{_datadir}/metainfo/io.github.sniper1720.khushu.metainfo.xml
-%{_datadir}/%{name}/
-%{_datadir}/locale/*/LC_MESSAGES/khushu.mo
+%{_datadir}/%{name}/khushu-resources.gresource
 %{_datadir}/fonts/truetype/%{name}/
+%{_mandir}/man1/khushu.1*
 
 %changelog
 * Thu Sep 03 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.4-1

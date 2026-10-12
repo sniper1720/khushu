@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Khushu 1.3.4\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-03-04 20:21+0100\n"
-"PO-Revision-Date: 2026-09-03 03:08+0000\n"
+"PO-Revision-Date: 2026-10-03 15:37+0000\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: French\n"
 "Language: fr\n"
@@ -605,7 +605,9 @@ msgstr ""
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Added per-mode location stores for Manual, City, and Auto"
-msgstr "Ajout de la sauvegarde de la localisation par mode (Manuel, Ville et Automatique)"
+msgstr ""
+"Ajout de la sauvegarde de la localisation par mode (Manuel, Ville et "
+"Automatique)"
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Added tooltips for Quran recitation controls"
@@ -613,7 +615,9 @@ msgstr "Ajout d'infobulles pour les commandes de récitation du Coran"
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed next-prayer lookup returning past prayers"
-msgstr "Correction de la recherche de la prochaine prière qui renvoyait des prières passées"
+msgstr ""
+"Correction de la recherche de la prochaine prière qui renvoyait des prières "
+"passées"
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed stale iqamah countdown after a location change"
@@ -621,7 +625,9 @@ msgstr "Correction du décompte figé de l'Iqamah après un changement de lieu"
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Updated prayer calculation library to mawaqit 0.4"
-msgstr "Mise à jour de la bibliothèque de calcul des horaires de prière vers mawaqit 0.4"
+msgstr ""
+"Mise à jour de la bibliothèque de calcul des horaires de prière vers mawaqit "
+"0.4"
 
 # =============================================================================
 # SECTION 2: CALENDAR
@@ -809,6 +815,22 @@ msgstr "Vendredi"
 #: src/calendar.rs
 msgid "Saturday"
 msgstr "Samedi"
+
+#: src/time.rs
+msgid "Unavailable"
+msgstr "Indisponible"
+
+#: src/calendar.rs
+msgid "Calendar Unavailable"
+msgstr "Calendrier indisponible"
+
+#: src/calendar.rs
+msgid ""
+"Khushu could not determine the Hijri date. Check that your system date and "
+"time are set correctly."
+msgstr ""
+"Khushu n'a pas pu déterminer la date hijri. Vérifiez que la date et l'heure "
+"du système sont correctement définies."
 
 # =============================================================================
 # SECTION 3: PRAYER
@@ -1444,9 +1466,7 @@ msgstr "Chaféite (Malékite/Hanbalite)"
 
 #: src/settings_ui.rs
 msgid "Hanafi"
-msgstr ""
-"HanafiteLes écoles Malékite/Hanbalite utilisent le standard (Chaféite) pour "
-"l'Asr."
+msgstr "Hanafite"
 
 #: src/settings_ui.rs
 msgid "Asr Calculation (Madhab)"
@@ -1477,13 +1497,6 @@ msgid "Fajr/Isha Approximation"
 msgstr "Approximation du Fajr et de l'Isha"
 
 #: src/settings_ui.rs
-msgid ""
-"How to approximate Fajr and Isha when the twilight angle is not reachable."
-msgstr ""
-"Comment estimer les horaires du Fajr et de l'Isha lorsque l'angle du "
-"crépuscule ne peut pas être atteint."
-
-#: src/settings_ui.rs
 msgid "Nearest Latitude"
 msgstr "Latitude la plus proche"
 
@@ -1494,13 +1507,6 @@ msgstr "Latitude de référence 45°"
 #: src/settings_ui.rs
 msgid "Polar Estimation Method"
 msgstr "Méthode d'estimation polaire"
-
-#: src/settings_ui.rs
-msgid ""
-"Fallback applied when the sun never rises or sets (above ~66.5° latitude)."
-msgstr ""
-"La méthode d'estimation polaire est utilisée lorsque le soleil ne se lève ou "
-"ne se couche jamais (au-delà d'environ 66.5° de latitude)."
 
 #: src/settings_ui.rs
 msgid "Iqamah Delays"
@@ -1628,10 +1634,6 @@ msgstr "Adhan de La Mecque"
 #: src/settings_ui.rs
 msgid "Madinah Adhan"
 msgstr "Adhan de Médine"
-
-#: src/settings_ui.rs
-msgid "LRE not available at this latitude."
-msgstr "L'estimation relative locale n'est pas disponible à cette latitude."
 
 #: src/settings_ui.rs
 msgid "Fajr"
@@ -1810,14 +1812,38 @@ msgstr "Format de l'heure"
 msgid "Auto follows the time convention of your selected language."
 msgstr "Le mode automatique suit le format d'heure de la langue sélectionnée."
 
-#: src/settings_ui.rs
+#: src/pages.rs
 msgid "Prayer times are calculated at a substituted latitude."
 msgstr "Les horaires de prière sont calculés à une latitude de substitution."
 
 #: src/settings_ui.rs
-msgid "Prayer times are now calculated at your actual latitude."
+msgid "Local relative estimation is not available at this latitude."
+msgstr "L'estimation relative locale n'est pas disponible à cette latitude."
+
+#. TRANSLATORS: Marks a prayer time a rule produced, because the defining
+#. solar event never occurs at this latitude.
+#: src/settings_ui.rs
+msgid "Estimated"
+msgstr "Estimé"
+
+#. TRANSLATORS: Marks a prayer time a rule displaced from the defining solar
+#. event.
+#: src/settings_ui.rs
+msgid "Alternative"
+msgstr "Alternatif"
+
+#: src/settings_ui.rs
+msgid ""
+"How Fajr and Isha are estimated when the twilight angle is not reachable, "
+"and the fallback used where the sun never rises or sets."
 msgstr ""
-"Les horaires de prière sont désormais calculés à votre latitude réelle."
+"Comment estimer les horaires du Fajr et de l'Isha lorsque l'angle du "
+"crépuscule ne peut pas être atteint. La méthode d'estimation polaire est "
+"utilisée lorsque le soleil ne se lève ou ne se couche jamais."
+
+#: src/settings_ui.rs
+msgid "High-Latitude & Polar Zones"
+msgstr "Zones de haute latitude et polaires"
 
 # =============================================================================
 # SECTION 8: APP UI & SYSTEM ACTIONS

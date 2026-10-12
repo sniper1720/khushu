@@ -1,6 +1,6 @@
 use chrono::{DateTime, Datelike, Local, NaiveDate, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
-use mawaqit::{Configuration, Coordinates, Madhab, Method, Parameters, Prayer, PrayerTimes};
+use mawaqit::{Configuration, Coordinates, Madhab, Method, Prayer, PrayerTimes};
 
 use crate::config::{
     AppConfig, CalculationMethod, HighLatitudeChoice, MadhabChoice, PolarEstimationMethod,
@@ -36,12 +36,21 @@ pub struct PrayerSchedule {
 #[derive(Clone, Debug)]
 pub struct PrayerResult {
     pub schedule: PrayerSchedule,
-    pub lre_blocked: bool,
-    pub fallback_active: bool,
+    pub local_relative_estimation_blocked: bool,
+    pub latitude_substitution_active: bool,
+    // The provenance of each computed time, copied from mawaqit's
+    // PrayerTimes::status at construction. Sunrise, Dhuhr, and Asr have no
+    // status arm upstream (they fall through to the crate's `_ => Actual`
+    // default), so only the three covered prayers travel; the row builder
+    // keys its labels on exactly these, and passes `None` for the rest so a
+    // blanket read cannot invent a provenance those rows never had.
+    pub fajr_time_status: mawaqit::PrayerTimeStatus,
+    pub maghrib_time_status: mawaqit::PrayerTimeStatus,
+    pub isha_time_status: mawaqit::PrayerTimeStatus,
 }
 
 pub struct PrayerEngine {
-    params: Parameters,
+    configuration: Configuration,
     location: Coordinates,
     high_latitude: HighLatitudeChoice,
 }
@@ -79,19 +88,20 @@ impl PrayerEngine {
             MadhabChoice::Shafi => Madhab::Shafi,
         };
 
-        let mut params = Configuration::with(mawaqit_method, mawaqit_madhab);
+        let configuration = Configuration::from_method(mawaqit_method).madhab(mawaqit_madhab);
 
-        if method == &CalculationMethod::Kemenag {
-            params.fajr_angle = 20.0;
-            params.isha_angle = 18.0;
-        }
+        let configuration = if method == &CalculationMethod::Kemenag {
+            configuration.fajr_angle(20.0).isha_angle(18.0)
+        } else {
+            configuration
+        };
 
-        params.polar_estimation = Some(match polar {
+        let configuration = configuration.polar_estimation(match polar {
             PolarEstimationMethod::NearestLatitude => mawaqit::PolarEstimation::NearestLatitude,
             PolarEstimationMethod::Reference45 => mawaqit::PolarEstimation::Reference45,
         });
 
-        params.high_latitude_rule = match high_latitude {
+        let high_latitude_rule = match high_latitude {
             HighLatitudeChoice::Auto => mawaqit::HighLatitudeRule::Recommended,
             HighLatitudeChoice::MiddleOfTheNight => mawaqit::HighLatitudeRule::MiddleOfTheNight,
             HighLatitudeChoice::SeventhOfTheNight => mawaqit::HighLatitudeRule::SeventhOfTheNight,
@@ -101,40 +111,61 @@ impl PrayerEngine {
             }
         };
 
+        let configuration = configuration.high_latitude_rule(high_latitude_rule);
+
         Self {
-            params,
+            configuration,
             location,
             high_latitude: high_latitude.clone(),
         }
     }
 
-    pub fn get_prayer_times(&self, date: NaiveDate) -> Result<PrayerResult, &'static str> {
-        let (times, lre_blocked) = match PrayerTimes::try_new(date, self.location, self.params) {
-            Ok(prayer_times) => (prayer_times, false),
-            Err(_)
-                if matches!(
-                    self.high_latitude,
-                    HighLatitudeChoice::LocalRelativeEstimation
-                ) =>
-            {
-                let mut params = self.params;
-                params.high_latitude_rule = mawaqit::HighLatitudeRule::Recommended;
-                (PrayerTimes::try_new(date, self.location, params)?, true)
-            }
-            Err(err) => return Err(err),
-        };
+    pub fn get_prayer_times(
+        &self,
+        date: NaiveDate,
+    ) -> Result<PrayerResult, mawaqit::PrayerTimesError> {
+        let (times, local_relative_estimation_blocked) =
+            match PrayerTimes::try_new(date, self.location, self.configuration.build()) {
+                Ok(prayer_times) => (prayer_times, false),
+                Err(mawaqit::PrayerTimesError::LocalRelativeEstimationNotApplicable)
+                    if matches!(
+                        self.high_latitude,
+                        HighLatitudeChoice::LocalRelativeEstimation
+                    ) =>
+                {
+                    let retry = self
+                        .configuration
+                        .high_latitude_rule(mawaqit::HighLatitudeRule::Recommended)
+                        .build();
+                    (PrayerTimes::try_new(date, self.location, retry)?, true)
+                }
+                Err(err) => return Err(err),
+            };
 
-        // reference_latitude() already folds in any substitution mawaqit used,
-        // be it a polar-estimation walk or Moonsighting Committee's Zone C
-        // anchor/walk, plus any lre_blocked retry. We trust the library's final
-        // answer rather than re-deriving a substitution ourselves, so the
-        // indicator stays honest for every method.
-        let fallback_active = (times.reference_latitude() - self.location.latitude).abs() > 0.001;
+        // latitude_substitution() reports exactly when mawaqit computed away
+        // from the caller's latitude, be it a polar-estimation walk, the
+        // Moonsighting Committee's Zone C anchor/walk, or a nearest-latitude
+        // substitute, plus any local_relative_estimation_blocked retry. We
+        // trust the library's final answer rather than re-deriving a
+        // substitution ourselves, so the indicator stays honest for every
+        // method.
+        let latitude_substitution_active = times.latitude_substitution().is_some();
+
+        // Read the statuses only now, from whichever object actually produced
+        // the displayed times: the retry, when the LRE rule was blocked. They
+        // must land on PrayerResult before schedule_from_times consumes
+        // `times` by value below.
+        let fajr_time_status = times.status(Prayer::Fajr);
+        let maghrib_time_status = times.status(Prayer::Maghrib);
+        let isha_time_status = times.status(Prayer::Isha);
 
         Ok(PrayerResult {
             schedule: self.schedule_from_times(times),
-            lre_blocked,
-            fallback_active,
+            local_relative_estimation_blocked,
+            latitude_substitution_active,
+            fajr_time_status,
+            maghrib_time_status,
+            isha_time_status,
         })
     }
 
@@ -218,10 +249,7 @@ fn wall_clock_to_local(
     }
 }
 
-pub fn schedule_for_config(
-    config: &AppConfig,
-    date: NaiveDate,
-) -> Result<PrayerResult, &'static str> {
+pub fn schedule_for_config(config: &AppConfig, date: NaiveDate) -> Result<PrayerResult, String> {
     if config.prayer_times_source() == PrayerTimesSource::Mawaqit
         && let Some(cache) = config.mawaqit_cache().as_ref()
         && cache.year == date.year()
@@ -241,10 +269,17 @@ pub fn schedule_for_config(
             return schedule_from_hm(date, arr, mosque_timezone.as_ref())
                 .map(|schedule| PrayerResult {
                     schedule,
-                    lre_blocked: false,
-                    fallback_active: false,
+                    local_relative_estimation_blocked: false,
+                    latitude_substitution_active: false,
+                    // A published wall-clock has no provenance to report:
+                    // no PrayerTimes object exists to ask, and the true
+                    // statement khushu can make is that no rule displaced
+                    // these values.
+                    fajr_time_status: mawaqit::PrayerTimeStatus::Actual,
+                    maghrib_time_status: mawaqit::PrayerTimeStatus::Actual,
+                    isha_time_status: mawaqit::PrayerTimeStatus::Actual,
                 })
-                .ok_or("failed to parse cached times");
+                .ok_or_else(|| "failed to parse cached times".to_string());
         }
     }
 
@@ -257,9 +292,10 @@ pub fn schedule_for_config(
         &config.polar_estimation_method(),
     )
     .get_prayer_times(date)
-    .map(|mut result| {
-        result.schedule = apply_timezone_override(config, result.schedule);
-        result
+    .map_err(|err| err.to_string())
+    .map(|mut prayer_result| {
+        prayer_result.schedule = apply_timezone_override(config, prayer_result.schedule);
+        prayer_result
     })
 }
 
@@ -338,6 +374,21 @@ pub fn effective_today(config: &AppConfig) -> NaiveDate {
     effective_now(config).date_naive()
 }
 
+/// Translated name of a Hijri month, or `None` when `month` falls outside the
+/// 1 to 12 range that the calendar conversion can produce.
+///
+/// Absence is returned rather than defaulted to an empty string so that no
+/// caller can render a date with a silently missing month name.
+pub fn hijri_month_name(month: usize) -> Option<String> {
+    HIJRI_MONTH_NAMES
+        .get(month.checked_sub(1)?)
+        .map(|month_name| tr(month_name))
+}
+
+/// Display text for the Hijri calendar date, shifted by `hijri_offset` days
+/// and shown next to the Gregorian date. Falls back to a placeholder rather
+/// than a blank, unlabeled space, because a blank label is indistinguishable
+/// from one that has not loaded yet.
 pub fn format_hijri_date(datetime: DateTime<Local>, hijri_offset: i64) -> String {
     // HIJRI_MONTH_NAMES: Islamic month names (expose to xgettext)
     if false {
@@ -364,13 +415,13 @@ pub fn format_hijri_date(datetime: DateTime<Local>, hijri_offset: i64) -> String
         adjusted.month() as usize,
         adjusted.day() as usize,
     ) {
-        Ok(hijri) => {
-            let hijri_month = tr(HIJRI_MONTH_NAMES.get(hijri.month() - 1).unwrap_or(&""));
-            format!("{} {} {}", hijri.day(), hijri_month, hijri.year())
-        }
+        Ok(hijri) => match hijri_month_name(hijri.month()) {
+            Some(hijri_month) => format!("{} {} {}", hijri.day(), hijri_month, hijri.year()),
+            None => tr("Unavailable"),
+        },
         Err(err) => {
             log::error!("Failed to calculate Hijri date: {err}");
-            "—".to_string()
+            tr("Unavailable")
         }
     }
 }
@@ -430,30 +481,31 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
 
-    fn default_params() -> (HighLatitudeChoice, PolarEstimationMethod) {
-        (
-            HighLatitudeChoice::Auto,
-            PolarEstimationMethod::NearestLatitude,
-        )
+    fn default_polar_estimation() -> PolarEstimationMethod {
+        PolarEstimationMethod::NearestLatitude
+    }
+
+    fn default_estimation_choices() -> (HighLatitudeChoice, PolarEstimationMethod) {
+        (HighLatitudeChoice::Auto, default_polar_estimation())
     }
 
     #[test]
     fn test_prayer_times_calculation() {
-        let (high_latitude_rule, prayer_params) = default_params();
+        let (high_latitude_rule, polar_estimation_method) = default_estimation_choices();
         let engine = PrayerEngine::new(
             21.4225,
             39.8262,
             &CalculationMethod::Makkah,
             &MadhabChoice::Shafi,
             &high_latitude_rule,
-            &prayer_params,
+            &polar_estimation_method,
         );
         let date = NaiveDate::from_ymd_opt(2023, 10, 1).unwrap();
 
-        let result = engine.get_prayer_times(date);
-        assert!(result.is_ok());
+        let prayer_result = engine.get_prayer_times(date);
+        assert!(prayer_result.is_ok());
 
-        let times = result.unwrap().schedule;
+        let times = prayer_result.unwrap().schedule;
 
         assert!(times.fajr < times.dhuhr);
     }
@@ -470,14 +522,14 @@ mod tests {
         let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
 
         for method in &methods {
-            let (high_latitude_rule, prayer_params) = default_params();
+            let (high_latitude_rule, polar_estimation_method) = default_estimation_choices();
             let engine = PrayerEngine::new(
                 36.75,
                 3.05,
                 method,
                 &MadhabChoice::Shafi,
                 &high_latitude_rule,
-                &prayer_params,
+                &polar_estimation_method,
             );
             let schedule = engine
                 .get_prayer_times(date)
@@ -514,14 +566,14 @@ mod tests {
     #[test]
     fn hanafi_asr_later_than_shafi() {
         let date = NaiveDate::from_ymd_opt(2024, 3, 20).unwrap();
-        let (high_latitude_rule, prayer_params) = default_params();
+        let (high_latitude_rule, polar_estimation_method) = default_estimation_choices();
         let shafi = PrayerEngine::new(
             36.75,
             3.05,
             &CalculationMethod::MWL,
             &MadhabChoice::Shafi,
             &high_latitude_rule,
-            &prayer_params,
+            &polar_estimation_method,
         );
         let hanafi = PrayerEngine::new(
             36.75,
@@ -529,7 +581,7 @@ mod tests {
             &CalculationMethod::MWL,
             &MadhabChoice::Hanafi,
             &high_latitude_rule,
-            &prayer_params,
+            &polar_estimation_method,
         );
 
         let shafi_asr = shafi.get_prayer_times(date).unwrap().schedule.asr;
@@ -546,20 +598,19 @@ mod tests {
     #[test]
     fn next_prayer_wraps_to_tomorrow_fajr() {
         let date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
-        let (high_latitude_rule, prayer_params) = default_params();
+        let (high_latitude_rule, polar_estimation_method) = default_estimation_choices();
         let engine = PrayerEngine::new(
             36.75,
             3.05,
             &CalculationMethod::MWL,
             &MadhabChoice::Shafi,
             &high_latitude_rule,
-            &prayer_params,
+            &polar_estimation_method,
         );
 
         let today = engine.get_prayer_times(date).unwrap().schedule;
         let now = today.isha + chrono::Duration::minutes(1);
-        let result = next_prayer_from_schedule(&today, now);
-        assert!(result.is_none());
+        assert!(next_prayer_from_schedule(&today, now).is_none());
 
         let next_day = date.succ_opt().unwrap();
         let tomorrow = engine.get_prayer_times(next_day).unwrap().schedule;
@@ -574,14 +625,14 @@ mod tests {
     #[test]
     fn different_methods_produce_different_times() {
         let date = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
-        let (high_latitude_rule, prayer_params) = default_params();
+        let (high_latitude_rule, polar_estimation_method) = default_estimation_choices();
         let mwl = PrayerEngine::new(
             36.75,
             3.05,
             &CalculationMethod::MWL,
             &MadhabChoice::Shafi,
             &high_latitude_rule,
-            &prayer_params,
+            &polar_estimation_method,
         );
         let egypt = PrayerEngine::new(
             36.75,
@@ -589,7 +640,7 @@ mod tests {
             &CalculationMethod::Egypt,
             &MadhabChoice::Shafi,
             &high_latitude_rule,
-            &prayer_params,
+            &polar_estimation_method,
         );
 
         let mwl_t = mwl.get_prayer_times(date).unwrap().schedule;
@@ -603,28 +654,58 @@ mod tests {
     }
 
     #[test]
-    fn moonsighting_committee_high_latitude_reports_fallback_active() {
+    fn local_relative_estimation_blocking_falls_back_to_recommended() {
+        // |lat| > 66.6 with LocalRelativeEstimation requested: mawaqit
+        // rejects the rule (Zone 3), so khushu retries with Recommended ->
+        // MiddleOfTheNight and the schedule is produced with the
+        // local_relative_estimation_blocked flag set.
+        let date = NaiveDate::from_ymd_opt(2026, 9, 21).unwrap();
+        let polar_estimation_method = default_polar_estimation();
+        let engine = PrayerEngine::new(
+            67.0,
+            25.0,
+            &CalculationMethod::MWL,
+            &MadhabChoice::Shafi,
+            &HighLatitudeChoice::LocalRelativeEstimation,
+            &polar_estimation_method,
+        );
+
+        let prayer_result = engine
+            .get_prayer_times(date)
+            .expect("retry must produce a schedule");
+        assert!(
+            prayer_result.local_relative_estimation_blocked,
+            "LocalRelativeEstimation not applicable at |lat| > 66.6 must fall back to Recommended"
+        );
+        assert!(
+            !prayer_result.latitude_substitution_active,
+            "rule retry must not move the latitude"
+        );
+    }
+
+    #[test]
+    fn moonsighting_committee_high_latitude_reports_latitude_substitution() {
         // Hammerfest in perpetual night (|lat| > 60°): Moonsighting
         // Committee walks to the nearest working latitude, so the
         // schedule's reference latitude differs from the true one. The
-        // fallback indicator must reflect that substitution via
-        // reference_latitude(), not a manual polar-estimation pre-pass
+        // substitution indicator must reflect that substitution via
+        // latitude_substitution(), not a manual polar-estimation pre-pass
         // (which cannot see the committee's own Zone C rules).
         let date = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
-        let (high_latitude_rule, prayer_params) = default_params();
+        let (high_latitude_rule, polar_estimation_method) = default_estimation_choices();
         let engine = PrayerEngine::new(
             70.66,
             23.68,
             &CalculationMethod::MoonsightingCommittee,
             &MadhabChoice::Shafi,
             &high_latitude_rule,
-            &prayer_params,
+            &polar_estimation_method,
         );
 
-        let result = engine.get_prayer_times(date).unwrap();
+        let prayer_result = engine.get_prayer_times(date).unwrap();
         assert!(
-            result.fallback_active,
-            "MC high-latitude substitution must be reported as a fallback"
+            prayer_result.latitude_substitution_active,
+            "MC high-latitude substitution must be reported as a substitution"
         );
     }
 
@@ -690,5 +771,169 @@ mod tests {
         cache.timezone = None;
         config.set_mawaqit_cache(Some(cache));
         assert_eq!(effective_timezone(&config), TimezoneMode::Auto);
+    }
+
+    #[test]
+    fn prayer_result_carries_statuses_that_match_the_crate() {
+        // Latitude 65 on the summer solstice: the sun never reaches the Fajr
+        // or Isha angles, so the crate reports Estimated for both and Actual
+        // for Maghrib, with no latitude substitution. prayer_result must
+        // carry exactly what the configured calculation reports.
+        let date = NaiveDate::from_ymd_opt(2026, 6, 21).unwrap();
+        let (high_latitude_rule, polar_estimation_method) = default_estimation_choices();
+        let engine = PrayerEngine::new(
+            65.0,
+            25.0,
+            &CalculationMethod::MWL,
+            &MadhabChoice::Shafi,
+            &high_latitude_rule,
+            &polar_estimation_method,
+        );
+
+        let prayer_result = engine.get_prayer_times(date).unwrap();
+
+        let reference = PrayerTimes::try_new(date, engine.location, engine.configuration.build())
+            .expect("the same configuration must compute times");
+
+        assert_eq!(
+            prayer_result.fajr_time_status,
+            reference.status(Prayer::Fajr)
+        );
+        assert_eq!(
+            prayer_result.maghrib_time_status,
+            reference.status(Prayer::Maghrib)
+        );
+        assert_eq!(
+            prayer_result.isha_time_status,
+            reference.status(Prayer::Isha)
+        );
+        assert_eq!(
+            prayer_result.fajr_time_status,
+            mawaqit::PrayerTimeStatus::Estimated
+        );
+        assert_eq!(
+            prayer_result.maghrib_time_status,
+            mawaqit::PrayerTimeStatus::Actual
+        );
+    }
+
+    #[test]
+    fn lre_blocked_retry_reports_the_retry_object_statuses() {
+        // |lat| > 66.6 with LocalRelativeEstimation: mawaqit rejects the
+        // rule, khushu retries with Recommended, and the statuses must come
+        // from the retried object (read-after-match), not the failed first
+        // attempt. At latitude 75 near the equinox the sun reaches Maghrib's
+        // angle but never the deeper Fajr or Isha angles.
+        let date = NaiveDate::from_ymd_opt(2026, 9, 21).unwrap();
+        let polar_estimation_method = default_polar_estimation();
+        let engine = PrayerEngine::new(
+            75.0,
+            25.0,
+            &CalculationMethod::MWL,
+            &MadhabChoice::Shafi,
+            &HighLatitudeChoice::LocalRelativeEstimation,
+            &polar_estimation_method,
+        );
+
+        let prayer_result = engine
+            .get_prayer_times(date)
+            .expect("retry must produce a schedule");
+        assert!(
+            prayer_result.local_relative_estimation_blocked,
+            "LocalRelativeEstimation must be blocked above 66.6 on this date"
+        );
+        assert!(
+            !prayer_result.latitude_substitution_active,
+            "rule retry must not move the latitude"
+        );
+
+        assert_eq!(
+            prayer_result.fajr_time_status,
+            mawaqit::PrayerTimeStatus::Estimated
+        );
+        assert_eq!(
+            prayer_result.maghrib_time_status,
+            mawaqit::PrayerTimeStatus::Actual
+        );
+        assert_eq!(
+            prayer_result.isha_time_status,
+            mawaqit::PrayerTimeStatus::Estimated
+        );
+    }
+
+    #[test]
+    fn cached_mosque_schedule_reports_actual_statuses() {
+        let date = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
+        let config = AppConfig::default();
+        config.set_prayer_times_source(PrayerTimesSource::Mawaqit);
+        let mut months: Vec<std::collections::BTreeMap<u32, [String; 6]>> =
+            vec![std::collections::BTreeMap::new(); 12];
+        months[0].insert(
+            15,
+            [
+                "03:03".to_string(),
+                "05:00".to_string(),
+                "12:15".to_string(),
+                "14:30".to_string(),
+                "17:00".to_string(),
+                "18:30".to_string(),
+            ],
+        );
+        let cache = crate::config::MawaqitCache {
+            url: "https://mawaqit.net".to_string(),
+            mosque_name: None,
+            timezone: Some("Europe/Moscow".to_string()),
+            latitude: Some(55.75),
+            longitude: Some(37.62),
+            country_code: None,
+            resolved_city: None,
+            year: 2026,
+            months,
+            fetched_on: String::new(),
+        };
+        config.set_mawaqit_cache(Some(cache));
+
+        let prayer_result = schedule_for_config(&config, date).expect("cached schedule");
+
+        assert_eq!(
+            prayer_result.fajr_time_status,
+            mawaqit::PrayerTimeStatus::Actual
+        );
+        assert_eq!(
+            prayer_result.maghrib_time_status,
+            mawaqit::PrayerTimeStatus::Actual
+        );
+        assert_eq!(
+            prayer_result.isha_time_status,
+            mawaqit::PrayerTimeStatus::Actual
+        );
+    }
+
+    #[test]
+    fn timezone_override_remaps_schedule_but_not_statuses() {
+        let date = NaiveDate::from_ymd_opt(2026, 6, 21).unwrap();
+        let plain = AppConfig::default();
+        plain.set_latitude(65.0);
+        plain.set_longitude(25.0);
+        let plain_result = schedule_for_config(&plain, date).expect("computed schedule");
+
+        let shifted = AppConfig::default();
+        shifted.set_latitude(65.0);
+        shifted.set_longitude(25.0);
+        shifted.set_timezone_mode(TimezoneMode::Named("Europe/Moscow".to_string()));
+        let shifted_result = schedule_for_config(&shifted, date).expect("computed schedule");
+
+        assert_eq!(
+            shifted_result.fajr_time_status,
+            plain_result.fajr_time_status
+        );
+        assert_eq!(
+            shifted_result.maghrib_time_status,
+            plain_result.maghrib_time_status
+        );
+        assert_eq!(
+            shifted_result.isha_time_status,
+            plain_result.isha_time_status
+        );
     }
 }

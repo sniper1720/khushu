@@ -51,6 +51,7 @@ fn handle_lang_change(
     refresh_home: &Rc<dyn Fn()>,
     loc_tx: &std::sync::mpsc::Sender<(f64, f64, Option<String>)>,
     list_box: &Rc<gtk::ListBox>,
+    estimation_notices: &Rc<settings_ui::PrayerEstimationNotices>,
     settings_ctx: &Rc<RefCell<crate::settings_ui::SettingsUiContext>>,
 ) {
     let selected_language;
@@ -145,6 +146,7 @@ fn handle_lang_change(
     let loc_tx_for_geo = loc_tx.clone();
     let refresh_home_for_geo = refresh_home.clone();
     let list_box_for_geo = list_box.clone();
+    let notices_for_geo = estimation_notices.clone();
     let needs_geocode = config.prayer_times_source() != crate::config::PrayerTimesSource::Mawaqit;
     if needs_geocode {
         let (latitude, longitude) = (config.latitude(), config.longitude());
@@ -157,7 +159,11 @@ fn handle_lang_change(
                 gtk::glib::idle_add_local(move || {
                     config_for_geo.set_city_name(Some(name.clone()));
                     refresh_home_for_geo();
-                    crate::settings_ui::refresh_prayers(&config_for_geo, &list_box_for_geo);
+                    crate::settings_ui::refresh_prayers(
+                        &config_for_geo,
+                        &list_box_for_geo,
+                        &notices_for_geo,
+                    );
                     {
                         let ctx = ctx_for_geo.borrow();
                         if let Some(cache) = config_for_geo.mawaqit_cache().as_ref() {
@@ -192,11 +198,19 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
         .propagate_natural_height(false)
         .build();
 
+    let estimation_notices = Rc::new(settings_ui::PrayerEstimationNotices {
+        latitude_substitution_banner: adw::Banner::new(&tr(
+            "Prayer times are calculated at a substituted latitude.",
+        )),
+        local_relative_estimation_blocked_prev: std::cell::Cell::new(false),
+    });
+
     let home_content_box = Box::new(Orientation::Vertical, 0);
     home_content_box.set_margin_top(24);
     home_content_box.set_margin_bottom(24);
     home_content_box.set_margin_start(12);
     home_content_box.set_margin_end(12);
+    home_content_box.append(&estimation_notices.latitude_substitution_banner);
 
     let home_clamp = adw::Clamp::builder()
         .maximum_size(800)
@@ -241,6 +255,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let hijri_label_ref = hijri_label.clone();
     let location_label_ref = location_label.clone();
     let list_box_home = list_box_rc.clone();
+    let notices_home = estimation_notices.clone();
     let config_for_home = config.clone();
     let refresh_home: Rc<dyn Fn()> = Rc::new(move || {
         let language = config_for_home.language();
@@ -250,7 +265,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
             &language,
             &config_for_home,
         );
-        settings_ui::refresh_prayers(&config_for_home, &list_box_home);
+        settings_ui::refresh_prayers(&config_for_home, &list_box_home, &notices_home);
     });
     let refresh_home_initial = refresh_home.clone();
     refresh_home_initial();
@@ -264,6 +279,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
 
     let config_for_location = config.clone();
     let list_box_loc = list_box_rc.clone();
+    let notices_location = estimation_notices.clone();
     let hijri_label_loc = hijri_label.clone();
     let location_label_loc = location_label.clone();
     let current_language_loc = current_language.clone();
@@ -284,7 +300,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
                 &language,
                 &config_for_location,
             );
-            settings_ui::refresh_prayers(&config_for_location, &list_box_loc);
+            settings_ui::refresh_prayers(&config_for_location, &list_box_loc, &notices_location);
         }
         gtk::glib::ControlFlow::Continue
     });
@@ -393,6 +409,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
             settings_box: &dynamic_settings_box,
             config: config.clone(),
             list_box_rc: list_box_rc.clone(),
+            estimation_notices: estimation_notices.clone(),
             window: &window,
             current_language: current_language.clone(),
             loc_tx: loc_tx.clone(),
@@ -412,6 +429,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     let ref_home = refresh_home.clone();
     let ref_tx = loc_tx.clone();
     let ref_list = list_box_rc.clone();
+    let notices_for_calendar = estimation_notices.clone();
     let ref_ctx = settings_ctx.clone();
 
     language_row.connect_selected_notify(move |row| {
@@ -435,6 +453,7 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
             &ref_home,
             &ref_tx,
             &ref_list,
+            &notices_for_calendar,
             &ref_ctx,
         );
     });
@@ -474,11 +493,18 @@ pub fn build_pages(params: PagesParams) -> PagesContext {
     split_view.set_content(Some(&toast_overlay));
 
     let config_for_map = config.clone();
+    let notices_for_map = estimation_notices.clone();
     window.connect_map(move |win| {
         let today = crate::time::effective_today(&config_for_map);
-        if let Ok(result) = crate::time::schedule_for_config(&config_for_map, today) {
-            crate::settings_ui::update_lre_toast(&config_for_map, &result, win);
-            crate::settings_ui::update_fallback_toast(&config_for_map, &result, win);
+        if let Ok(prayer_result) = crate::time::schedule_for_config(&config_for_map, today) {
+            notices_for_map
+                .latitude_substitution_banner
+                .set_revealed(prayer_result.latitude_substitution_active);
+            crate::settings_ui::update_local_relative_estimation_toast(
+                &notices_for_map,
+                &prayer_result,
+                win,
+            );
         }
     });
 

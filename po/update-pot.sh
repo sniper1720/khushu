@@ -18,7 +18,7 @@ xgettext \
   --add-location=file \
   --msgid-bugs-address=https://github.com/sniper1720/khushu/issues \
   --keyword=tr:1 \
-  --add-comments \
+  --add-comments=TRANSLATORS: \
   --output="$AUTO_RS" \
   --files-from=po/POTFILES.in
 

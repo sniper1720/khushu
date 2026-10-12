@@ -14,16 +14,75 @@ struct CalendarState {
     current_hijri_year: usize,
 }
 
+// The Hijri month one step away from `year` and `month`, or `None` when the
+// step would leave the range the calendar crate supports. The boundary is
+// discovered by asking the crate rather than duplicated here.
+fn adjacent_hijri_month(
+    year: usize,
+    month: usize,
+    step_towards_earlier_month: bool,
+) -> Option<(usize, usize)> {
+    let (adjacent_year, adjacent_month) = match (month, step_towards_earlier_month) {
+        (1, true) => (year.checked_sub(1)?, 12),
+        (12, false) => (year.checked_add(1)?, 1),
+        (_, true) => (year, month - 1),
+        (_, false) => (year, month + 1),
+    };
+    HijriDate::from_hijri(adjacent_year, adjacent_month, 1)
+        .is_ok()
+        .then_some((adjacent_year, adjacent_month))
+}
+
+fn previous_hijri_month(year: usize, month: usize) -> Option<(usize, usize)> {
+    adjacent_hijri_month(year, month, true)
+}
+
+fn next_hijri_month(year: usize, month: usize) -> Option<(usize, usize)> {
+    adjacent_hijri_month(year, month, false)
+}
+
+// Grays out whichever arrow would step outside the supported range, so the
+// limit is visible rather than silently enforced. The step functions stay
+// the actual guard, which keeps the displayed year representable however the
+// arrow is activated, including by keyboard.
+fn update_navigation_buttons(
+    state: &CalendarState,
+    previous_button: &Button,
+    next_button: &Button,
+) {
+    let (year, month) = (state.current_hijri_year, state.current_hijri_month);
+    previous_button.set_sensitive(previous_hijri_month(year, month).is_some());
+    next_button.set_sensitive(next_hijri_month(year, month).is_some());
+}
+
 pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
     let now = crate::time::effective_today(&config);
     let offset_days = config.hijri_offset();
     let adjusted_now = now + Duration::days(offset_days);
-    let initial_hijri = HijriDate::from_gr(
+    // Without a valid Hijri date there is no month to render, so the page
+    // cannot show its content at all. A status page is the libadwaita widget
+    // for that case, and naming the likely cause helps more than crashing.
+    let initial_hijri = match HijriDate::from_gr(
         adjusted_now.year() as usize,
         adjusted_now.month() as usize,
         adjusted_now.day() as usize,
-    )
-    .expect("Failed to calculate initial Hijri date from current time");
+    ) {
+        Ok(initial_hijri) => initial_hijri,
+        Err(err) => {
+            log::error!("Failed to calculate initial Hijri date from current time: {err}");
+            let unavailable_page = adw::StatusPage::builder()
+                .title(tr("Calendar Unavailable"))
+                .description(tr(
+                    "Khushu could not determine the Hijri date. Check that your system date and time are set correctly.",
+                ))
+                .icon_name("dialog-warning-symbolic")
+                .vexpand(true)
+                .build();
+            let unavailable_container = Box::new(Orientation::Vertical, 0);
+            unavailable_container.append(&unavailable_page);
+            return (unavailable_container, Rc::new(|| {}));
+        }
+    };
 
     let calendar_state = Rc::new(RefCell::new(CalendarState {
         current_hijri_month: initial_hijri.month(),
@@ -99,6 +158,8 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
     let details_frame_clone = details_frame.clone();
     let selected_date_clone = selected_date.clone();
     let config_for_calendar = config.clone();
+    let prev_btn_clone = prev_btn.clone();
+    let next_btn_clone = next_btn.clone();
 
     let refresh_inner: Rc<dyn Fn(bool)> = Rc::new(move |recenter_on_today: bool| {
         let hijri_offset = config_for_calendar.hijri_offset();
@@ -120,16 +181,15 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
 
         let state_guard = state_clone.borrow();
         details_frame_clone.set_label(Some(&tr("Date Details")));
+        update_navigation_buttons(&state_guard, &prev_btn_clone, &next_btn_clone);
 
-        let dummy_hijri = HijriDate::from_hijri(
-            state_guard.current_hijri_year,
-            state_guard.current_hijri_month,
-            1,
-        )
-        .expect("Valid Hijri date");
-
-        let month_name = get_hijri_month_name(state_guard.current_hijri_month);
-        month_label_clone.set_label(&format!("{} {}", month_name, dummy_hijri.year()));
+        // The year is already in the state, so the month label needs no second conversion.
+        let month_name = crate::time::hijri_month_name(state_guard.current_hijri_month)
+            .unwrap_or_else(|| tr("Unavailable"));
+        month_label_clone.set_label(&format!(
+            "{} {}",
+            month_name, state_guard.current_hijri_year
+        ));
 
         while let Some(child) = grid_clone.first_child() {
             grid_clone.remove(&child);
@@ -154,31 +214,40 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
             grid_clone.attach(&label, day_index as i32, 0, 1, 1);
         }
 
-        let first_day_h = HijriDate::from_hijri(
+        let Ok(month_start) = HijriDate::from_hijri(
             state_guard.current_hijri_year,
             state_guard.current_hijri_month,
             1,
-        )
-        .expect("Valid Hijri date");
-        let gr_first = NaiveDate::from_ymd_opt(
-            first_day_h.year_gr() as i32,
-            first_day_h.month_gr() as u32,
-            first_day_h.day_gr() as u32,
-        )
-        .expect("Invalid Gregorian date for start of Hijri month");
+        ) else {
+            log::error!(
+                "Cannot render Hijri month {} {}: outside the supported conversion range",
+                state_guard.current_hijri_year,
+                state_guard.current_hijri_month
+            );
+            return;
+        };
+        let Some(gr_first) = NaiveDate::from_ymd_opt(
+            month_start.year_gr() as i32,
+            month_start.month_gr() as u32,
+            month_start.day_gr() as u32,
+        ) else {
+            log::error!("Cannot place the first day of the displayed Hijri month on the grid");
+            return;
+        };
         let start_weekday = gr_first.weekday().num_days_from_sunday();
 
         let mut row = 1;
         let mut col = start_weekday as i32;
-        let month_length = first_day_h.month_len();
+        let month_length = month_start.month_len();
 
         for day_num in 1..=month_length {
-            let current_hijri = HijriDate::from_hijri(
+            let Ok(current_hijri) = HijriDate::from_hijri(
                 state_guard.current_hijri_year,
                 state_guard.current_hijri_month,
                 day_num,
-            )
-            .expect("Valid Hijri date");
+            ) else {
+                continue;
+            };
 
             let day_btn = Button::with_label(&format!("{}", day_num));
             day_btn.set_height_request(32);
@@ -198,20 +267,26 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
             let selected_date_inner = selected_date_clone.clone();
 
             day_btn.connect_clicked(move |_| {
-                let clicked_hijri = HijriDate::from_hijri(
-                    state_inner.borrow().current_hijri_year,
-                    state_inner.borrow().current_hijri_month,
-                    day_num,
-                )
-                .expect("Valid Hijri date");
-                let naive = NaiveDate::from_ymd_opt(
+                let (clicked_year, clicked_month) = {
+                    let state_guard = state_inner.borrow();
+                    (
+                        state_guard.current_hijri_year,
+                        state_guard.current_hijri_month,
+                    )
+                };
+                let Ok(clicked_hijri) = HijriDate::from_hijri(clicked_year, clicked_month, day_num)
+                else {
+                    return;
+                };
+                let Some(clicked_date) = NaiveDate::from_ymd_opt(
                     clicked_hijri.year_gr() as i32,
                     clicked_hijri.month_gr() as u32,
                     clicked_hijri.day_gr() as u32,
-                )
-                .expect("Invalid Gregorian date for Hijri day conversion");
-                *selected_date_inner.borrow_mut() = naive;
-                update_details(naive, &hijri_inner, &greg_inner, &event_inner);
+                ) else {
+                    return;
+                };
+                *selected_date_inner.borrow_mut() = clicked_date;
+                update_details(clicked_date, &hijri_inner, &greg_inner, &event_inner);
             });
 
             grid_clone.attach(&day_btn, col, row, 1, 1);
@@ -243,11 +318,13 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
     prev_btn.connect_clicked(move |_| {
         {
             let mut state_guard_mut = state_prev.borrow_mut();
-            if state_guard_mut.current_hijri_month == 1 {
-                state_guard_mut.current_hijri_month = 12;
-                state_guard_mut.current_hijri_year -= 1;
-            } else {
-                state_guard_mut.current_hijri_month -= 1;
+            let (year, month) = (
+                state_guard_mut.current_hijri_year,
+                state_guard_mut.current_hijri_month,
+            );
+            if let Some((stepped_year, stepped_month)) = previous_hijri_month(year, month) {
+                state_guard_mut.current_hijri_year = stepped_year;
+                state_guard_mut.current_hijri_month = stepped_month;
             }
         }
         refresh_prev_inner(false);
@@ -258,11 +335,13 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
     next_btn.connect_clicked(move |_| {
         {
             let mut state_guard_mut = state_next.borrow_mut();
-            if state_guard_mut.current_hijri_month == 12 {
-                state_guard_mut.current_hijri_month = 1;
-                state_guard_mut.current_hijri_year += 1;
-            } else {
-                state_guard_mut.current_hijri_month += 1;
+            let (year, month) = (
+                state_guard_mut.current_hijri_year,
+                state_guard_mut.current_hijri_month,
+            );
+            if let Some((stepped_year, stepped_month)) = next_hijri_month(year, month) {
+                state_guard_mut.current_hijri_year = stepped_year;
+                state_guard_mut.current_hijri_month = stepped_month;
             }
         }
         refresh_next_inner(false);
@@ -271,50 +350,57 @@ pub fn create_calendar_page(config: AppConfig) -> (Box, Rc<dyn Fn()>) {
     (container, refresh_ui)
 }
 
-fn get_hijri_month_name(month: usize) -> String {
-    let name = crate::time::HIJRI_MONTH_NAMES
-        .get(month - 1)
-        .unwrap_or(&"")
-        .to_string();
-    tr(&name)
-}
-
 fn update_details(date: NaiveDate, hijri_label: &Label, greg_label: &Label, event_label: &Label) {
-    if let Ok(hijri) = HijriDate::from_gr(
+    // The Gregorian date does not depend on the Hijri conversion, so it must
+    // render even when that conversion fails.
+    let weekday = get_gregorian_weekday_name(date.weekday());
+    let greg_month = get_gregorian_month_name(date.month());
+    greg_label.set_label(&format!(
+        "{}, {:02} {} {}",
+        weekday,
+        date.day(),
+        greg_month,
+        date.year()
+    ));
+
+    let (hijri_text, event_text) = match HijriDate::from_gr(
         date.year() as usize,
         date.month() as usize,
         date.day() as usize,
     ) {
-        let m_name = get_hijri_month_name(hijri.month());
-        hijri_label.set_label(&format!("{} {} {}", hijri.day(), m_name, hijri.year()));
+        Ok(hijri) => {
+            let event_text = match (hijri.month(), hijri.day()) {
+                (9, 1) => Some(tr("First Day of Ramadan")),
+                (10, 1) => Some(tr("Eid al-Fitr")),
+                (12, 10) => Some(tr("Eid al-Adha")),
+                (12, 9) => Some(tr("Day of Arafah")),
+                (1, 1) => Some(tr("Islamic New Year")),
+                (1, 10) => Some(tr("Ashura")),
+                (3, 12) => Some(tr("Mawlid al-Nabi")),
+                _ => None,
+            };
+            // A month the calendar crate reports is always nameable, but keep
+            // the placeholder so a date can never render as a blank label.
+            let hijri_text = match crate::time::hijri_month_name(hijri.month()) {
+                Some(hijri_month) => format!("{} {} {}", hijri.day(), hijri_month, hijri.year()),
+                None => tr("Unavailable"),
+            };
+            (hijri_text, event_text)
+        }
+        Err(err) => {
+            log::error!("Failed to calculate Hijri date for selected day: {err}");
+            (tr("Unavailable"), None)
+        }
+    };
 
-        let weekday = get_gregorian_weekday_name(date.weekday());
-        let greg_month = get_gregorian_month_name(date.month());
-        greg_label.set_label(&format!(
-            "{}, {:02} {} {}",
-            weekday,
-            date.day(),
-            greg_month,
-            date.year()
-        ));
+    hijri_label.set_label(&hijri_text);
 
-        let event_label_text = match (hijri.month(), hijri.day()) {
-            (9, 1) => Some(tr("First Day of Ramadan")),
-            (10, 1) => Some(tr("Eid al-Fitr")),
-            (12, 10) => Some(tr("Eid al-Adha")),
-            (12, 9) => Some(tr("Day of Arafah")),
-            (1, 1) => Some(tr("Islamic New Year")),
-            (1, 10) => Some(tr("Ashura")),
-            (3, 12) => Some(tr("Mawlid al-Nabi")),
-            _ => None,
-        };
-
-        if let Some(text) = event_label_text {
+    match event_text {
+        Some(text) => {
             event_label.set_label(&text);
             event_label.set_visible(true);
-        } else {
-            event_label.set_visible(false);
         }
+        None => event_label.set_visible(false),
     }
 }
 
@@ -348,11 +434,9 @@ fn get_gregorian_month_name(month: u32) -> String {
         tr("November");
         tr("December");
     }
-    let name = en_months
-        .get((month - 1) as usize)
-        .unwrap_or(&"")
-        .to_string();
-    tr(&name)
+    // `chrono` guarantees 1 to 12, so the index is in bounds by contract and
+    // needs no fallback branch of its own.
+    tr(en_months[month as usize - 1])
 }
 
 fn get_gregorian_weekday_name(day: chrono::Weekday) -> String {
@@ -375,9 +459,5 @@ fn get_gregorian_weekday_name(day: chrono::Weekday) -> String {
         tr("Friday");
         tr("Saturday");
     }
-    let name = en_weekdays
-        .get(day.num_days_from_sunday() as usize)
-        .unwrap_or(&"")
-        .to_string();
-    tr(&name)
+    tr(en_weekdays[day.num_days_from_sunday() as usize])
 }

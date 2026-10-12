@@ -664,6 +664,20 @@ msgstr ""
 msgid "Saturday"
 msgstr ""
 
+#: src/time.rs
+msgid "Unavailable"
+msgstr ""
+
+#: src/calendar.rs
+msgid "Calendar Unavailable"
+msgstr ""
+
+#: src/calendar.rs
+msgid ""
+"Khushu could not determine the Hijri date. Check that your system date and "
+"time are set correctly."
+msgstr ""
+
 # =============================================================================
 # SECTION 3: PRAYER
 # =============================================================================
@@ -1328,11 +1342,6 @@ msgid "Fajr/Isha Approximation"
 msgstr ""
 
 #: src/settings_ui.rs
-msgid ""
-"How to approximate Fajr and Isha when the twilight angle is not reachable."
-msgstr ""
-
-#: src/settings_ui.rs
 msgid "Nearest Latitude"
 msgstr ""
 
@@ -1342,11 +1351,6 @@ msgstr ""
 
 #: src/settings_ui.rs
 msgid "Polar Estimation Method"
-msgstr ""
-
-#: src/settings_ui.rs
-msgid ""
-"Fallback applied when the sun never rises or sets (above ~66.5° latitude)."
 msgstr ""
 
 #: src/settings_ui.rs
@@ -1468,10 +1472,6 @@ msgstr ""
 
 #: src/settings_ui.rs
 msgid "Madinah Adhan"
-msgstr ""
-
-#: src/settings_ui.rs
-msgid "LRE not available at this latitude."
 msgstr ""
 
 #: src/settings_ui.rs
@@ -1646,12 +1646,34 @@ msgstr ""
 msgid "Auto follows the time convention of your selected language."
 msgstr ""
 
-#: src/settings_ui.rs
+#: src/pages.rs
 msgid "Prayer times are calculated at a substituted latitude."
 msgstr ""
 
 #: src/settings_ui.rs
-msgid "Prayer times are now calculated at your actual latitude."
+msgid "Local relative estimation is not available at this latitude."
+msgstr ""
+
+#: src/settings_ui.rs
+#. TRANSLATORS: Marks a prayer time a rule produced, because the defining
+#. solar event never occurs at this latitude.
+msgid "Estimated"
+msgstr ""
+
+#: src/settings_ui.rs
+#. TRANSLATORS: Marks a prayer time a rule displaced from the defining solar
+#. event.
+msgid "Alternative"
+msgstr ""
+
+#: src/settings_ui.rs
+msgid ""
+"How Fajr and Isha are estimated when the twilight angle is not reachable, "
+"and the fallback used where the sun never rises or sets."
+msgstr ""
+
+#: src/settings_ui.rs
+msgid "High-Latitude & Polar Zones"
 msgstr ""
 
 # =============================================================================

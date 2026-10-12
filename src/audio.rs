@@ -67,18 +67,18 @@ struct DownloadRequest {
     verse: u32,
 }
 
-struct DownloadResult {
+struct DownloadOutcome {
     surah_number: u32,
     verse: u32,
     ok: bool,
 }
 
-fn spawn_downloader(result_tx: Sender<DownloadResult>) -> Sender<DownloadRequest> {
+fn spawn_downloader(outcome_tx: Sender<DownloadOutcome>) -> Sender<DownloadRequest> {
     let (req_tx, req_rx) = channel::<DownloadRequest>();
     thread::spawn(move || {
         while let Ok(req) = req_rx.recv() {
             let ok = download_verse(&req.reciter, req.surah_number, req.verse);
-            let _ = result_tx.send(DownloadResult {
+            let _ = outcome_tx.send(DownloadOutcome {
                 surah_number: req.surah_number,
                 verse: req.verse,
                 ok,
@@ -86,6 +86,23 @@ fn spawn_downloader(result_tx: Sender<DownloadResult>) -> Sender<DownloadRequest
         }
     });
     req_tx
+}
+
+// Folds every queued download outcome into the set of verses known to be on
+// disk, and returns how many were newly recorded. Extracted from the audio
+// loop so the bookkeeping can be tested without the audio device or the
+// network fetch that produces the outcomes.
+fn record_downloaded_verses(
+    outcome_rx: &Receiver<DownloadOutcome>,
+    downloaded: &mut HashSet<(u32, u32)>,
+) -> usize {
+    let mut newly_downloaded = 0;
+    while let Ok(outcome) = outcome_rx.try_recv() {
+        if outcome.ok && downloaded.insert((outcome.surah_number, outcome.verse)) {
+            newly_downloaded += 1;
+        }
+    }
+    newly_downloaded
 }
 
 fn ensure_audio_thread() -> &'static Sender<AudioCommand> {
@@ -310,8 +327,8 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
         }
     };
 
-    let (result_tx, result_rx) = channel::<DownloadResult>();
-    let dl_tx = spawn_downloader(result_tx);
+    let (outcome_tx, outcome_rx) = channel::<DownloadOutcome>();
+    let dl_tx = spawn_downloader(outcome_tx);
 
     let mut current_player: Option<Player> = None;
     let mut is_reciting = false;
@@ -326,11 +343,7 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
     let mut downloaded: HashSet<(u32, u32)> = HashSet::new();
 
     loop {
-        while let Ok(result) = result_rx.try_recv() {
-            if result.ok {
-                downloaded.insert((result.surah_number, result.verse));
-            }
-        }
+        record_downloaded_verses(&outcome_rx, &mut downloaded);
 
         match receiver.recv_timeout(Duration::from_millis(200)) {
             Ok(command) => match command {
@@ -526,5 +539,67 @@ fn run_audio_loop(receiver: Receiver<AudioCommand>) {
             }
             Err(RecvTimeoutError::Disconnected) => break,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn outcome(ok: bool, surah_number: u32, verse: u32) -> DownloadOutcome {
+        DownloadOutcome {
+            surah_number,
+            verse,
+            ok,
+        }
+    }
+
+    #[test]
+    fn successful_outcome_records_the_verse() {
+        let (outcome_tx, outcome_rx) = channel();
+        let mut downloaded = HashSet::new();
+
+        outcome_tx.send(outcome(true, 114, 1)).unwrap();
+
+        assert_eq!(record_downloaded_verses(&outcome_rx, &mut downloaded), 1);
+        assert!(downloaded.contains(&(114, 1)));
+    }
+
+    #[test]
+    fn failed_outcome_is_not_recorded() {
+        let (outcome_tx, outcome_rx) = channel();
+        let mut downloaded = HashSet::new();
+
+        outcome_tx.send(outcome(false, 114, 2)).unwrap();
+
+        assert_eq!(record_downloaded_verses(&outcome_rx, &mut downloaded), 0);
+        assert!(!downloaded.contains(&(114, 2)));
+    }
+
+    #[test]
+    fn repeated_outcome_is_counted_once() {
+        let (outcome_tx, outcome_rx) = channel();
+        let mut downloaded = HashSet::new();
+
+        outcome_tx.send(outcome(true, 2, 255)).unwrap();
+        outcome_tx.send(outcome(true, 2, 255)).unwrap();
+
+        assert_eq!(record_downloaded_verses(&outcome_rx, &mut downloaded), 1);
+        assert_eq!(downloaded.len(), 1);
+    }
+
+    #[test]
+    fn mixed_outcomes_record_only_the_successful_ones() {
+        let (outcome_tx, outcome_rx) = channel();
+        let mut downloaded = HashSet::new();
+
+        outcome_tx.send(outcome(true, 18, 10)).unwrap();
+        outcome_tx.send(outcome(false, 18, 11)).unwrap();
+        outcome_tx.send(outcome(true, 36, 12)).unwrap();
+
+        assert_eq!(record_downloaded_verses(&outcome_rx, &mut downloaded), 2);
+        assert_eq!(downloaded.len(), 2);
+        assert!(downloaded.contains(&(18, 10)));
+        assert!(downloaded.contains(&(36, 12)));
     }
 }

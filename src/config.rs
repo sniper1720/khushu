@@ -299,10 +299,6 @@ pub struct AppConfigData {
     #[serde(default)]
     pub polar_estimation_method: PolarEstimationMethod,
     #[serde(default)]
-    pub fallback_was_active: bool,
-    #[serde(default)]
-    pub lre_was_blocked: bool,
-    #[serde(default)]
     pub time_format: TimeFormat,
 }
 
@@ -355,8 +351,6 @@ impl Default for AppConfigData {
             installed_reciters: Vec::new(),
             high_latitude_rule: HighLatitudeChoice::default(),
             polar_estimation_method: PolarEstimationMethod::default(),
-            fallback_was_active: false,
-            lre_was_blocked: false,
             time_format: TimeFormat::Auto,
         }
     }
@@ -879,23 +873,12 @@ impl AppConfig {
         self.imp().data.borrow_mut().polar_estimation_method = polar_estimation_method;
     }
 
-    pub fn fallback_was_active(&self) -> bool {
-        self.imp().data.borrow().fallback_was_active
-    }
-    pub fn set_fallback_was_active(&self, fallback_was_active: bool) {
-        self.imp().data.borrow_mut().fallback_was_active = fallback_was_active;
-    }
-
-    pub fn lre_was_blocked(&self) -> bool {
-        self.imp().data.borrow().lre_was_blocked
-    }
-    pub fn set_lre_was_blocked(&self, lre_was_blocked: bool) {
-        self.imp().data.borrow_mut().lre_was_blocked = lre_was_blocked;
-    }
-
+    /// Band index for the stored latitude: 1 at or below 48.6°, 2 up to 66.6°,
+    /// 3 above it. The boundaries must match `mawaqit`'s own zone split, or the
+    /// rows enabled here disagree with the rules the engine actually applies.
     pub fn latitude_zone(&self) -> u8 {
         let latitude_abs = self.latitude().abs();
-        if latitude_abs > 66.5 {
+        if latitude_abs > 66.6 {
             3
         } else if latitude_abs > 48.6 {
             2

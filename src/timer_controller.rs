@@ -43,22 +43,22 @@ fn compute_daily_state(config: &AppConfig, engine: &PrayerEngine, today: NaiveDa
     let today_schedule = if use_mawaqit {
         crate::time::schedule_for_config(config, today)
             .ok()
-            .map(|result| result.schedule)
+            .map(|prayer_result| prayer_result.schedule)
     } else {
         engine
             .get_prayer_times(today)
             .ok()
-            .map(|result| apply_timezone_override(config, result.schedule))
+            .map(|prayer_result| apply_timezone_override(config, prayer_result.schedule))
     };
     let tomorrow_schedule = if use_mawaqit {
         crate::time::schedule_for_config(config, tomorrow)
             .ok()
-            .map(|result| result.schedule)
+            .map(|prayer_result| prayer_result.schedule)
     } else {
         engine
             .get_prayer_times(tomorrow)
             .ok()
-            .map(|result| apply_timezone_override(config, result.schedule))
+            .map(|prayer_result| apply_timezone_override(config, prayer_result.schedule))
     };
 
     let hijri_text = crate::time::format_hijri_date(now, config.hijri_offset());
@@ -255,22 +255,26 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
     // this immediately, so the schedule is never more than one notification
     // stale.
     let rebuild_engine_and_schedule: Rc<dyn Fn()> = Rc::new({
-        let config = config.clone();
+        let config_for_engine_rebuild = config.clone();
         let engine_cache = engine_cache.clone();
         let daily_state = daily_state.clone();
         move || {
             *engine_cache.borrow_mut() = Some(PrayerEngine::new(
-                config.latitude(),
-                config.longitude(),
-                &config.method(),
-                &config.madhab(),
-                &config.high_latitude_rule(),
-                &config.polar_estimation_method(),
+                config_for_engine_rebuild.latitude(),
+                config_for_engine_rebuild.longitude(),
+                &config_for_engine_rebuild.method(),
+                &config_for_engine_rebuild.madhab(),
+                &config_for_engine_rebuild.high_latitude_rule(),
+                &config_for_engine_rebuild.polar_estimation_method(),
             ));
-            let today = crate::time::effective_today(&config);
+            let today = crate::time::effective_today(&config_for_engine_rebuild);
             let engine = engine_cache.borrow();
             if let Some(engine) = engine.as_ref() {
-                *daily_state.borrow_mut() = Some(compute_daily_state(&config, engine, today));
+                *daily_state.borrow_mut() = Some(compute_daily_state(
+                    &config_for_engine_rebuild,
+                    engine,
+                    today,
+                ));
             }
         }
     });
@@ -280,15 +284,19 @@ pub fn start_prayer_timer(config: AppConfig, on_state: impl Fn(PrayerState) + 's
     // already populated; if it is not yet (first tick has not run), rebuild it
     // first so the schedule stays consistent.
     let recompute_schedule: Rc<dyn Fn()> = Rc::new({
-        let config = config.clone();
+        let config_for_daily_state_recompute = config.clone();
         let engine_cache = engine_cache.clone();
         let daily_state = daily_state.clone();
         let rebuild_engine_and_schedule = rebuild_engine_and_schedule.clone();
         move || {
-            let today = crate::time::effective_today(&config);
+            let today = crate::time::effective_today(&config_for_daily_state_recompute);
             let engine = engine_cache.borrow();
             if let Some(engine) = engine.as_ref() {
-                *daily_state.borrow_mut() = Some(compute_daily_state(&config, engine, today));
+                *daily_state.borrow_mut() = Some(compute_daily_state(
+                    &config_for_daily_state_recompute,
+                    engine,
+                    today,
+                ));
             } else {
                 drop(engine);
                 rebuild_engine_and_schedule();
@@ -725,7 +733,7 @@ mod tests {
         let dikrs = vec![make_dikr("صباح الخير", "Good morning")];
         let mut sent = None;
 
-        let result = adkar_due(
+        let due_adkar = adkar_due(
             &dikrs,
             0,
             Duration::seconds(5),
@@ -734,7 +742,7 @@ mod tests {
             NaiveDate::from_ymd_opt(2026, 7, 29).unwrap(),
         );
 
-        assert!(result.is_none());
+        assert!(due_adkar.is_none());
         assert_eq!(sent, None);
     }
 
@@ -744,7 +752,7 @@ mod tests {
         let mut sent = None;
         let today = NaiveDate::from_ymd_opt(2026, 7, 29).unwrap();
 
-        let result = adkar_due(
+        let due_adkar = adkar_due(
             &dikrs,
             0,
             Duration::seconds(15),
@@ -753,8 +761,8 @@ mod tests {
             today,
         );
 
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().arabic, "صباح الخير");
+        assert!(due_adkar.is_some());
+        assert_eq!(due_adkar.unwrap().arabic, "صباح الخير");
         assert_eq!(sent, Some(today));
     }
 
@@ -764,7 +772,7 @@ mod tests {
         let today = NaiveDate::from_ymd_opt(2026, 7, 29).unwrap();
         let mut sent = Some(today);
 
-        let result = adkar_due(
+        let due_adkar = adkar_due(
             &dikrs,
             0,
             Duration::seconds(15),
@@ -773,7 +781,7 @@ mod tests {
             today,
         );
 
-        assert!(result.is_none());
+        assert!(due_adkar.is_none());
         assert_eq!(sent, Some(today));
     }
 
@@ -783,7 +791,7 @@ mod tests {
         let mut sent = None;
         let today = NaiveDate::from_ymd_opt(2026, 7, 29).unwrap();
 
-        let result = adkar_due(
+        let due_adkar = adkar_due(
             &dikrs,
             5,
             Duration::seconds(15),
@@ -792,7 +800,7 @@ mod tests {
             today,
         );
 
-        assert!(result.is_none());
+        assert!(due_adkar.is_none());
     }
 
     #[test]
@@ -801,7 +809,7 @@ mod tests {
         let mut sent = None;
         let today = NaiveDate::from_ymd_opt(2026, 7, 29).unwrap();
 
-        let result = adkar_due(
+        let due_adkar = adkar_due(
             &dikrs,
             1,
             Duration::seconds(15),
@@ -810,8 +818,8 @@ mod tests {
             today,
         );
 
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().arabic, "الثاني");
+        assert!(due_adkar.is_some());
+        assert_eq!(due_adkar.unwrap().arabic, "الثاني");
     }
 
     #[test]
@@ -821,7 +829,7 @@ mod tests {
         let today = NaiveDate::from_ymd_opt(2026, 7, 29).unwrap();
         let mut sent = Some(yesterday);
 
-        let result = adkar_due(
+        let due_adkar = adkar_due(
             &dikrs,
             0,
             Duration::seconds(15),
@@ -830,14 +838,13 @@ mod tests {
             today,
         );
 
-        assert!(result.is_some());
+        assert!(due_adkar.is_some());
         assert_eq!(sent, Some(today));
     }
 
     #[test]
     fn find_next_prayer_returns_none_when_both_schedules_missing() {
-        let result = find_next_prayer(None, None, Local::now());
-        assert!(result.is_none());
+        assert!(find_next_prayer(None, None, Local::now()).is_none());
     }
 
     #[test]
@@ -862,11 +869,11 @@ mod tests {
             isha: now + Duration::hours(16),
         };
 
-        let result = find_next_prayer(Some(&today), Some(&tomorrow), now).unwrap();
+        let next_prayer = find_next_prayer(Some(&today), Some(&tomorrow), now).unwrap();
 
-        assert_eq!(result.0, "Fajr");
-        assert!(result.1 > now, "next prayer must be in the future");
-        assert_eq!(result.1, now + Duration::hours(5));
+        assert_eq!(next_prayer.0, "Fajr");
+        assert!(next_prayer.1 > now, "next prayer must be in the future");
+        assert_eq!(next_prayer.1, now + Duration::hours(5));
     }
 
     #[test]
@@ -881,9 +888,7 @@ mod tests {
             isha: now - Duration::minutes(30),
         };
 
-        let result = find_next_prayer(Some(&today), None, now);
-
-        assert!(result.is_none());
+        assert!(find_next_prayer(Some(&today), None, now).is_none());
     }
 
     #[test]
@@ -906,9 +911,7 @@ mod tests {
             isha: now - Duration::minutes(1),
         };
 
-        let result = find_next_prayer(Some(&today), Some(&tomorrow), now);
-
-        assert!(result.is_none());
+        assert!(find_next_prayer(Some(&today), Some(&tomorrow), now).is_none());
     }
 
     #[test]
@@ -931,10 +934,10 @@ mod tests {
             isha: now + Duration::hours(11),
         };
 
-        let result = find_next_prayer(Some(&today), Some(&tomorrow), now).unwrap();
+        let next_prayer = find_next_prayer(Some(&today), Some(&tomorrow), now).unwrap();
 
-        assert_eq!(result.0, "Sunrise");
-        assert_eq!(result.1, now + Duration::minutes(20));
+        assert_eq!(next_prayer.0, "Sunrise");
+        assert_eq!(next_prayer.1, now + Duration::minutes(20));
     }
 
     #[test]
@@ -952,13 +955,13 @@ mod tests {
         let iqamah_minutes =
             std::collections::HashMap::from([("Dhuhr".to_string(), 5), ("Asr".to_string(), 5)]);
 
-        let result = iqamah_countdown_target(&schedule, now, &iqamah_minutes);
+        let iqamah_target = iqamah_countdown_target(&schedule, now, &iqamah_minutes);
 
         assert_eq!(
-            result.as_ref().map(|(name, _)| name.as_str()),
+            iqamah_target.as_ref().map(|(name, _)| name.as_str()),
             Some("Dhuhr")
         );
-        assert_eq!(result.unwrap().1, dhuhr_time + Duration::minutes(5));
+        assert_eq!(iqamah_target.unwrap().1, dhuhr_time + Duration::minutes(5));
     }
 
     #[test]
@@ -975,9 +978,7 @@ mod tests {
         let iqamah_minutes =
             std::collections::HashMap::from([("Fajr".to_string(), 5), ("Isha".to_string(), 0)]);
 
-        let result = iqamah_countdown_target(&schedule, now, &iqamah_minutes);
-
-        assert!(result.is_none());
+        assert!(iqamah_countdown_target(&schedule, now, &iqamah_minutes).is_none());
     }
 
     #[test]
@@ -996,10 +997,13 @@ mod tests {
         let iqamah_minutes =
             std::collections::HashMap::from([("Asr".to_string(), 5), ("Isha".to_string(), 5)]);
 
-        let result = iqamah_countdown_target(&schedule, now, &iqamah_minutes);
+        let iqamah_target = iqamah_countdown_target(&schedule, now, &iqamah_minutes);
 
-        assert_eq!(result.as_ref().map(|(name, _)| name.as_str()), Some("Isha"));
-        assert_eq!(result.unwrap().1, isha_time + Duration::minutes(5));
+        assert_eq!(
+            iqamah_target.as_ref().map(|(name, _)| name.as_str()),
+            Some("Isha")
+        );
+        assert_eq!(iqamah_target.unwrap().1, isha_time + Duration::minutes(5));
     }
 
     fn make_mawaqit_cache(fetched_on: &str) -> crate::config::MawaqitCache {

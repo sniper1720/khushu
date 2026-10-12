@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Khushu 1.3.4\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-03-04 20:21+0100\n"
-"PO-Revision-Date: 2026-09-03 03:08+0000\n"
+"PO-Revision-Date: 2026-10-03 15:37+0000\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Turkish\n"
 "Language: tr\n"
@@ -567,8 +567,7 @@ msgstr ""
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Added tooltips for Quran recitation controls"
-msgstr ""
-"Kur'an tilavet kontrolleri için araç ipuçları eklendi"
+msgstr "Kur'an tilavet kontrolleri için araç ipuçları eklendi"
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Fixed next-prayer lookup returning past prayers"
@@ -582,8 +581,7 @@ msgstr ""
 
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Updated prayer calculation library to mawaqit 0.4"
-msgstr ""
-"Namaz vakti hesaplama kütüphanesi mawaqit 0.4 sürümüne güncellendi"
+msgstr "Namaz vakti hesaplama kütüphanesi mawaqit 0.4 sürümüne güncellendi"
 
 # =============================================================================
 # SECTION 2: CALENDAR
@@ -771,6 +769,22 @@ msgstr "Cuma"
 #: src/calendar.rs
 msgid "Saturday"
 msgstr "Cumartesi"
+
+#: src/time.rs
+msgid "Unavailable"
+msgstr "Mevcut değil"
+
+#: src/calendar.rs
+msgid "Calendar Unavailable"
+msgstr "Takvim mevcut değil"
+
+#: src/calendar.rs
+msgid ""
+"Khushu could not determine the Hijri date. Check that your system date and "
+"time are set correctly."
+msgstr ""
+"Khushu, Hicri tarihi belirleyemedi. Sisteminizin tarih ve saatinin doğru "
+"ayarlandığından emin olun."
 
 # =============================================================================
 # SECTION 3: PRAYER
@@ -1433,13 +1447,6 @@ msgid "Fajr/Isha Approximation"
 msgstr "Fecr/Yatsı Yaklaştırması"
 
 #: src/settings_ui.rs
-msgid ""
-"How to approximate Fajr and Isha when the twilight angle is not reachable."
-msgstr ""
-"Tan açısına ulaşılamadığında Fecr ve Yatsı vakitlerinin nasıl "
-"hesaplanacağını belirler."
-
-#: src/settings_ui.rs
 msgid "Nearest Latitude"
 msgstr "En Yakın Enlem"
 
@@ -1450,13 +1457,6 @@ msgstr "Referans Enlemi 45°"
 #: src/settings_ui.rs
 msgid "Polar Estimation Method"
 msgstr "Kutup Tahmin Yöntemi"
-
-#: src/settings_ui.rs
-msgid ""
-"Fallback applied when the sun never rises or sets (above ~66.5° latitude)."
-msgstr ""
-"Kutup Tahmin Yöntemi, güneş hiç doğmadığında veya batmadığında (yaklaşık "
-"66.5° enlemin üzerinde) uygulanır."
 
 #: src/settings_ui.rs
 msgid "Iqamah Delays"
@@ -1581,10 +1581,6 @@ msgstr "Mekke Ezanı"
 #: src/settings_ui.rs
 msgid "Madinah Adhan"
 msgstr "Medine Ezanı"
-
-#: src/settings_ui.rs
-msgid "LRE not available at this latitude."
-msgstr "Yerel Bağıl Tahmin bu enlemde kullanılamaz."
 
 #: src/settings_ui.rs
 msgid "Fajr"
@@ -1762,13 +1758,38 @@ msgstr "Zaman Biçimi"
 msgid "Auto follows the time convention of your selected language."
 msgstr "Otomatik seçeneği, seçilen dilin zaman biçimini izler."
 
-#: src/settings_ui.rs
+#: src/pages.rs
 msgid "Prayer times are calculated at a substituted latitude."
 msgstr "Namaz vakitleri ikame edilen bir enlemde hesaplanıyor."
 
 #: src/settings_ui.rs
-msgid "Prayer times are now calculated at your actual latitude."
-msgstr "Namaz vakitleri artık gerçek enleminizde hesaplanıyor."
+msgid "Local relative estimation is not available at this latitude."
+msgstr "Yerel Bağıl Tahmin bu enlemde kullanılamaz."
+
+#. TRANSLATORS: Marks a prayer time a rule produced, because the defining
+#. solar event never occurs at this latitude.
+#: src/settings_ui.rs
+msgid "Estimated"
+msgstr "Tahmini"
+
+#. TRANSLATORS: Marks a prayer time a rule displaced from the defining solar
+#. event.
+#: src/settings_ui.rs
+msgid "Alternative"
+msgstr "Alternatif"
+
+#: src/settings_ui.rs
+msgid ""
+"How Fajr and Isha are estimated when the twilight angle is not reachable, "
+"and the fallback used where the sun never rises or sets."
+msgstr ""
+"Tan açısına ulaşılamadığında Fecr ve Yatsı vakitlerinin nasıl "
+"hesaplanacağını belirler. Kutup Tahmin Yöntemi, güneş hiç doğmadığında veya "
+"batmadığında uygulanır."
+
+#: src/settings_ui.rs
+msgid "High-Latitude & Polar Zones"
+msgstr "Yüksek enlem ve kutup bölgeleri"
 
 # =============================================================================
 # SECTION 8: APP UI & SYSTEM ACTIONS

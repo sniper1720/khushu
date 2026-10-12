@@ -496,8 +496,9 @@ where
 
         gtk::glib::spawn_future_local(async move {
             let language = current_language_clone_search.borrow().clone();
-            let result = location::search_city(&query, &language).await;
-            if let Ok((latitude, longitude, name, _detected_timezone)) = result {
+            if let Ok((latitude, longitude, name, _detected_timezone)) =
+                location::search_city(&query, &language).await
+            {
                 config_for_city_update.set_latitude(latitude);
                 config_for_city_update.set_longitude(longitude);
                 config_for_city_update.set_city_name(Some(name.clone()));
@@ -539,8 +540,7 @@ where
         let state_clone = location_state_for_detect.clone();
         gtk::glib::spawn_future_local(async move {
             let language = current_language_for_status.borrow().clone();
-            let result = location::fetch_auto_location(&language).await;
-            match result {
+            match location::fetch_auto_location(&language).await {
                 Ok((latitude, longitude, city)) => {
                     config_for_auto_detect_update.set_latitude(latitude);
                     config_for_auto_detect_update.set_longitude(longitude);

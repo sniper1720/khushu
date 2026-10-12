@@ -326,8 +326,38 @@ pub fn tr(key: &str) -> String {
 mod tests {
     use super::*;
 
+    // Restores the process-wide locale a test switched, including when the test panics.
+    //
+    // `libtest` runs tests as threads inside one process, and both the `LANGUAGE`
+    // variable and the C locale installed by `setlocale` are shared by all of them,
+    // so a locale left switched would leak into whichever test runs next.
+    struct LanguageGuard {
+        previous_language: Option<String>,
+    }
+
+    impl LanguageGuard {
+        fn capture() -> Self {
+            Self {
+                previous_language: std::env::var("LANGUAGE").ok(),
+            }
+        }
+    }
+
+    impl Drop for LanguageGuard {
+        fn drop(&mut self) {
+            // Deliberately does not take LOCALE_MODIFY: this runs while unwinding, and
+            // re-locking a possibly poisoned mutex here would turn one failure into an abort.
+            match &self.previous_language {
+                Some(previous) => unsafe { std::env::set_var("LANGUAGE", previous) },
+                None => unsafe { std::env::remove_var("LANGUAGE") },
+            }
+            setlocale(LocaleCategory::LcAll, "");
+        }
+    }
+
     #[test]
     fn test_native_locale_switching() {
+        let _locale = LanguageGuard::capture();
         let locale_dir = get_locale_dir();
         assert!(
             std::path::Path::new(&locale_dir).exists(),
@@ -362,7 +392,7 @@ mod tests {
         let fr2 = dgettext("khushu", "Welcome to Khushu");
         assert_eq!(
             fr, fr2,
-            "Switching back to French should return same result: {fr} vs {fr2}"
+            "Switching back to French should return the same string: {fr} vs {fr2}"
         );
         println!("LANGUAGE=fr (again) → {fr2}");
 

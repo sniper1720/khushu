@@ -67,7 +67,7 @@ Khushu is written purely in **Rust** and **GTK4 / libadwaita**. It is designed t
 
 ### Coding Guidelines
 
-* **Rust Idioms:** Run `cargo clippy` and `cargo fmt` before submitting a PR. We strive for zero Clippy warnings.
+* **Rust Idioms:** Run `cargo clippy --all-targets -- -D warnings` and `cargo fmt` before submitting a PR. We strive for zero Clippy warnings. The `--all-targets` flag is required because the default `cargo clippy` does not lint test code, so warnings in `#[cfg(test)]` modules would otherwise pass unnoticed.
 * **Keep it Native:** Avoid wrapping shell commands inside Rust. Use native crates (e.g., `reqwest` instead of `curl`, standard library instead of `date`).
 * **Comments:** Write clean, human-readable comments. Explain *why* the code exists, not just *what* it is doing, unless the logic is extremely complex.
 

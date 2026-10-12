@@ -199,7 +199,7 @@ async fn main() {
     });
 
     let app_hold_cmd = app_hold.clone();
-    let _config_clone = config.clone();
+    let config_for_cli = config.clone();
     application.connect_command_line(move |app, cli| {
         let args = cli.arguments();
         let mut is_background = false;
@@ -216,7 +216,7 @@ async fn main() {
             app.activate();
         } else {
             *app_hold_cmd.borrow_mut() = Some(app.hold());
-            let config_for_background = _config_clone.clone();
+            let config_for_background = config_for_cli.clone();
             crate::timer_controller::start_prayer_timer(config_for_background, |_| {});
             crate::background::setup_background();
         }

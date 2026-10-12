@@ -619,22 +619,22 @@ async fn reverse_geocode(latitude: f64, longitude: f64, language: &str) -> Resul
         .await
         .map_err(|_| tr("Network error while resolving city."))?;
 
-    let result: GeocodeResult = resp
+    let city: GeocodeResult = resp
         .json()
         .await
         .map_err(|_| tr("Invalid response from location service."))?;
 
-    if result.display_name.is_empty() {
+    if city.display_name.is_empty() {
         return Err(tr("Could not find city name for these coordinates."));
     }
 
-    if let Some(ref addr) = result.address
+    if let Some(ref addr) = city.address
         && addr
             .country_code
             .as_deref()
             .is_some_and(|country| country.eq_ignore_ascii_case("il"))
     {
-        let city = addr
+        let city_name = addr
             .city
             .as_deref()
             .or(addr.town.as_deref())
@@ -643,11 +643,11 @@ async fn reverse_geocode(latitude: f64, longitude: f64, language: &str) -> Resul
             .unwrap_or("City");
 
         if let Some(country) = country_name_from_code("PS", language) {
-            return Ok(format!("{}, {}", city, country));
+            return Ok(format!("{}, {}", city_name, country));
         }
     }
 
-    Ok(result.display_name)
+    Ok(city.display_name)
 }
 
 fn format_coordinates(latitude: f64, longitude: f64) -> String {

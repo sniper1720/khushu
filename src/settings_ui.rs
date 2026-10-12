@@ -305,10 +305,19 @@ fn append_settings_section_heading(
     (heading, desc_label)
 }
 
+/// The two user-facing notices about how the displayed prayer times were
+/// estimated, kept together because both read the same `PrayerResult`: the
+/// latitude-substitution banner and the local relative estimation toast memory.
+pub struct PrayerEstimationNotices {
+    pub latitude_substitution_banner: adw::Banner,
+    pub local_relative_estimation_blocked_prev: std::cell::Cell<bool>,
+}
+
 pub struct SettingsUiParams<'a> {
     pub settings_box: &'a gtk::Box,
     pub config: AppConfig,
     pub list_box_rc: Rc<ListBox>,
+    pub estimation_notices: Rc<PrayerEstimationNotices>,
     pub window: &'a adw::ApplicationWindow,
     pub current_language: Rc<RefCell<String>>,
     pub loc_tx: std::sync::mpsc::Sender<(f64, f64, Option<String>)>,
@@ -375,6 +384,7 @@ pub struct SettingsUiContext {
     pub high_latitude_model: gtk::StringList,
     pub polar_row: ComboRow,
     pub polar_model: gtk::StringList,
+    pub high_latitude_polar_group: PreferencesGroup,
 
     pub iqamah_group: PreferencesGroup,
     pub iqamah_rows: Vec<adw::SpinRow>,
@@ -490,6 +500,25 @@ impl SettingsUiContext {
     }
 }
 
+// Sensitivity of the high-latitude rules, derived from the calculation method
+// and the stored latitude.
+struct HighLatitudeRowState {
+    high_latitude_sensitive: bool,
+    polar_sensitive: bool,
+}
+
+// Moonsighting Committee ignores both rules, so its rows are shown insensitive
+// rather than hidden. Reading no locale and touching no widget keeps this pure,
+// so the state matrix can be pinned by unit tests.
+fn high_latitude_row_state(config: &AppConfig) -> HighLatitudeRowState {
+    let is_moonsighting = config.method() == CalculationMethod::MoonsightingCommittee;
+    let latitude_zone = config.latitude_zone();
+    HighLatitudeRowState {
+        high_latitude_sensitive: !is_moonsighting && latitude_zone >= 2,
+        polar_sensitive: !is_moonsighting && latitude_zone >= 3,
+    }
+}
+
 pub fn setup_settings_ui<'a>(
     params: SettingsUiParams<'a>,
 ) -> (adw::ComboRow, Rc<RefCell<SettingsUiContext>>) {
@@ -497,6 +526,7 @@ pub fn setup_settings_ui<'a>(
         settings_box,
         config,
         list_box_rc,
+        estimation_notices,
         window,
         current_language,
         loc_tx,
@@ -601,6 +631,7 @@ pub fn setup_settings_ui<'a>(
 
     let config_for_time_format = config.clone();
     let list_box_for_time_format = list_box_rc.clone();
+    let notices_time_format = estimation_notices.clone();
     let window_for_time_format = window.clone();
     time_format_row.connect_selected_notify(move |row| {
         let new_format = match row.selected() {
@@ -610,9 +641,16 @@ pub fn setup_settings_ui<'a>(
         };
         config_for_time_format.set_time_format(new_format);
         config_for_time_format.save();
-        if let Some(result) = refresh_prayers(&config_for_time_format, &list_box_for_time_format) {
-            update_lre_toast(&config_for_time_format, &result, &window_for_time_format);
-            update_fallback_toast(&config_for_time_format, &result, &window_for_time_format);
+        if let Some(prayer_result) = refresh_prayers(
+            &config_for_time_format,
+            &list_box_for_time_format,
+            &notices_time_format,
+        ) {
+            update_local_relative_estimation_toast(
+                &notices_time_format,
+                &prayer_result,
+                &window_for_time_format,
+            );
         }
     });
     general_group.add(&time_format_row);
@@ -723,9 +761,9 @@ pub fn setup_settings_ui<'a>(
 
     let location_group = PreferencesGroup::builder()
         .title(gtk::glib::markup_escape_text(&tr("Location & Source")))
-        .description(tr(
+        .description(gtk::glib::markup_escape_text(&tr(
             "Set your location and choose the prayer times data source.",
-        ))
+        )))
         .build();
     location_group.set_margin_top(0);
     location_group.set_margin_bottom(24);
@@ -765,6 +803,7 @@ pub fn setup_settings_ui<'a>(
 
     let config_latitude = config.clone();
     let list_box_latitude = list_box_rc.clone();
+    let notices_latitude = estimation_notices.clone();
     let window_latitude = window.clone();
     let sync_lock_latitude = sync_lock.clone();
     latitude_row
@@ -776,9 +815,14 @@ pub fn setup_settings_ui<'a>(
             let latitude = adjustment.value();
             config_latitude.set_latitude(latitude);
             config_latitude.save();
-            if let Some(result) = refresh_prayers(&config_latitude, &list_box_latitude) {
-                update_lre_toast(&config_latitude, &result, &window_latitude);
-                update_fallback_toast(&config_latitude, &result, &window_latitude);
+            if let Some(prayer_result) =
+                refresh_prayers(&config_latitude, &list_box_latitude, &notices_latitude)
+            {
+                update_local_relative_estimation_toast(
+                    &notices_latitude,
+                    &prayer_result,
+                    &window_latitude,
+                );
             }
         });
 
@@ -797,6 +841,7 @@ pub fn setup_settings_ui<'a>(
 
     let config_longitude = config.clone();
     let list_box_longitude = list_box_rc.clone();
+    let notices_longitude = estimation_notices.clone();
     let window_longitude = window.clone();
     let sync_lock_longitude = sync_lock.clone();
     longitude_row
@@ -808,9 +853,14 @@ pub fn setup_settings_ui<'a>(
             let longitude = adjustment.value();
             config_longitude.set_longitude(longitude);
             config_longitude.save();
-            if let Some(result) = refresh_prayers(&config_longitude, &list_box_longitude) {
-                update_lre_toast(&config_longitude, &result, &window_longitude);
-                update_fallback_toast(&config_longitude, &result, &window_longitude);
+            if let Some(prayer_result) =
+                refresh_prayers(&config_longitude, &list_box_longitude, &notices_longitude)
+            {
+                update_local_relative_estimation_toast(
+                    &notices_longitude,
+                    &prayer_result,
+                    &window_longitude,
+                );
             }
         });
 
@@ -860,8 +910,7 @@ pub fn setup_settings_ui<'a>(
         let status_row_async_c = status_row_c.clone();
 
         gtk::glib::spawn_future_local(async move {
-            let result = location::search_city(&query, &language).await;
-            match result {
+            match location::search_city(&query, &language).await {
                 Ok((latitude, longitude, name, _timezone)) => {
                     let _ = sender.send((latitude, longitude, Some(name.clone())));
                     city_row_for_update.set_text(&location::short_city_with_country(&name));
@@ -923,8 +972,7 @@ pub fn setup_settings_ui<'a>(
         let language = current_language_auto.borrow().clone();
 
         gtk::glib::spawn_future_local(async move {
-            let result = location::fetch_auto_location(&language).await;
-            match result {
+            match location::fetch_auto_location(&language).await {
                 Ok((latitude, longitude, name)) => {
                     let _ = sender.send((latitude, longitude, Some(name.clone())));
                     auto_row_for_update.set_subtitle(&location::short_city_with_country(&name));
@@ -1013,6 +1061,7 @@ pub fn setup_settings_ui<'a>(
 
     let config_for_source = config.clone();
     let list_box_for_source = list_box_rc.clone();
+    let notices_for_source = estimation_notices.clone();
     let url_row_for_source = url_row.clone();
     let auto_row_for_source = auto_refresh_row.clone();
     let status_for_source = mawaqit_status_row.clone();
@@ -1035,14 +1084,22 @@ pub fn setup_settings_ui<'a>(
         status_for_source.set_visible(show);
         refresh_button_for_source.set_visible(show);
         trigger_sync_for_source();
-        if let Some(result) = refresh_prayers(&config_for_source, &list_box_for_source) {
-            update_lre_toast(&config_for_source, &result, &window_for_source);
-            update_fallback_toast(&config_for_source, &result, &window_for_source);
+        if let Some(prayer_result) = refresh_prayers(
+            &config_for_source,
+            &list_box_for_source,
+            &notices_for_source,
+        ) {
+            update_local_relative_estimation_toast(
+                &notices_for_source,
+                &prayer_result,
+                &window_for_source,
+            );
         }
     });
 
     let config_for_fetch = config.clone();
     let list_box_for_fetch = list_box_rc.clone();
+    let notices_for_fetch = estimation_notices.clone();
     let status_for_fetch = mawaqit_status_row.clone();
     let url_row_for_fetch = url_row.clone();
     let loc_tx_for_fetch = loc_tx.clone();
@@ -1061,6 +1118,7 @@ pub fn setup_settings_ui<'a>(
         status_for_fetch.set_subtitle(&tr("Fetching..."));
         let config_for_mawaqit_save = config_for_fetch.clone();
         let list_box = list_box_for_fetch.clone();
+        let notices_save = notices_for_fetch.clone();
         let status = status_for_fetch.clone();
         let sender = loc_tx_for_fetch.clone();
         let refresh_calendar_fetch = refresh_calendar_for_fetch.clone();
@@ -1115,9 +1173,14 @@ pub fn setup_settings_ui<'a>(
                     status.set_title(&title);
                     status.set_subtitle(&mawaqit_status_subtitle(&cache, &language));
                     status.remove_css_class("error");
-                    if let Some(result) = refresh_prayers(&config_for_mawaqit_save, &list_box) {
-                        update_lre_toast(&config_for_mawaqit_save, &result, &window_bg);
-                        update_fallback_toast(&config_for_mawaqit_save, &result, &window_bg);
+                    if let Some(prayer_result) =
+                        refresh_prayers(&config_for_mawaqit_save, &list_box, &notices_save)
+                    {
+                        update_local_relative_estimation_toast(
+                            &notices_save,
+                            &prayer_result,
+                            &window_bg,
+                        );
                     }
                     refresh_calendar_fetch();
                     trigger_sync_fetch();
@@ -1142,7 +1205,9 @@ pub fn setup_settings_ui<'a>(
 
     let travel_group = PreferencesGroup::builder()
         .title(gtk::glib::markup_escape_text(&tr("Timezone & Travel")))
-        .description(tr("Override the timezone for prayer time calculations."))
+        .description(gtk::glib::markup_escape_text(&tr(
+            "Override the timezone for prayer time calculations.",
+        )))
         .build();
     travel_group.set_margin_top(12);
     travel_group.set_margin_bottom(24);
@@ -1197,6 +1262,7 @@ pub fn setup_settings_ui<'a>(
 
     let config_for_timezone_named = config.clone();
     let list_box_timezone_named = list_box_rc.clone();
+    let notices_timezone_named = estimation_notices.clone();
     let timezone_mode_row_for_apply = timezone_mode_row.clone();
     let timezone_gesture_click = gtk::GestureClick::builder()
         .button(gtk::gdk::BUTTON_PRIMARY)
@@ -1216,6 +1282,7 @@ pub fn setup_settings_ui<'a>(
             let win = window_timezone_gesture.clone();
             let row = timezone_named_row_for_gesture.clone();
             let language_rc = current_language_tz_gesture.clone();
+            let notices_tz_gesture = notices_timezone_named.clone();
             Rc::new(move |zone: &str| {
                 let language = language_rc.borrow().clone();
                 let label = location::localized_time_zone_label(zone, &language);
@@ -1227,10 +1294,16 @@ pub fn setup_settings_ui<'a>(
                 row.set_subtitle(&subtitle);
                 config_for_tz.set_timezone_mode(TimezoneMode::Named(zone.to_string()));
                 config_for_tz.save();
-                if let Some(result) = refresh_prayers(&config_for_tz, &list_box_timezone_gesture_c)
-                {
-                    update_lre_toast(&config_for_tz, &result, &win);
-                    update_fallback_toast(&config_for_tz, &result, &win);
+                if let Some(prayer_result) = refresh_prayers(
+                    &config_for_tz,
+                    &list_box_timezone_gesture_c,
+                    &notices_tz_gesture,
+                ) {
+                    update_local_relative_estimation_toast(
+                        &notices_tz_gesture,
+                        &prayer_result,
+                        &win,
+                    );
                 }
             })
         };
@@ -1261,6 +1334,7 @@ pub fn setup_settings_ui<'a>(
     let timezone_offset_vis = timezone_offset_row.clone();
     let config_for_timezone_mode = config.clone();
     let list_box_timezone = list_box_rc.clone();
+    let notices_timezone = estimation_notices.clone();
     let timezone_offset_adjustment_for_mode = timezone_offset_adjustment.clone();
     let window_timezone = window.clone();
     let sync_lock_for_timezone_mode = sync_lock.clone();
@@ -1292,14 +1366,22 @@ pub fn setup_settings_ui<'a>(
         };
         config_for_timezone_mode.set_timezone_mode(new_mode);
         config_for_timezone_mode.save();
-        if let Some(result) = refresh_prayers(&config_for_timezone_mode, &list_box_timezone) {
-            update_lre_toast(&config_for_timezone_mode, &result, &window_timezone);
-            update_fallback_toast(&config_for_timezone_mode, &result, &window_timezone);
+        if let Some(prayer_result) = refresh_prayers(
+            &config_for_timezone_mode,
+            &list_box_timezone,
+            &notices_timezone,
+        ) {
+            update_local_relative_estimation_toast(
+                &notices_timezone,
+                &prayer_result,
+                &window_timezone,
+            );
         }
     });
 
     let config_for_timezone_offset = config.clone();
     let list_box_timezone_offset = list_box_rc.clone();
+    let notices_timezone_offset = estimation_notices.clone();
     let window_timezone_offset = window.clone();
     timezone_offset_adjustment.connect_value_changed(move |adjustment| {
         if let TimezoneMode::UtcOffset(_) = config_for_timezone_offset.timezone_mode() {
@@ -1307,24 +1389,23 @@ pub fn setup_settings_ui<'a>(
                 (adjustment.value() * 60.0) as i32,
             ));
             config_for_timezone_offset.save();
-            if let Some(result) =
-                refresh_prayers(&config_for_timezone_offset, &list_box_timezone_offset)
-            {
-                update_lre_toast(
-                    &config_for_timezone_offset,
-                    &result,
-                    &window_timezone_offset,
-                );
-                update_fallback_toast(
-                    &config_for_timezone_offset,
-                    &result,
+            if let Some(prayer_result) = refresh_prayers(
+                &config_for_timezone_offset,
+                &list_box_timezone_offset,
+                &notices_timezone_offset,
+            ) {
+                update_local_relative_estimation_toast(
+                    &notices_timezone_offset,
+                    &prayer_result,
                     &window_timezone_offset,
                 );
             }
         }
     });
 
-    let calc_group = PreferencesGroup::builder().title(tr("Calculation")).build();
+    let calc_group = PreferencesGroup::builder()
+        .title(gtk::glib::markup_escape_text(&tr("Calculation")))
+        .build();
     calc_group.set_margin_top(12);
     calc_group.set_margin_bottom(24);
     settings_box.append(&calc_group);
@@ -1390,6 +1471,7 @@ pub fn setup_settings_ui<'a>(
 
     let config_method = config.clone();
     let list_box_method = list_box_rc.clone();
+    let notices_method = estimation_notices.clone();
     let window_method = window.clone();
     method_row.connect_selected_notify(move |combo| {
         let method = match combo.selected() {
@@ -1411,9 +1493,10 @@ pub fn setup_settings_ui<'a>(
         };
         config_method.set_method(method);
         config_method.save();
-        if let Some(result) = refresh_prayers(&config_method, &list_box_method) {
-            update_lre_toast(&config_method, &result, &window_method);
-            update_fallback_toast(&config_method, &result, &window_method);
+        if let Some(prayer_result) =
+            refresh_prayers(&config_method, &list_box_method, &notices_method)
+        {
+            update_local_relative_estimation_toast(&notices_method, &prayer_result, &window_method);
         }
     });
     calc_group.add(&method_row);
@@ -1435,6 +1518,7 @@ pub fn setup_settings_ui<'a>(
     let update_vis_clone = update_visibility.clone();
     let config_mode = config.clone();
     let list_box_mode = list_box_rc.clone();
+    let notices_mode = estimation_notices.clone();
     let source_row_for_mode = source_row.clone();
     let url_row_for_mode = url_row.clone();
     let auto_row_for_mode = auto_refresh_row.clone();
@@ -1467,9 +1551,8 @@ pub fn setup_settings_ui<'a>(
             refresh_button_for_mode.set_visible(false);
         }
         update_vis_clone(&mode);
-        if let Some(result) = refresh_prayers(&config_mode, &list_box_mode) {
-            update_lre_toast(&config_mode, &result, &window_mode);
-            update_fallback_toast(&config_mode, &result, &window_mode);
+        if let Some(prayer_result) = refresh_prayers(&config_mode, &list_box_mode, &notices_mode) {
+            update_local_relative_estimation_toast(&notices_mode, &prayer_result, &window_mode);
         }
         trigger_sync_for_mode();
     });
@@ -1491,6 +1574,7 @@ pub fn setup_settings_ui<'a>(
 
     let config_madhab = config.clone();
     let list_box_madhab = list_box_rc.clone();
+    let notices_madhab = estimation_notices.clone();
     let window_madhab = window.clone();
     madhab_row.connect_selected_notify(move |combo| {
         let index = combo.selected();
@@ -1501,9 +1585,10 @@ pub fn setup_settings_ui<'a>(
         };
         config_madhab.set_madhab(madhab_choice);
         config_madhab.save();
-        if let Some(result) = refresh_prayers(&config_madhab, &list_box_madhab) {
-            update_lre_toast(&config_madhab, &result, &window_madhab);
-            update_fallback_toast(&config_madhab, &result, &window_madhab);
+        if let Some(prayer_result) =
+            refresh_prayers(&config_madhab, &list_box_madhab, &notices_madhab)
+        {
+            update_local_relative_estimation_toast(&notices_madhab, &prayer_result, &window_madhab);
         }
     });
     calc_group.add(&madhab_row);
@@ -1522,12 +1607,8 @@ pub fn setup_settings_ui<'a>(
     let high_latitude_model = StringList::new(&high_latitude_slices);
     let high_latitude_row = ComboRow::builder()
         .title(tr("Fajr/Isha Approximation"))
-        .subtitle(tr(
-            "How to approximate Fajr and Isha when the twilight angle is not reachable.",
-        ))
         .model(&high_latitude_model)
         .build();
-    high_latitude_row.set_subtitle_lines(2);
 
     match config.high_latitude_rule() {
         HighLatitudeChoice::Auto => high_latitude_row.set_selected(0),
@@ -1539,6 +1620,7 @@ pub fn setup_settings_ui<'a>(
 
     let config_high_latitude = config.clone();
     let list_box_high_latitude = list_box_rc.clone();
+    let notices_high_latitude = estimation_notices.clone();
     let window_high_latitude = window.clone();
     let high_latitude_updating = Rc::new(Cell::new(false));
     let high_latitude_updating_inner = high_latitude_updating.clone();
@@ -1556,31 +1638,33 @@ pub fn setup_settings_ui<'a>(
         };
         config_high_latitude.set_high_latitude_rule(choice);
         config_high_latitude.save();
-        if let Some(result) = refresh_prayers(&config_high_latitude, &list_box_high_latitude) {
-            if result.lre_blocked {
+        if let Some(prayer_result) = refresh_prayers(
+            &config_high_latitude,
+            &list_box_high_latitude,
+            &notices_high_latitude,
+        ) {
+            if prayer_result.local_relative_estimation_blocked {
                 high_latitude_updating_inner.set(true);
                 combo.set_selected(0);
                 high_latitude_updating_inner.set(false);
                 config_high_latitude.set_high_latitude_rule(HighLatitudeChoice::Auto);
                 config_high_latitude.save();
             }
-            update_lre_toast(&config_high_latitude, &result, &window_high_latitude);
-            update_fallback_toast(&config_high_latitude, &result, &window_high_latitude);
+            update_local_relative_estimation_toast(
+                &notices_high_latitude,
+                &prayer_result,
+                &window_high_latitude,
+            );
         }
     });
-    calc_group.add(&high_latitude_row);
 
     let polar_strings = [tr("Nearest Latitude"), tr("Reference Latitude 45°")];
     let polar_slices: Vec<&str> = polar_strings.iter().map(|item| item.as_str()).collect();
     let polar_model = StringList::new(&polar_slices);
     let polar_row = ComboRow::builder()
         .title(tr("Polar Estimation Method"))
-        .subtitle(tr(
-            "Fallback applied when the sun never rises or sets (above ~66.5° latitude).",
-        ))
         .model(&polar_model)
         .build();
-    polar_row.set_subtitle_lines(2);
 
     match config.polar_estimation_method() {
         PolarEstimationMethod::NearestLatitude => polar_row.set_selected(0),
@@ -1589,6 +1673,7 @@ pub fn setup_settings_ui<'a>(
 
     let config_for_polar_estimation = config.clone();
     let list_box_pf = list_box_rc.clone();
+    let notices_pf = estimation_notices.clone();
     let window_pf = window.clone();
     polar_row.connect_selected_notify(move |combo| {
         let choice = if combo.selected() == 0 {
@@ -1598,37 +1683,53 @@ pub fn setup_settings_ui<'a>(
         };
         config_for_polar_estimation.set_polar_estimation_method(choice);
         config_for_polar_estimation.save();
-        if let Some(result) = refresh_prayers(&config_for_polar_estimation, &list_box_pf) {
-            update_lre_toast(&config_for_polar_estimation, &result, &window_pf);
-            update_fallback_toast(&config_for_polar_estimation, &result, &window_pf);
+        if let Some(prayer_result) =
+            refresh_prayers(&config_for_polar_estimation, &list_box_pf, &notices_pf)
+        {
+            update_local_relative_estimation_toast(&notices_pf, &prayer_result, &window_pf);
         }
     });
-    calc_group.add(&polar_row);
+    // These two rules move out of the Calculation group. A group description can
+    // only describe what the whole group is about, and Calculation also holds the
+    // Hijri correction, the calculation method, and the Asr madhab. A ComboRow
+    // cannot carry the explanation either: its subtitle shares a horizontal band
+    // with the selected value and the drop-down arrow, so a long translation
+    // squeezes the value until it ellipsizes.
+    //
+    // The group stays visible in every configuration and its rows go insensitive
+    // when they do not apply, so greyed always means the same thing.
+    let high_latitude_polar_group = PreferencesGroup::builder()
+        .title(gtk::glib::markup_escape_text(&tr("High-Latitude & Polar Zones")))
+        .description(gtk::glib::markup_escape_text(&tr(
+            "How Fajr and Isha are estimated when the twilight angle is not reachable, and the fallback used where the sun never rises or sets.",
+        )))
+        .build();
+    high_latitude_polar_group.set_margin_top(12);
+    high_latitude_polar_group.set_margin_bottom(24);
+    high_latitude_polar_group.add(&high_latitude_row);
+    high_latitude_polar_group.add(&polar_row);
+    settings_box.append(&high_latitude_polar_group);
 
-    // Moonsighting Committee ignores both the high-latitude rule and polar
-    // estimation (they have no effect on its output), so hide the rows under
-    // that method; otherwise fall back to the latitude-zone gating.
     let high_latitude_row_clone = high_latitude_row.clone();
     let polar_row_clone = polar_row.clone();
-    let update_calculation_rows = Rc::new(move |config: &AppConfig| {
-        let is_moonsighting = config.method() == CalculationMethod::MoonsightingCommittee;
-        let latitude_zone = config.latitude_zone();
-        high_latitude_row_clone.set_visible(!is_moonsighting && latitude_zone >= 2);
-        polar_row_clone.set_visible(!is_moonsighting && latitude_zone >= 3);
+    let update_high_latitude_rows = Rc::new(move |config: &AppConfig| {
+        let state = high_latitude_row_state(config);
+        high_latitude_row_clone.set_sensitive(state.high_latitude_sensitive);
+        polar_row_clone.set_sensitive(state.polar_sensitive);
     });
-    update_calculation_rows(&config);
+    update_high_latitude_rows(&config);
 
-    let update_calculation_rows_listen = update_calculation_rows.clone();
+    let update_high_latitude_rows_listen = update_high_latitude_rows.clone();
     let config_calculation = config.clone();
     crate::connect_to_properties(&config, crate::CONFIG_REFRESH_PROPERTIES, move || {
-        update_calculation_rows_listen(&config_calculation)
+        update_high_latitude_rows_listen(&config_calculation)
     });
 
     let iqamah_group = PreferencesGroup::builder()
-        .title(tr("Iqamah Delays"))
-        .description(tr(
+        .title(gtk::glib::markup_escape_text(&tr("Iqamah Delays")))
+        .description(gtk::glib::markup_escape_text(&tr(
             "Minutes to wait after the Adhan before the Iqamah (second call to prayer).",
-        ))
+        )))
         .build();
     iqamah_group.set_margin_top(12);
     iqamah_group.set_margin_bottom(24);
@@ -2033,6 +2134,7 @@ pub fn setup_settings_ui<'a>(
         high_latitude_model: high_latitude_model.clone(),
         polar_row: polar_row.clone(),
         polar_model: polar_model.clone(),
+        high_latitude_polar_group: high_latitude_polar_group.clone(),
 
         iqamah_group: iqamah_group.clone(),
         iqamah_rows,
@@ -2122,9 +2224,10 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, language: &str) {
 
     ctx.location_group
         .set_title(&gtk::glib::markup_escape_text(&tr("Location & Source")));
-    ctx.location_group.set_description(Some(&tr(
-        "Set your location and choose the prayer times data source.",
-    )));
+    ctx.location_group
+        .set_description(Some(&gtk::glib::markup_escape_text(&tr(
+            "Set your location and choose the prayer times data source.",
+        ))));
 
     let mode_items = [
         tr("Manual Coordinates"),
@@ -2219,9 +2322,10 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, language: &str) {
 
     ctx.travel_group
         .set_title(&gtk::glib::markup_escape_text(&tr("Timezone & Travel")));
-    ctx.travel_group.set_description(Some(&tr(
-        "Override the timezone for prayer time calculations.",
-    )));
+    ctx.travel_group
+        .set_description(Some(&gtk::glib::markup_escape_text(&tr(
+            "Override the timezone for prayer time calculations.",
+        ))));
 
     let timezone_mode_items = [
         tr("Automatic (System)"),
@@ -2291,9 +2395,6 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, language: &str) {
 
     ctx.high_latitude_row
         .set_title(&tr("Fajr/Isha Approximation"));
-    ctx.high_latitude_row.set_subtitle(&tr(
-        "How to approximate Fajr and Isha when the twilight angle is not reachable.",
-    ));
     let high_latitude_items = [
         tr("Auto (Recommended)"),
         tr("Middle of the Night"),
@@ -2309,18 +2410,26 @@ pub fn update_settings_ui_lang(ctx: &SettingsUiContext, language: &str) {
         .splice(0, ctx.high_latitude_model.n_items(), &high_latitude_refs);
 
     ctx.polar_row.set_title(&tr("Polar Estimation Method"));
-    ctx.polar_row.set_subtitle(&tr(
-        "Fallback applied when the sun never rises or sets (above ~66.5° latitude).",
-    ));
     let polar_items = [tr("Nearest Latitude"), tr("Reference Latitude 45°")];
     let polar_refs: Vec<&str> = polar_items.iter().map(|item| item.as_str()).collect();
     ctx.polar_model
         .splice(0, ctx.polar_model.n_items(), &polar_refs);
 
-    ctx.iqamah_group.set_title(&tr("Iqamah Delays"));
-    ctx.iqamah_group.set_description(Some(&tr(
-        "Minutes to wait after the Adhan before the Iqamah (second call to prayer).",
-    )));
+    ctx.high_latitude_polar_group
+        .set_title(&gtk::glib::markup_escape_text(&tr(
+            "High-Latitude & Polar Zones",
+        )));
+    ctx.high_latitude_polar_group
+        .set_description(Some(&gtk::glib::markup_escape_text(&tr(
+            "How Fajr and Isha are estimated when the twilight angle is not reachable, and the fallback used where the sun never rises or sets.",
+        ))));
+
+    ctx.iqamah_group
+        .set_title(&gtk::glib::markup_escape_text(&tr("Iqamah Delays")));
+    ctx.iqamah_group
+        .set_description(Some(&gtk::glib::markup_escape_text(&tr(
+            "Minutes to wait after the Adhan before the Iqamah (second call to prayer).",
+        ))));
 
     let prayer_names = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
     for (prayer_index, name) in prayer_names.iter().enumerate() {
@@ -2403,13 +2512,17 @@ fn adhan_preset_label(file_name: &str) -> String {
 pub fn refresh_prayers(
     config: &AppConfig,
     list_box: &ListBox,
+    notices: &PrayerEstimationNotices,
 ) -> Option<crate::time::PrayerResult> {
     while let Some(child) = list_box.first_child() {
         list_box.remove(&child);
     }
 
     let today = crate::time::effective_today(config);
-    if let Ok(result) = crate::time::schedule_for_config(config, today) {
+    if let Ok(prayer_result) = crate::time::schedule_for_config(config, today) {
+        notices
+            .latitude_substitution_banner
+            .set_revealed(prayer_result.latitude_substitution_active);
         // For Connected Mosque the times are the mosque's published
         // wall-clock strings; show them as-is (12/24h preference only) so the
         // label matches the mosque regardless of the system timezone.
@@ -2426,16 +2539,36 @@ pub fn refresh_prayers(
                 None
             };
 
+        // The statuses are keyed only on the rows mawaqit covers: Fajr,
+        // Maghrib, and Isha. Sunrise, Dhuhr, and Asr carry None because the
+        // crate has no status arm for them (they fall through to `_ => Actual`
+        // internally), so a blanket read would fabricate a provenance those
+        // rows do not have.
         let prayers = [
-            ("Fajr", result.schedule.fajr, 0),
-            ("Sunrise", result.schedule.shurooq, 1),
-            ("Dhuhr", result.schedule.dhuhr, 2),
-            ("Asr", result.schedule.asr, 3),
-            ("Maghrib", result.schedule.maghrib, 4),
-            ("Isha", result.schedule.isha, 5),
+            (
+                "Fajr",
+                prayer_result.schedule.fajr,
+                0,
+                Some(prayer_result.fajr_time_status),
+            ),
+            ("Sunrise", prayer_result.schedule.shurooq, 1, None),
+            ("Dhuhr", prayer_result.schedule.dhuhr, 2, None),
+            ("Asr", prayer_result.schedule.asr, 3, None),
+            (
+                "Maghrib",
+                prayer_result.schedule.maghrib,
+                4,
+                Some(prayer_result.maghrib_time_status),
+            ),
+            (
+                "Isha",
+                prayer_result.schedule.isha,
+                5,
+                Some(prayer_result.isha_time_status),
+            ),
         ];
 
-        for (name, time, published_idx) in prayers {
+        for (name, time, published_idx, status) in prayers {
             let subtitle = match &published_times {
                 Some(times) => {
                     location::format_published_time(&times[published_idx], config.time_format())
@@ -2449,9 +2582,26 @@ pub fn refresh_prayers(
                 .subtitle(&subtitle)
                 .name(name)
                 .build();
+            if let Some(msgid) = status_label(status) {
+                row.add_suffix(
+                    &gtk::Label::builder()
+                        .label(tr(msgid))
+                        .css_classes(["dim-label", "caption"])
+                        .build(),
+                );
+            }
             list_box.append(&row);
         }
         if false {
+            // Translation extraction markers: these msgids are passed to tr()
+            // as variables (the title and the label above), which xgettext
+            // cannot follow from literal call sites.
+            // TRANSLATORS: Marks a prayer time a rule produced, because the
+            // defining solar event never occurs at this latitude.
+            tr("Estimated");
+            // TRANSLATORS: Marks a prayer time a rule displaced from the
+            // defining solar event.
+            tr("Alternative");
             tr("Fajr");
             tr("Dhuhr");
             tr("Asr");
@@ -2459,52 +2609,138 @@ pub fn refresh_prayers(
             tr("Isha");
             tr("Sunrise");
         }
-        Some(result)
+        Some(prayer_result)
     } else {
+        notices.latitude_substitution_banner.set_revealed(false);
         None
     }
 }
 
-pub(crate) fn update_fallback_toast(
-    config: &AppConfig,
-    result: &crate::time::PrayerResult,
-    window: &adw::ApplicationWindow,
-) {
-    let prev = config.fallback_was_active();
-    if prev == result.fallback_active {
-        return;
+// The app's only status-to-label mapping. `None`, `Actual`, and any other
+// variant render nothing; only `Estimated` and `Alternative` carry a word.
+// Returns the msgid and leaves `tr()` to the render site.
+fn status_label(status: Option<mawaqit::PrayerTimeStatus>) -> Option<&'static str> {
+    match status {
+        Some(mawaqit::PrayerTimeStatus::Estimated) => Some("Estimated"),
+        Some(mawaqit::PrayerTimeStatus::Alternative) => Some("Alternative"),
+        Some(_) | None => None,
     }
-    let Some(overlay) = find_toast_overlay(window) else {
-        return;
-    };
-    let toast = if result.fallback_active {
-        adw::Toast::new(&tr(
-            "Prayer times are calculated at a substituted latitude.",
-        ))
-    } else {
-        adw::Toast::new(&tr(
-            "Prayer times are now calculated at your actual latitude.",
-        ))
-    };
-    toast.set_timeout(0);
-    overlay.add_toast(toast);
-    config.set_fallback_was_active(result.fallback_active);
-    config.save();
 }
 
-pub(crate) fn update_lre_toast(
-    config: &AppConfig,
-    result: &crate::time::PrayerResult,
+pub(crate) fn update_local_relative_estimation_toast(
+    notices: &PrayerEstimationNotices,
+    prayer_result: &crate::time::PrayerResult,
     window: &adw::ApplicationWindow,
 ) {
-    let prev = config.lre_was_blocked();
-    if prev != result.lre_blocked {
-        if result.lre_blocked
-            && let Some(overlay) = find_toast_overlay(window)
-        {
-            overlay.add_toast(adw::Toast::new(&tr("LRE not available at this latitude.")));
+    let blocked_prev = &notices.local_relative_estimation_blocked_prev;
+    let prev = blocked_prev.get();
+    if prev == prayer_result.local_relative_estimation_blocked {
+        return;
+    }
+    blocked_prev.set(prayer_result.local_relative_estimation_blocked);
+    if prayer_result.local_relative_estimation_blocked
+        && let Some(overlay) = find_toast_overlay(window)
+    {
+        overlay.add_toast(adw::Toast::new(&tr(
+            "Local relative estimation is not available at this latitude.",
+        )));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::high_latitude_row_state;
+    use super::status_label;
+    use crate::config::{AppConfig, CalculationMethod};
+    use mawaqit::PrayerTimeStatus;
+
+    #[test]
+    fn status_label_maps_estimated_and_alternative_to_words() {
+        assert_eq!(
+            status_label(Some(PrayerTimeStatus::Estimated)),
+            Some("Estimated")
+        );
+        assert_eq!(
+            status_label(Some(PrayerTimeStatus::Alternative)),
+            Some("Alternative")
+        );
+    }
+
+    #[test]
+    fn status_label_is_none_for_actual_and_absent() {
+        assert_eq!(status_label(Some(PrayerTimeStatus::Actual)), None);
+        assert_eq!(status_label(None), None);
+    }
+
+    fn state_for(method: CalculationMethod, latitude: f64) -> (bool, bool) {
+        let config = AppConfig::default();
+        config.set_method(method);
+        config.set_latitude(latitude);
+        let state = high_latitude_row_state(&config);
+        (state.high_latitude_sensitive, state.polar_sensitive)
+    }
+
+    #[test]
+    fn high_latitude_rows_are_insensitive_below_48_6_degrees() {
+        assert_eq!(
+            state_for(CalculationMethod::MWL, 36.75),
+            (false, false),
+            "a location below 48.6° needs neither rule"
+        );
+    }
+
+    #[test]
+    fn high_latitude_row_applies_above_48_6_while_polar_still_needs_66_6() {
+        assert_eq!(
+            state_for(CalculationMethod::MWL, 50.0),
+            (true, false),
+            "the Fajr and Isha rule applies, polar estimation does not"
+        );
+    }
+
+    #[test]
+    fn both_high_latitude_rows_apply_above_66_6_degrees() {
+        assert_eq!(
+            state_for(CalculationMethod::MWL, 70.0),
+            (true, true),
+            "both rules apply above 66.6°"
+        );
+    }
+
+    #[test]
+    fn polar_zone_starts_where_mawaqit_starts_its_polar_zone() {
+        // Both thresholds come from mawaqit's zone split, so these two probes sit
+        // either side of 66.6° and would break if either side drifted.
+        assert_eq!(
+            state_for(CalculationMethod::MWL, 66.55),
+            (true, false),
+            "66.55° is below the polar threshold, so only the high-latitude rule applies"
+        );
+        assert_eq!(
+            state_for(CalculationMethod::MWL, 66.65),
+            (true, true),
+            "66.65° is above the polar threshold, so both rules apply"
+        );
+    }
+
+    #[test]
+    fn moonsighting_makes_both_rows_insensitive_in_every_zone() {
+        for latitude in [36.75, 50.0, 70.0] {
+            assert_eq!(
+                state_for(CalculationMethod::MoonsightingCommittee, latitude),
+                (false, false),
+                "Moonsighting ignores both rules regardless of latitude, and the user can fix \
+                 it from the method row above"
+            );
         }
-        config.set_lre_was_blocked(result.lre_blocked);
-        config.save();
+    }
+
+    #[test]
+    fn southern_hemisphere_latitudes_are_treated_as_equivalent() {
+        assert_eq!(
+            state_for(CalculationMethod::MWL, -70.0),
+            state_for(CalculationMethod::MWL, 70.0),
+            "latitude_zone compares the absolute value"
+        );
     }
 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.5] — 2026-10-16
+
+### Added
+- **Prayer estimation labels**: Fajr and Isha times are now labeled as Estimated or Alternative when a high-latitude rule produces them instead of the defining solar event
+- **Latitude-substitution banner**: A banner appears when prayer times are calculated at a substituted latitude (High-Latitude & Polar Zones)
+
+### Changed
+- **Time zone data**: Time zone offsets migrated from the deprecated `chrono-tz` to `jiff` with current IANA data (2026e), so Morocco's move to +00 on 2026-09-20 and British Columbia's and Alberta's moves to permanent standard time on 2026-11-01 now compute correctly
+
+### Fixed
+- **Prayer times on a daylight-saving fall-back day**: They no longer disappear for the whole day when one time falls in the repeated hour; the earlier instant is chosen and all six times remain visible
+
 ## [1.3.4] — 2026-09-03
 
 ### Added

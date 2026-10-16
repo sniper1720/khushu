@@ -1,5 +1,5 @@
 Name:           khushu
-Version:        1.3.4
+Version:        1.3.5
 Release:        1%{?dist}
 Summary:        An all-in-one Muslim app for Linux
 
@@ -53,6 +53,12 @@ adaptive UI built with GTK4 and Libadwaita.
 %{_mandir}/man1/khushu.1*
 
 %changelog
+* Fri Oct 16 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.5-1
+- Added "Estimated" and "Alternative" labels to Fajr and Isha times when calculated under high-latitude rules
+- Added a latitude-substitution banner when prayer times are calculated at a substituted latitude (High-Latitude & Polar Zones)
+- Migrated time zone offsets from the deprecated chrono-tz to jiff with IANA 2026e
+- Fixed an issue where prayer times disappeared during the autumn daylight-saving time (DST) transition
+
 * Thu Sep 03 2026 Djalel Oukid <sniper1720@linuxtechmore.com> - 1.3.4-1
 - Added per-mode location stores for Manual, City, and Auto
 - Added tooltips for Quran recitation controls

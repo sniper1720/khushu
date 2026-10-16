@@ -82,6 +82,16 @@
   </branding>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.3.5" date="2026-10-16">
+      <description>
+        <ul>
+          <li>Added "Estimated" and "Alternative" labels to Fajr and Isha times when calculated under high-latitude rules</li>
+          <li>Added a latitude-substitution banner when prayer times are calculated at a substituted latitude (High-Latitude &amp; Polar Zones)</li>
+          <li>Migrated time zone offsets from the deprecated chrono-tz to jiff with IANA 2026e, fixing transition times in Morocco, British Columbia, and Alberta</li>
+          <li>Fixed an issue where prayer times disappeared during the autumn daylight-saving time (DST) transition</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3.4" date="2026-09-03">
       <description>
         <ul>

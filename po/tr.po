@@ -2,10 +2,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Khushu 1.3.4\n"
+"Project-Id-Version: Khushu 1.3.5\n"
 "Report-Msgid-Bugs-To: https://github.com/sniper1720/khushu/issues\n"
 "POT-Creation-Date: 2026-03-04 20:21+0100\n"
-"PO-Revision-Date: 2026-10-03 15:37+0000\n"
+"PO-Revision-Date: 2026-10-16 14:12+0000\n"
 "Last-Translator: Djalel Oukid (sniper1720)\n"
 "Language-Team: Turkish\n"
 "Language: tr\n"
@@ -582,6 +582,30 @@ msgstr ""
 #: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
 msgid "Updated prayer calculation library to mawaqit 0.4"
 msgstr "Namaz vakti hesaplama kütüphanesi mawaqit 0.4 sürümüne güncellendi"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Added a latitude-substitution banner when prayer times are calculated at a "
+"substituted latitude (High-Latitude & Polar Zones)"
+msgstr "Namaz vakitleri ikame edilmiş bir enlemde hesaplandığında bilgi bandı eklendi (Yüksek enlem ve kutup bölgeleri)"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Migrated time zone offsets from the deprecated chrono-tz to jiff with IANA "
+"2026e, fixing transition times in Morocco, British Columbia, and Alberta"
+msgstr "Kullanımdan kaldırılan chrono-tz yerine jiff ve IANA 2026e veritabanına geçilerek Fas, Britanya Kolombiyası ve Alberta'daki saat geçişleri düzeltildi"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Added \"Estimated\" and \"Alternative\" labels to Fajr and Isha times when "
+"calculated under high-latitude rules"
+msgstr "Yüksek enlem kuralları uygulandığında Sabah ve Yatsı vakitlerine \"Tahmini\" ve \"Alternatif\" etiketleri eklendi"
+
+#: data/appdata/io.github.sniper1720.khushu.metainfo.xml.in
+msgid ""
+"Fixed an issue where prayer times disappeared during the autumn daylight-"
+"saving time (DST) transition"
+msgstr "Sonbahar yaz saati uygulaması (DST) geçişinde tüm namaz vakitlerinin kaybolma sorunu düzeltildi"
 
 # =============================================================================
 # SECTION 2: CALENDAR

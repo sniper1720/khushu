@@ -22,7 +22,6 @@ use serde::Deserialize;
 use std::sync::OnceLock;
 
 static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
-static TIME_ZONE_LOOKUP: OnceLock<std::collections::HashMap<String, String>> = OnceLock::new();
 
 fn client() -> &'static Client {
     HTTP_CLIENT.get_or_init(|| {
@@ -63,22 +62,9 @@ fn non_empty_text(value: &str) -> Option<String> {
 
 pub fn validated_time_zone_id(timezone: &str) -> Option<String> {
     let trimmed = non_empty_text(timezone)?;
-    if let Ok(timezone) = trimmed.parse::<chrono_tz::Tz>() {
-        return Some(timezone.to_string());
-    }
-
-    TIME_ZONE_LOOKUP
-        .get_or_init(|| {
-            chrono_tz::TZ_VARIANTS
-                .iter()
-                .map(|timezone_variant| {
-                    let canonical = timezone_variant.to_string();
-                    (canonical.to_ascii_lowercase(), canonical)
-                })
-                .collect()
-        })
-        .get(&trimmed.to_ascii_lowercase())
-        .cloned()
+    jiff::tz::TimeZone::get(trimmed.as_str())
+        .ok()
+        .and_then(|zone| zone.iana_name().map(str::to_string))
 }
 
 pub fn system_time_zone_id() -> Option<String> {
@@ -304,7 +290,7 @@ pub fn localized_offset(offset_secs: i32, language: &str) -> String {
     })
 }
 
-fn fallback_time(datetime: chrono::DateTime<chrono_tz::Tz>) -> String {
+fn fallback_time(datetime: chrono::DateTime<chrono::FixedOffset>) -> String {
     datetime.format("%a %H:%M").to_string()
 }
 
@@ -403,7 +389,7 @@ pub fn localized_time_only(
     })
 }
 
-pub fn localized_time(datetime: chrono::DateTime<chrono_tz::Tz>, language: &str) -> String {
+pub fn localized_time(datetime: chrono::DateTime<chrono::FixedOffset>, language: &str) -> String {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
@@ -788,13 +774,8 @@ mod tests {
     #[test]
     fn localizes_time_with_weekday_without_seconds() {
         use chrono::TimeZone;
-        let timezone: chrono_tz::Tz = "Europe/Oslo".parse().unwrap();
-        let naive = chrono::NaiveDate::from_ymd_opt(2026, 1, 30)
-            .unwrap()
-            .and_hms_opt(15, 47, 42)
-            .unwrap();
-        let datetime: chrono::DateTime<chrono_tz::Tz> =
-            timezone.from_local_datetime(&naive).unwrap();
+        let offset = chrono::FixedOffset::east_opt(3600).unwrap();
+        let datetime = offset.with_ymd_and_hms(2026, 1, 30, 15, 47, 42).unwrap();
 
         let en = localized_time(datetime, "en");
         assert!(en.contains("Fri"), "weekday should be localized: {en}");

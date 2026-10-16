@@ -10,7 +10,7 @@ repository = "https://github.com/sniper1720/khushu"
 
 [dependencies]
 chrono = "0.4"
-chrono-tz = "0.10"
+jiff = { version = "0.2.38", default-features = false, features = ["std", "tz-fat", "perf-inline", "tzdb-bundle-always"] }
 gtk4 = { version = "0.11", features = ["v4_10"] }
 ksni = "0.3"
 libadwaita = { version = "0.9", features = ["v1_5"] }

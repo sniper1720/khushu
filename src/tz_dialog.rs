@@ -21,7 +21,7 @@ mod timezone_item_imp {
     #[properties(wrapper_type = super::TimezoneItem)]
     pub struct TimezoneItem {
         #[property(get, set)]
-        pub name: RefCell<String>,
+        pub city_name: RefCell<String>,
         #[property(get, set)]
         pub location: RefCell<String>,
         #[property(get, set)]
@@ -52,7 +52,7 @@ impl TimezoneItem {
     pub fn new(
         zone: &str,
         zone_label: &str,
-        name: &str,
+        city_name: &str,
         location: &str,
         offset: &str,
         time: &str,
@@ -60,7 +60,7 @@ impl TimezoneItem {
         glib::Object::builder()
             .property("zone", zone)
             .property("zone_label", zone_label)
-            .property("name", name)
+            .property("city_name", city_name)
             .property("location", location)
             .property("offset", offset)
             .property("time", time)
@@ -68,13 +68,11 @@ impl TimezoneItem {
     }
 }
 
-fn offset_secs(timezone: chrono_tz::Tz) -> i32 {
-    let now = chrono::Utc::now();
-    let local = now.with_timezone(&timezone);
-    (local.naive_local() - now.naive_utc()).num_seconds() as i32
+fn offset_secs(zone: &jiff::tz::TimeZone) -> i32 {
+    zone.to_offset(jiff::Timestamp::now()).seconds()
 }
 
-fn canonical_tz_set() -> &'static HashSet<String> {
+fn picker_zone_names() -> &'static HashSet<String> {
     static SET: OnceLock<HashSet<String>> = OnceLock::new();
     SET.get_or_init(|| {
         include_str!("../data/zone.tab")
@@ -94,27 +92,44 @@ fn canonical_tz_set() -> &'static HashSet<String> {
 }
 
 fn load_tz_items(language: &str) -> Vec<TimezoneItem> {
-    let canonical = canonical_tz_set();
-    let mut items: Vec<TimezoneItem> = chrono_tz::TZ_VARIANTS
-        .iter()
-        .filter(|variant| canonical.contains(variant.to_string().as_str()))
-        .map(|variant| {
-            let zone = variant.to_string();
-            let name = location::city_name_from_time_zone(&zone, language).unwrap_or_else(|| {
-                zone.split('/')
-                    .next_back()
-                    .unwrap_or(&zone)
-                    .replace('_', " ")
-            });
-            let location = location::time_zone_location_name(&zone, language).unwrap_or_default();
-            let offset = location::localized_offset(offset_secs(*variant), language);
-            let time =
-                location::localized_time(chrono::Utc::now().with_timezone(variant), language);
-            let zone_label = location::localized_zone(&zone, language);
-            TimezoneItem::new(&zone, &zone_label, &name, &location, &offset, &time)
+    let picker_names = picker_zone_names();
+    let now = chrono::Utc::now();
+    let mut items: Vec<TimezoneItem> = jiff::tz::db()
+        .available()
+        .filter(|name| picker_names.contains(name.as_str()))
+        .filter_map(|name| {
+            let zone_str = name.as_str().to_string();
+            let zone = jiff::tz::TimeZone::get(&zone_str).ok()?;
+            let city_name =
+                location::city_name_from_time_zone(&zone_str, language).unwrap_or_else(|| {
+                    zone_str
+                        .split('/')
+                        .next_back()
+                        .unwrap_or(&zone_str)
+                        .replace('_', " ")
+                });
+            let location =
+                location::time_zone_location_name(&zone_str, language).unwrap_or_default();
+            let zone_offset_seconds = offset_secs(&zone);
+            let offset = location::localized_offset(zone_offset_seconds, language);
+            let fixed_offset = chrono::FixedOffset::east_opt(zone_offset_seconds)
+                .unwrap_or_else(|| chrono::FixedOffset::east_opt(0).unwrap());
+            let time = location::localized_time(
+                chrono::TimeZone::from_utc_datetime(&fixed_offset, &now.naive_utc()),
+                language,
+            );
+            let zone_label = location::localized_zone(&zone_str, language);
+            Some(TimezoneItem::new(
+                &zone_str,
+                &zone_label,
+                &city_name,
+                &location,
+                &offset,
+                &time,
+            ))
         })
         .collect();
-    items.sort_by_key(|item| item.name().to_lowercase());
+    items.sort_by_key(|item| item.city_name().to_lowercase());
     items
 }
 
@@ -193,7 +208,7 @@ fn create_factory() -> gtk::SignalListItemFactory {
             if let Some(widget) = timezone_grid.child_at(0, 0)
                 && let Ok(label) = widget.downcast::<gtk::Label>()
             {
-                let escaped = glib::markup_escape_text(&timezone_item.name());
+                let escaped = glib::markup_escape_text(&timezone_item.city_name());
                 label.set_label(&escaped);
             }
             if let Some(widget) = timezone_grid.child_at(1, 0)
@@ -238,7 +253,7 @@ pub fn open_tz_dialog(parent: &impl IsA<gtk::Widget>, on_select: Rc<dyn Fn(&str)
     let sort_expression = gtk::PropertyExpression::new(
         TimezoneItem::static_type(),
         None::<&gtk::Expression>,
-        "name",
+        "city_name",
     );
     let sorter = gtk::StringSorter::new(Some(sort_expression));
     let sorted = gtk::SortListModel::new(Some(store), Some(sorter));
@@ -266,7 +281,7 @@ pub fn open_tz_dialog(parent: &impl IsA<gtk::Widget>, on_select: Rc<dyn Fn(&str)
                 let search_lower = text.to_lowercase();
                 let words: Vec<&str> = search_lower.split_whitespace().collect();
                 words.iter().all(|word| {
-                    item.name().to_lowercase().contains(word)
+                    item.city_name().to_lowercase().contains(word)
                         || item.zone().to_lowercase().contains(word)
                         || item.zone_label().to_lowercase().contains(word)
                         || item.location().to_lowercase().contains(word)
@@ -357,4 +372,28 @@ pub fn open_tz_dialog(parent: &impl IsA<gtk::Widget>, on_select: Rc<dyn Fn(&str)
     });
 
     dialog.present(Some(parent));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::picker_zone_names;
+
+    #[test]
+    fn picker_zone_names_reads_zone_tab_column_three() {
+        let zones = picker_zone_names();
+        assert!(zones.contains("Africa/Casablanca"));
+        assert!(zones.contains("America/New_York"));
+        assert!(zones.contains("Europe/Oslo"));
+        assert!(!zones.contains("US/Eastern"));
+    }
+
+    #[test]
+    fn every_picker_zone_exists_in_jiffs_database() {
+        for zone in picker_zone_names() {
+            assert!(
+                jiff::tz::TimeZone::get(zone).is_ok(),
+                "zone.tab zone missing from jiff: {zone}"
+            );
+        }
+    }
 }

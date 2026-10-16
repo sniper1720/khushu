@@ -1,5 +1,4 @@
 use chrono::{DateTime, Datelike, Local, NaiveDate, TimeZone, Timelike, Utc};
-use chrono_tz::Tz;
 use mawaqit::{Configuration, Coordinates, Madhab, Method, Prayer, PrayerTimes};
 
 use crate::config::{
@@ -198,7 +197,7 @@ fn parse_hm(text: &str) -> Option<(u32, u32)> {
 pub fn schedule_from_hm(
     date: NaiveDate,
     times: &[String; 6],
-    timezone: Option<&Tz>,
+    timezone: Option<&jiff::tz::TimeZone>,
 ) -> Option<PrayerSchedule> {
     let fajr_time = wall_clock_from_hm(date, &times[0], timezone)?;
     let shurooq_time = wall_clock_from_hm(date, &times[1], timezone)?;
@@ -220,7 +219,7 @@ pub fn schedule_from_hm(
 fn wall_clock_from_hm(
     date: NaiveDate,
     time: &str,
-    timezone: Option<&Tz>,
+    timezone: Option<&jiff::tz::TimeZone>,
 ) -> Option<DateTime<Local>> {
     let (hours, minutes) = parse_hm(time)?;
     wall_clock_to_local(date, hours, minutes, timezone)
@@ -235,13 +234,30 @@ fn wall_clock_to_local(
     date: NaiveDate,
     hours: u32,
     minutes: u32,
-    timezone: Option<&Tz>,
+    timezone: Option<&jiff::tz::TimeZone>,
 ) -> Option<DateTime<Local>> {
     match timezone {
         Some(zone) => {
             let naive = date.and_hms_opt(hours, minutes, 0)?;
-            let zoned = zone.from_local_datetime(&naive).single()?;
-            Some(zoned.with_timezone(&Local))
+            let civil =
+                jiff::civil::date(naive.year() as i16, naive.month() as i8, naive.day() as i8).at(
+                    naive.hour() as i8,
+                    naive.minute() as i8,
+                    naive.second() as i8,
+                    0,
+                );
+            // `earlier()` picks the earlier of the two possible instants: the
+            // pre-transition offset in a fold and the post-transition offset in a gap.
+            // Either way the slot resolves, so a transition day keeps all six prayers.
+            let zoned = zone.to_ambiguous_zoned(civil).earlier().ok()?;
+            let timestamp = zoned.timestamp();
+            Some(
+                chrono::DateTime::from_timestamp(
+                    timestamp.as_second(),
+                    timestamp.subsec_nanosecond() as u32,
+                )?
+                .with_timezone(&Local),
+            )
         }
         None => Local
             .with_ymd_and_hms(date.year(), date.month(), date.day(), hours, minutes, 0)
@@ -265,7 +281,7 @@ pub fn schedule_for_config(config: &AppConfig, date: NaiveDate) -> Result<Prayer
             let mosque_timezone = cache
                 .timezone
                 .as_deref()
-                .and_then(|timezone| timezone.parse::<Tz>().ok());
+                .and_then(|timezone| jiff::tz::TimeZone::get(timezone).ok());
             return schedule_from_hm(date, arr, mosque_timezone.as_ref())
                 .map(|schedule| PrayerResult {
                     schedule,
@@ -343,17 +359,16 @@ pub fn effective_now(config: &AppConfig) -> DateTime<Local> {
     match config.timezone_mode() {
         TimezoneMode::Auto => Local::now(),
         TimezoneMode::Named(timezone_str) => {
-            if let Ok(timezone) = timezone_str.parse::<Tz>() {
-                let utc_now = Utc::now();
-                let in_timezone = utc_now.with_timezone(&timezone);
+            if let Ok(timezone) = jiff::tz::TimeZone::get(&timezone_str) {
+                let in_timezone = jiff::Timestamp::now().to_zoned(timezone).datetime();
                 Local
                     .with_ymd_and_hms(
-                        in_timezone.year(),
-                        in_timezone.month(),
-                        in_timezone.day(),
-                        in_timezone.hour(),
-                        in_timezone.minute(),
-                        in_timezone.second(),
+                        in_timezone.year() as i32,
+                        in_timezone.month() as u32,
+                        in_timezone.day() as u32,
+                        in_timezone.hour() as u32,
+                        in_timezone.minute() as u32,
+                        in_timezone.second() as u32,
                     )
                     .single()
                     .unwrap_or_else(Local::now)
@@ -430,17 +445,19 @@ pub fn apply_timezone_override(config: &AppConfig, schedule: PrayerSchedule) -> 
     match config.timezone_mode() {
         TimezoneMode::Auto => schedule,
         TimezoneMode::Named(timezone_str) => {
-            if let Ok(timezone) = timezone_str.parse::<Tz>() {
+            if let Ok(timezone) = jiff::tz::TimeZone::get(&timezone_str) {
                 let shift_time = |datetime: DateTime<Local>| -> DateTime<Local> {
-                    let in_target = datetime.with_timezone(&timezone);
+                    let timestamp = jiff::Timestamp::from_second(datetime.timestamp())
+                        .unwrap_or(jiff::Timestamp::now());
+                    let in_target = timestamp.to_zoned(timezone.clone()).datetime();
                     Local
                         .with_ymd_and_hms(
-                            in_target.year(),
-                            in_target.month(),
-                            in_target.day(),
-                            in_target.hour(),
-                            in_target.minute(),
-                            in_target.second(),
+                            in_target.year() as i32,
+                            in_target.month() as u32,
+                            in_target.day() as u32,
+                            in_target.hour() as u32,
+                            in_target.minute() as u32,
+                            in_target.second() as u32,
                         )
                         .single()
                         .unwrap_or(datetime)
@@ -711,7 +728,7 @@ mod tests {
 
     #[test]
     fn mawaqit_schedule_builds_real_instant_in_mosque_timezone() {
-        let moscow: Tz = "Europe/Moscow".parse().unwrap();
+        let moscow = jiff::tz::TimeZone::get("Europe/Moscow").unwrap();
         let date = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
         let schedule = schedule_from_hm(
             date,
@@ -728,10 +745,10 @@ mod tests {
         .expect("schedule");
 
         // The published wall-clock is preserved in the mosque timezone...
-        let fajr_wall_clock = schedule
-            .fajr
-            .with_timezone(&moscow)
-            .format("%H:%M")
+        let fajr_wall_clock = jiff::Timestamp::from_second(schedule.fajr.timestamp())
+            .unwrap()
+            .to_zoned(moscow.clone())
+            .strftime("%H:%M")
             .to_string();
         assert_eq!(fajr_wall_clock, "03:03");
         // ...and the underlying instant is real (Moscow is UTC+3), never
@@ -742,6 +759,52 @@ mod tests {
             .format("%H:%M")
             .to_string();
         assert_eq!(fajr_utc, "00:03");
+    }
+
+    #[test]
+    fn casablanca_observes_zero_offset_after_the_2026_transition() {
+        // The database ends Morocco's permanent +01 observance on
+        // 2026-09-20; a stale timezone table would keep reporting +01.
+        let casablanca = jiff::tz::TimeZone::get("Africa/Casablanca").unwrap();
+        let date = NaiveDate::from_ymd_opt(2026, 9, 21).unwrap();
+        let schedule = schedule_from_hm(
+            date,
+            &["05:00", "06:00", "12:00", "15:00", "18:00", "19:00"].map(String::from),
+            Some(&casablanca),
+        )
+        .expect("schedule");
+
+        let offset = jiff::Timestamp::from_second(schedule.dhuhr.timestamp())
+            .unwrap()
+            .to_zoned(casablanca)
+            .offset()
+            .seconds();
+        assert_eq!(
+            offset, 0,
+            "Africa/Casablanca must observe +00 after 2026-09-20"
+        );
+    }
+
+    #[test]
+    fn dst_fall_back_day_yields_a_complete_schedule() {
+        // A prayer time inside the repeated hour used to make `.single()`
+        // return None and void the entire day's schedule. The earlier instant
+        // must now be chosen so all six slots survive.
+        let new_york = jiff::tz::TimeZone::get("America/New_York").unwrap();
+        let date = NaiveDate::from_ymd_opt(2026, 11, 1).unwrap();
+        let schedule = schedule_from_hm(
+            date,
+            &["01:30", "06:30", "12:00", "15:00", "17:30", "19:45"].map(String::from),
+            Some(&new_york),
+        )
+        .expect("a fall-back day must still produce all six prayer times");
+
+        let fajr = jiff::Timestamp::from_second(schedule.fajr.timestamp())
+            .unwrap()
+            .to_zoned(new_york)
+            .strftime("%H:%M")
+            .to_string();
+        assert_eq!(fajr, "01:30");
     }
 
     #[test]
